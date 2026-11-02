@@ -30,6 +30,7 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   const y = box.y + box.height / 2;
   const session = await page.context().newCDPSession(page);
   await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x + box.width - 8, y, id: 1 }] });
+  await page.waitForTimeout(450);
   await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: first.x + first.width / 2, y, id: 1 }] });
   await expect(chart.locator(".entry-chart-readout")).toBeVisible();
   await expect(chart.locator("h3")).toBeHidden();
@@ -48,7 +49,7 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   expect(await chart.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
 
-test("dragging the phone chart does not scroll the detail panel", async ({ page }) => {
+test("dragging the phone chart after a hold does not scroll the detail panel", async ({ page }) => {
   await page.goto("/");
   await page.locator("#stock-rows .entry-score-button").first().click();
   const dialog = page.locator("#info-dialog");
@@ -58,6 +59,8 @@ test("dragging the phone chart does not scroll the detail panel", async ({ page 
   const startScroll = await dialog.evaluate((element) => element.scrollTop);
   const session = await page.context().newCDPSession(page);
   await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x + box.width - 12, y: box.y + box.height * 0.35, id: 1 }] });
+  await page.waitForTimeout(450);
+  await expect(dialog.locator(".entry-chart-readout")).toBeVisible();
   for (let step = 1; step <= 5; step++) {
     await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: box.x + box.width - 12 - step * (box.width - 24) / 5, y: box.y + box.height * (0.35 + step * 0.08), id: 1 }] });
   }
@@ -65,6 +68,26 @@ test("dragging the phone chart does not scroll the detail panel", async ({ page 
   await expect.poll(async () => Number(await plot.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(2);
   await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   expect(await dialog.evaluate((element) => element.scrollTop)).toBe(startScroll);
+});
+
+test("a quick vertical swipe on the phone chart scrolls the detail panel instead of scrubbing", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#stock-rows .entry-score-button").first().click();
+  const dialog = page.locator("#info-dialog");
+  const plot = dialog.locator(".entry-chart-plot");
+  await plot.scrollIntoViewIfNeeded();
+  const box = await plot.boundingBox();
+  const startScroll = await dialog.evaluate((element) => element.scrollTop);
+  const startIndex = await plot.getAttribute("aria-valuenow");
+  const session = await page.context().newCDPSession(page);
+  const x = box.x + box.width * 0.3, y = box.y + box.height * 0.8;
+  await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] });
+  for (let step = 1; step <= 6; step++)
+    await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y - step * 25, id: 1 }] });
+  await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(() => dialog.evaluate((element) => element.scrollTop)).toBeGreaterThan(startScroll);
+  await expect(plot).toHaveAttribute("aria-valuenow", startIndex);
+  await expect(dialog.locator(".entry-chart-readout")).toBeHidden();
 });
 
 test("touching a market row does not leave a blue focus outline", async ({ page }) => {

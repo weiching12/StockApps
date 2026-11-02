@@ -137,6 +137,8 @@ let nativeStorage, nativePush;
 let checkPwaUpdate = async () => false;
 let startupVersionCheck = Promise.resolve(false);
 let touchInteraction = false;
+const ENTRY_CHART_HOLD_MS = 300, ENTRY_CHART_TOUCH_SLOP = 10;
+let entryTouch = null;
 const pendingSymbols = new Set();
 let updateFlow;
 const showUpdateState = createUpdateDialog({ onUpdate: () => updateFlow.apply(), isBlocking: () => updateFlow?.isBlocking() ?? true });
@@ -855,9 +857,30 @@ function bindEvents() {
     }
     const plot = event.target.closest(".entry-chart-plot");
     if (!plot) return;
+    if (event.pointerType === "touch") {
+      // Touch scrubbing starts only after a hold, so a quick swipe still scrolls the page.
+      clearTimeout(entryTouch?.timer);
+      entryTouch = { plot, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY,
+        x: event.clientX, active: false };
+      entryTouch.timer = setTimeout(() => {
+        if (!entryTouch || entryTouch.plot !== plot) return;
+        entryTouch.active = true;
+        plot.focus({ preventScroll: true });
+        try { plot.setPointerCapture(entryTouch.pointerId); } catch { /* pointer already released */ }
+        selectEntryChartPoint(plot, chartIndexAt(plot, entryTouch.x), number);
+      }, ENTRY_CHART_HOLD_MS);
+      return;
+    }
     plot.focus({ preventScroll: true });
     plot.setPointerCapture(event.pointerId);
     selectEntryChartPoint(plot, chartIndexAt(plot, event.clientX), number);
+  });
+  // Once a hold has started scrubbing, keep the finger's movement from scrolling the page.
+  document.addEventListener("touchmove", (event) => {
+    if (entryTouch?.active) event.preventDefault();
+  }, { passive: false });
+  document.addEventListener("contextmenu", (event) => {
+    if (event.target.closest(".entry-chart-plot")) event.preventDefault();
   });
   document.addEventListener("pointermove", (event) => {
     const scorePlot = event.target.closest(".research-score-plot");
@@ -872,12 +895,33 @@ function bindEvents() {
       selectResearchReviewPoint(reviewPlot, reviewIndexAt(reviewPlot, event.clientX));
       return;
     }
+    if (entryTouch?.pointerId === event.pointerId) {
+      entryTouch.x = event.clientX;
+      if (entryTouch.active) selectEntryChartPoint(entryTouch.plot, chartIndexAt(entryTouch.plot, event.clientX), number);
+      else if (Math.hypot(event.clientX - entryTouch.startX, event.clientY - entryTouch.startY) > ENTRY_CHART_TOUCH_SLOP) {
+        clearTimeout(entryTouch.timer);
+        entryTouch = null;
+      }
+      return;
+    }
     const plot = event.target.closest(".entry-chart-plot");
     if (plot?.hasPointerCapture(event.pointerId))
       selectEntryChartPoint(plot, chartIndexAt(plot, event.clientX), number);
   });
   for (const eventName of ["pointerup", "pointercancel"])
     document.addEventListener(eventName, (event) => {
+      if (entryTouch?.pointerId === event.pointerId) {
+        const { plot, active, timer, x } = entryTouch;
+        clearTimeout(timer);
+        entryTouch = null;
+        // A short tap still selects the touched trading day.
+        if (!active && eventName === "pointerup") {
+          plot.focus({ preventScroll: true });
+          selectEntryChartPoint(plot, chartIndexAt(plot, x), number);
+        }
+        restoreEntryChartTitle(plot);
+        return;
+      }
       const plot = event.target.closest(".entry-chart-plot");
       if (plot) restoreEntryChartTitle(plot);
     });
