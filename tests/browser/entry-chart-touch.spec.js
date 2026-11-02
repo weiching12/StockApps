@@ -7,6 +7,8 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   await page.locator("#stock-rows .entry-score-button").first().click();
   const chart = page.locator(".entry-price-chart");
   const plot = chart.locator(".entry-chart-plot");
+  // The chart follows the research sections; bring it on screen before touching it.
+  await plot.scrollIntoViewIfNeeded();
   await expect(chart.locator("h3")).toBeVisible();
   await expect(chart.locator(".entry-chart-readout")).toBeHidden();
   await expect(chart.locator(".entry-chart-latest")).toBeVisible();

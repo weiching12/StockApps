@@ -1,44 +1,41 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compareDefaultMarketStocks } from "../src/ui/market.js";
+import { compareResearchStocks, matchesResearchFilter } from "../src/ui/entry-research.js";
 
-const stock = (symbol, net, signal = "neutral", trend = "unclear") => ({
-  symbol,
-  latest: net === undefined ? null : { institutionalNet: net },
-  signal: signal === null ? null : { code: signal },
-  trend: trend === null ? null : { code: trend },
-});
+// A compact research summary as the market summary API returns it.
+const stock = (symbol, { gate = "FAIL", passed = 4, score = null, status = "NOT_ELIGIBLE", next = "NOT_ELIGIBLE", setup = null } = {}) =>
+  ({ symbol, entryResearch: { gateStatus: gate, gatePassed: passed, gateTotal: 5, score, status, nextDayStatus: next, setupType: setup } });
 
-test("default market order puts complete rows first by signed institutional shares", () => {
+test("default market order groups candidates, other gate passes, price too high, then the rest", () => {
   const stocks = [
-    stock("SELL", -3000), stock("BUY", 5000), stock("FLAT", 0),
-    stock("SMALL", 100), stock("TIE-B", 100), stock("TIE-A", 100),
+    stock("FAIL-4", { passed: 4 }), stock("HIGH", { gate: "PASS", passed: 5, score: 90, status: "TRIGGERED", next: "PRICE_TOO_HIGH" }),
+    stock("WAIT-70", { gate: "PASS", passed: 5, score: 70, status: "WAIT_TRIGGER", next: "WAIT_TRIGGER" }),
+    stock("CAND-60", { gate: "PASS", passed: 5, score: 60, status: "TRIGGERED", next: "NEXT_DAY_CANDIDATE" }),
+    stock("CAND-80", { gate: "PASS", passed: 5, score: 80, status: "TRIGGERED", next: "NEXT_DAY_CANDIDATE" }),
+    stock("WAIT-95", { gate: "PASS", passed: 5, score: 95, status: "WAIT_TRIGGER", next: "WAIT_TRIGGER" }),
+    stock("UNKNOWN-4", { gate: "UNKNOWN", passed: 4, status: "DATA_INSUFFICIENT", next: "DATA_INSUFFICIENT" }),
+    stock("FAIL-2", { passed: 2 }), { symbol: "NO-DATA" },
   ];
-  assert.deepEqual(stocks.sort(compareDefaultMarketStocks).map(({ symbol }) => symbol),
-    ["BUY", "SMALL", "TIE-A", "TIE-B", "FLAT", "SELL"]);
+  assert.deepEqual(stocks.sort(compareResearchStocks).map(({ symbol }) => symbol),
+    ["CAND-80", "CAND-60", "WAIT-95", "WAIT-70", "HIGH", "FAIL-4", "UNKNOWN-4", "FAIL-2", "NO-DATA"]);
 });
 
-test("missing KD or trend data follows complete rows even with more institutional shares", () => {
-  const stocks = [
-    stock("NO-KD", 9000, "insufficient"), stock("NO-TREND", 8000, "neutral", "insufficient"),
-    stock("BOTH-MISSING", 7000, "insufficient", "insufficient"), stock("NO-SIGNAL", 6000, null),
-    stock("NO-TREND-OBJECT", 5000, "neutral", null), stock("COMPLETE", -100),
-  ];
-  assert.deepEqual(stocks.sort(compareDefaultMarketStocks).map(({ symbol }) => symbol),
-    ["COMPLETE", "NO-KD", "NO-TREND", "BOTH-MISSING", "NO-SIGNAL", "NO-TREND-OBJECT"]);
+test("a high-scoring waiting stock never outranks a next-day candidate", () => {
+  const stocks = [stock("WAIT-99", { gate: "PASS", passed: 5, score: 99, status: "WAIT_TRIGGER", next: "WAIT_TRIGGER" }),
+    stock("CAND-41", { gate: "PASS", passed: 5, score: 41, status: "TRIGGERED", next: "NEXT_DAY_CANDIDATE" })];
+  assert.deepEqual(stocks.sort(compareResearchStocks).map(({ symbol }) => symbol), ["CAND-41", "WAIT-99"]);
 });
 
-test("missing institutional data is last, including a traded stock like 5906", () => {
-  const stocks = [stock("5906", null, "bearish-watch", "insufficient"), stock("NO-QUOTE", undefined),
-    stock("HAS-NET-AND-ANALYSIS", -5000), stock("HAS-NET-NO-TREND", -10000, "neutral", "insufficient")];
-  assert.deepEqual(stocks.sort(compareDefaultMarketStocks).map(({ symbol }) => symbol),
-    ["HAS-NET-AND-ANALYSIS", "HAS-NET-NO-TREND", "5906", "NO-QUOTE"]);
-});
-
-test("an ETF with missing KD and trend follows every technically complete stock", () => {
-  const stocks = [stock("00701", 120908, "insufficient", "insufficient"),
-    stock("COMPLETE-NO-NET", null), stock("COMPLETE-WITH-NET", -1000),
-    stock("5906", null, "bearish-watch", "insufficient")];
-  assert.deepEqual(stocks.sort(compareDefaultMarketStocks).map(({ symbol }) => symbol),
-    ["COMPLETE-WITH-NET", "COMPLETE-NO-NET", "00701", "5906"]);
+test("research filters match the compact summary without treating UNKNOWN as a pass", () => {
+  const candidate = stock("C", { gate: "PASS", passed: 5, score: 82, status: "TRIGGERED", next: "NEXT_DAY_CANDIDATE", setup: "RANGE_BREAKOUT" });
+  const unknown = stock("U", { gate: "UNKNOWN", passed: 5, status: "DATA_INSUFFICIENT", next: "DATA_INSUFFICIENT" });
+  assert.equal(matchesResearchFilter(candidate, "gatePass"), true);
+  assert.equal(matchesResearchFilter(unknown, "gatePass"), false);
+  assert.equal(matchesResearchFilter(candidate, "candidate"), true);
+  assert.equal(matchesResearchFilter(candidate, "breakout"), true);
+  assert.equal(matchesResearchFilter(candidate, "pullback"), false);
+  assert.equal(matchesResearchFilter(candidate, "score80"), true);
+  assert.equal(matchesResearchFilter(candidate, "score60"), false);
+  assert.equal(matchesResearchFilter({ symbol: "X" }, "triggered"), false);
+  assert.equal(matchesResearchFilter({ symbol: "X" }, "all"), true);
 });

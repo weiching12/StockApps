@@ -1,4 +1,5 @@
 import { filterStocks, getDominantInstitution } from "../../shared/indicators.js";
+import { compareResearchStocks, matchesResearchFilter, researchListCells, researchSummaryOf } from "./entry-research.js";
 
 export function entryScoreChangePresentation(stock, number) {
   const entry = stock.entryScore, change = stock.entryScoreChange;
@@ -18,45 +19,32 @@ export function entryScoreChangePresentation(stock, number) {
   return { label: "前期無法比較", title: "尚無可用的前期比較結果，連線後請重新整理" };
 }
 
-export function compareDefaultMarketStocks(a, b) {
-  const rank = (stock) => {
-    const analysisIncomplete = !stock.latest || !stock.signal?.code || stock.signal.code === "insufficient" ||
-      !stock.trend?.code || stock.trend.code === "insufficient";
-    const institutionUnavailable = !Number.isFinite(stock.latest?.institutionalNet);
-    return Number(analysisIncomplete) * 2 + Number(institutionUnavailable);
-  };
-  const aRank = rank(a), bRank = rank(b);
-  const rankDifference = aRank - bRank;
-  if (rankDifference) return rankDifference;
-  if (aRank % 2 === 1) return a.symbol.localeCompare(b.symbol);
-  const netDifference = b.latest.institutionalNet - a.latest.institutionalNet;
-  return netDifference || a.symbol.localeCompare(b.symbol);
-}
-
 export function renderMarketView(context) {
   const { state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl } = context;
-  const visibleStocks = filterStocks(snapshots, state);
-  if (["all", "favorites"].includes(state.view)) {
+  const visibleStocks = filterStocks(snapshots, state).filter((stock) => matchesResearchFilter(stock, state.research));
+  if (["all", "favorites"].includes(state.view) && (!state.research || state.research === "all")) {
     const query = state.query.trim().toLocaleLowerCase();
     visibleStocks.push(...snapshots.filter((stock) => pendingSymbols.has(stock.symbol) &&
       (state.sector === "all" || stock.sector === state.sector) &&
       (state.view !== "favorites" || state.favorites.includes(stock.symbol)) &&
       (!query || `${stock.symbol} ${stock.name}`.toLocaleLowerCase().includes(query))));
   }
-  if (state.sort)
+  if (state.sort === "symbol") visibleStocks.sort((a, b) => a.symbol.localeCompare(b.symbol) * state.sortDirection);
+  else if (state.sort)
     visibleStocks.sort((a, b) => {
       if (!a.latest) return b.latest ? 1 : 0;
       if (!b.latest) return -1;
-      const av = state.sort === "entryScore" ? a.entryScore?.finalScore ?? null :
-        state.sort === "institutionalNet" ? stockMoney(a, "total", "day") : a.latest[state.sort];
-      const bv = state.sort === "entryScore" ? b.entryScore?.finalScore ?? null :
-        state.sort === "institutionalNet" ? stockMoney(b, "total", "day") : b.latest[state.sort];
+      const value = (stock) => state.sort === "readiness" ? researchSummaryOf(stock)?.score ?? null :
+        state.sort === "institutionalNet" ? stockMoney(stock, "total", "day") : stock.latest[state.sort] ?? null;
+      const av = value(a), bv = value(b);
       if (av === null) return bv === null ? 0 : 1;
       if (bv === null) return -1;
       return (av - bv) * state.sortDirection;
     });
-  else visibleStocks.sort(compareDefaultMarketStocks);
-  const nextViewKey = [state.date, state.view, state.sector, state.query, state.sort, state.sortDirection].join("|");
+  else visibleStocks.sort(compareResearchStocks);
+  const sortSelect = document.querySelector("#market-sort");
+  if (sortSelect) sortSelect.value = [...sortSelect.options].some((option) => option.value === state.sort) ? state.sort : "";
+  const nextViewKey = [state.date, state.view, state.sector, state.research, state.query, state.sort, state.sortDirection].join("|");
   if (nextViewKey !== tableState.viewKey) {
     tableState.viewKey = nextViewKey;
     tableState.visibleLimit = TABLE_BATCH_SIZE;
@@ -75,7 +63,7 @@ export function renderMarketView(context) {
       if (!cached || cached.stock !== stock || cached.favorite !== favorite || cached.loading !== loading) {
         row ??= document.createElement("tr");
         row.dataset.symbol = stock.symbol;
-        row.innerHTML = `<td><button class="icon-button favorite-button ${favorite ? "is-favorite" : ""}" data-favorite="${stock.symbol}" aria-label="${favorite ? "移除" : "加入"}${esc(stock.name)}自選" aria-pressed="${favorite}">${icon("star")}</button></td><th scope="row"><div class="stock-name"><strong>${stock.symbol}</strong><span>${esc(stock.name)}</span></div></th><td class="entry-cell">${pendingField()}</td><td>${pendingField()}</td><td class="price-volume-cell">${pendingField()}</td><td class="trend-cell">${pendingField()}</td><td class="net-cell-mobile">${pendingField()}</td>${Array.from({ length: 4 }, () => `<td>${pendingField()}</td>`).join("")}<td class="net-cell-desktop">${pendingField()}</td>`;
+        row.innerHTML = `<td><button class="icon-button favorite-button ${favorite ? "is-favorite" : ""}" data-favorite="${stock.symbol}" aria-label="${favorite ? "移除" : "加入"}${esc(stock.name)}自選" aria-pressed="${favorite}">${icon("star")}</button></td><th scope="row"><div class="stock-name"><strong>${stock.symbol}</strong><span>${esc(stock.name)}</span></div></th><td class="entry-cell">${pendingField()}</td><td class="research-cell">${pendingField()}</td><td>${pendingField()}</td><td class="price-volume-cell">${pendingField()}</td><td class="trend-cell">${pendingField()}</td><td class="net-cell-mobile">${pendingField()}</td>${Array.from({ length: 4 }, () => `<td>${pendingField()}</td>`).join("")}<td class="net-cell-desktop">${pendingField()}</td>`;
         tableRowCache.set(row, { stock, favorite, loading });
       }
     } else if (!cached || cached.stock !== stock || cached.favorite !== favorite) {
@@ -92,15 +80,8 @@ export function renderMarketView(context) {
       const trend = stock.trend ?? { code: "insufficient", label: "資料不足", reason: "歷史行情不足" };
       const trendCell = `<span class="trend-label ${esc(trend.code)}">${esc(trend.label)}</span><small class="trend-reason">${esc(trend.reason)}</small>`;
       const mobileNetCell = `<span class="institution-net">${institutionalMoney(netAmount)}</span><small class="institution-volume-share" title="法人淨買賣超股數 ÷ 個股當日成交股數 × 100%">${volumeRatio === null ? "" : `占比 ${percent(volumeRatio)}`}</small><small class="institution-leader">${leaderLabel}</small>`;
-      const entry = stock.entryScore;
-      const change = stock.entryScoreChange;
-      const delta = change?.delta;
-      const changePresentation = entryScoreChangePresentation(stock, number);
-      const changeLabel = Number.isFinite(entry?.finalScore) && Number.isFinite(delta)
-        ? `較前期 <span class="entry-score-delta">${delta > 0 ? "+" : ""}${number(delta, 2)}</span>`
-        : esc(changePresentation.label);
-      const entryCell = `<button type="button" class="entry-score-button" data-entry-score="${stock.symbol}" aria-label="查看${esc(stock.name)}株研評分"><strong>${Number.isFinite(entry?.finalScore) ? number(entry.finalScore, 2) : "—"}</strong><small class="entry-score-change ${Number.isFinite(delta) ? direction(delta) : ""}" title="${esc(changePresentation.title)}">${changeLabel}</small></button>`;
-      const html = `<tr data-symbol="${stock.symbol}"><td><button class="icon-button favorite-button ${favorite ? "is-favorite" : ""}" data-favorite="${stock.symbol}" aria-label="${favorite ? "移除" : "加入"}${esc(stock.name)}自選" aria-pressed="${favorite}">${icon("star")}</button></td><th scope="row"><div class="stock-name"><strong>${stock.symbol}</strong><span>${esc(stock.name)}<span class="sector-inline">${esc(stock.sector)}</span></span></div></th><td class="entry-cell">${entryCell}</td><td class="price-cell"><span class="stock-price-line"><span class="stock-close">${number(bar.close, 2)}</span><span class="mobile-change change-chip ${direction(bar.changePercent)}">${percent(bar.changePercent)}</span></span></td><td class="price-volume-cell">${priceVolumeCell}</td><td class="trend-cell">${trendCell}</td><td class="net-cell-mobile ${direction(bar.institutionalNet)}">${mobileNetCell}</td><td class="change-cell"><span class="change-chip ${direction(bar.changePercent)}">${percent(bar.changePercent)}</span></td><td><span class="k-cell">${number(bar.k, 2)}${bar.k !== null ? `<i style="--k:${Math.max(0, Math.min(100, bar.k))}%"></i>` : ""}</span><small class="kd-detail">D ${number(bar.d, 2)}</small></td><td class="signal-cell"><span class="signal-badge ${signal.tone}" data-signal="${signal.code}">${esc(signal.label)}</span><small class="signal-reason">${esc(signal.reason)}</small></td><td><span class="position-tag ${direction(bar.deviation)}">${bar.deviation === null ? "資料不足" : bar.deviation > 0 ? "季線之上" : bar.deviation < 0 ? "季線之下" : "季線持平"}</span><small class="deviation ${direction(bar.deviation)}">${percent(bar.deviation)}</small></td><td class="net-cell-desktop ${direction(bar.institutionalNet)}">${netCell}</td></tr>`;
+      const cells = researchListCells(stock, esc, number);
+      const html = `<tr data-symbol="${stock.symbol}"><td><button class="icon-button favorite-button ${favorite ? "is-favorite" : ""}" data-favorite="${stock.symbol}" aria-label="${favorite ? "移除" : "加入"}${esc(stock.name)}自選" aria-pressed="${favorite}">${icon("star")}</button></td><th scope="row"><div class="stock-name"><strong>${stock.symbol}</strong><span>${esc(stock.name)}<span class="sector-inline">${esc(stock.sector)}</span></span></div></th><td class="entry-cell">${cells.readiness}</td><td class="research-cell">${cells.research}</td><td class="price-cell"><span class="stock-price-line"><span class="stock-close">${number(bar.close, 2)}</span><span class="mobile-change change-chip ${direction(bar.changePercent)}">${percent(bar.changePercent)}</span></span></td><td class="price-volume-cell">${priceVolumeCell}</td><td class="trend-cell">${trendCell}</td><td class="net-cell-mobile ${direction(bar.institutionalNet)}">${mobileNetCell}</td><td class="change-cell"><span class="change-chip ${direction(bar.changePercent)}">${percent(bar.changePercent)}</span></td><td><span class="k-cell">${number(bar.k, 2)}${bar.k !== null ? `<i style="--k:${Math.max(0, Math.min(100, bar.k))}%"></i>` : ""}</span><small class="kd-detail">D ${number(bar.d, 2)}</small></td><td class="signal-cell"><span class="signal-badge ${signal.tone}" data-signal="${signal.code}">${esc(signal.label)}</span><small class="signal-reason">${esc(signal.reason)}</small></td><td><span class="position-tag ${direction(bar.deviation)}">${bar.deviation === null ? "資料不足" : bar.deviation > 0 ? "季線之上" : bar.deviation < 0 ? "季線之下" : "季線持平"}</span><small class="deviation ${direction(bar.deviation)}">${percent(bar.deviation)}</small></td><td class="net-cell-desktop ${direction(bar.institutionalNet)}">${netCell}</td></tr>`;
       const holder = document.createElement("tbody");
       holder.innerHTML = html;
       if (row) row.replaceChildren(...holder.firstElementChild.childNodes);
@@ -109,11 +90,11 @@ export function renderMarketView(context) {
     }
     row.setAttribute("aria-busy", String(!stock.latest && loading));
     row.tabIndex = 0;
-    row.setAttribute("aria-label", `查看${stock.name}株研評分`);
+    row.setAttribute("aria-label", `查看${stock.name}進場研究`);
     if (row === cursor) cursor = cursor.nextElementSibling;
     else body.insertBefore(row, cursor);
   });
-  if (loading && !dataset.stocks.length) body.innerHTML = `<tr class="initial-field-row" aria-busy="true"><td></td><th scope="row">股票資料</th>${Array.from({ length: 10 }, () => `<td>${loadingIcon()}</td>`).join("")}</tr>`;
+  if (loading && !dataset.stocks.length) body.innerHTML = `<tr class="initial-field-row" aria-busy="true"><td></td><th scope="row">股票資料</th>${Array.from({ length: 11 }, () => `<td>${loadingIcon()}</td>`).join("")}</tr>`;
   document.querySelector("#table-empty").hidden = visibleStocks.length !== 0 || loading || loadFailed;
   document.querySelector("#favorite-count").textContent =
     state.favorites.length;

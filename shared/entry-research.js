@@ -187,8 +187,10 @@ export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActi
   const reader = sessionReader(priced.stock.history, tradingDates, asOf);
   const today = reader.bar(reader.index);
   const base = { stockCode: stock.symbol, asOf, modelVersion: model.version, provisional: model.provisional };
-  const dataQuality = { status: gate.status === "UNKNOWN" ? "INSUFFICIENT" : result.conflictingEvidence?.length ? "WARNING" : "VALID",
-    priceBasis: result.priceBasis, warnings: [...(result.conflictingEvidence ?? [])], missing: [...(result.missingData ?? [])] };
+  // Only notes about the price data itself count here; V1.2's analytical cautions are not data problems.
+  const warnings = (result.conflictingEvidence ?? []).filter((note) => /公司行動|還原|除息/.test(note));
+  const dataQuality = { status: gate.status === "UNKNOWN" ? "INSUFFICIENT" : warnings.length ? "WARNING" : "VALID",
+    priceBasis: result.priceBasis, warnings, missing: [...(result.missingData ?? [])] };
   const research = { score: null, status: null, label: null, setupType: null, setupLabel: null, componentScores: null,
     weights: { ...model.weights }, signal: null, triggeredConditions: [], pendingConditions: [], strengths: [], weaknesses: [],
     riskWarnings: [...dataQuality.warnings] };

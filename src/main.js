@@ -27,6 +27,7 @@ import { bindKeyboardNavigation } from "./ui/keyboard.js";
 import { createTableBatchController } from "./ui/table-batches.js";
 import { calculateMarketSentiment } from "../shared/sentiment.js";
 import { entryScoreDayChange, getEntryScore } from "../shared/entry-score.js";
+import { evaluateEntryResearch } from "../shared/entry-research.js";
 import { compareResearchSnapshots, researchSnapshot } from "../shared/research-tracking.js";
 import { activeResearchPeriod, addResearchPeriod, loadResearchStore, persistResearchStore, recordFirstValidSnapshot, recordFirstValidPriceBaseline, removeResearchPeriod } from "./ui/research-store.js";
 import { renderResearchCenter, researchDetailMarkup, selectResearchScorePoint } from "./ui/research.js";
@@ -369,6 +370,9 @@ function refreshData() {
   const forDisplay = (stock, date) => {
     const snapshot = getSnapshot({ ...stock, tradingDates: dataset.dates }, date, state.settings);
     snapshot.entryScore = getEntryScore(snapshot, dataset.dates, date);
+    // Demo data has no server; the same shared research model runs here instead.
+    snapshot.entryResearch = evaluateEntryResearch({ stock: snapshot, tradingDates: dataset.dates, asOf: date,
+      settings: state.settings, score: snapshot.entryScore });
     snapshot.priceHistory = dailyCloseSeries(snapshot.history, dataset.dates, date);
     // The sentiment series needs 60 closes at its oldest point.
     snapshot.history = snapshot.history.slice(-80);
@@ -767,10 +771,12 @@ function resetFilters() {
   state.query = "";
   state.sector = "all";
   state.view = "all";
-  state.sort = "entryScore";
+  state.research = "all";
+  state.sort = "";
   state.sortDirection = -1;
   document.querySelector("#stock-search").value = "";
   document.querySelector("#sector-filter").value = "all";
+  document.querySelector("#market-research-filter").value = "all";
   renderTable();
 }
 
@@ -1168,6 +1174,15 @@ function bindEvents() {
       state.sector = event.target.value;
       renderTable();
     });
+  document.querySelector("#market-research-filter").addEventListener("change", (event) => {
+    state.research = event.target.value;
+    renderTable();
+  });
+  document.querySelector("#market-sort").addEventListener("change", (event) => {
+    state.sort = event.target.value;
+    state.sortDirection = state.sort === "symbol" ? 1 : -1;
+    renderTable();
+  });
   document.querySelector("#trade-date").addEventListener("change", (event) => {
     const previousDate = selectedSummary?.meta.asOf ?? state.date;
     const requestedDate = event.target.value;

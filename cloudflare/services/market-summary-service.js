@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS, getSnapshot, getStockInstitutionEstimate, getStockIns
   getDominantInstitution, getInstitutionNet } from "../../shared/indicators.js";
 import { calculateMarketSentiment } from "../../shared/sentiment.js";
 import { entryScoreDayChange, entryScoreSummary, getEntryScore } from "../../shared/entry-score.js";
+import { entryResearchSummary, evaluateEntryResearch } from "../../shared/entry-research.js";
 import { compareResearchSnapshots, researchConfigId, researchSnapshot } from "../../shared/research-tracking.js";
 import { REVIEW_HISTORY_LIMIT, reviewEventTimeline } from "../../shared/research-review.js";
 import { getSectorDetail, getSectorOverview } from "../../shared/sectors.js";
@@ -80,6 +81,8 @@ export class MarketSummaryService {
         latest: stock.latest, signal: stock.signal, priceVolume: stock.priceVolume,
         trend: stock.trend, entryScore: entryScoreSummary(score),
         entryScoreChange: entryScoreDayChange(score, previousScore, previousDate),
+        entryResearch: entryResearchSummary(evaluateEntryResearch({ stock, tradingDates: dates, asOf,
+          corporateActions: actions, settings, score })),
         dominantInstitution: getDominantInstitution(stock.latest?.institutions),
         money: { day: { total: getStockInstitutionEstimate(stock, "total", "day", dates) } },
       };

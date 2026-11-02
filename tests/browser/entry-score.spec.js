@@ -2,13 +2,14 @@ import { test, expect } from "@playwright/test";
 
 test("entry score stays usable in the market list, detail dialog and phone scroll", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator('[data-sort-heading="entryScore"]')).toContainText("株研評分");
-  await expect(page.locator('[data-sort-heading="entryScore"]')).toHaveAttribute("aria-sort", "descending");
-  const headingColors = await page.locator('[data-sort-heading="entryScore"]').evaluate((heading) =>
+  // The list shows the entry readiness score; the V1.2 score lives in the dialog's legacy section.
+  await expect(page.locator('[data-sort-heading="readiness"]')).toContainText("進場準備度");
+  await expect(page.locator('[data-sort-heading="entryScore"]')).toHaveCount(0);
+  const headingColors = await page.locator('[data-sort-heading="readiness"]').evaluate((heading) =>
     ({ heading: getComputedStyle(heading).color, button: getComputedStyle(heading.querySelector("button")).color }));
   expect(headingColors.button).toBe(headingColors.heading);
   await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
-  const darkHeadingColors = await page.locator('[data-sort-heading="entryScore"]').evaluate((heading) =>
+  const darkHeadingColors = await page.locator('[data-sort-heading="readiness"]').evaluate((heading) =>
     ({ heading: getComputedStyle(heading).color, button: getComputedStyle(heading.querySelector("button")).color }));
   expect(darkHeadingColors.button).toBe(darkHeadingColors.heading);
   await page.evaluate(() => { document.documentElement.dataset.theme = "light"; });
@@ -18,11 +19,8 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   await rows.first().locator(".entry-score-button").hover();
   expect(await rows.first().locator(".entry-score-button strong").evaluate((element) => getComputedStyle(element).color))
     .toBe(scoreColor);
-  const initialScores = await rows.locator(".entry-score-button strong").allTextContents();
-  const initialNumeric = initialScores.map((value) => Number(value)).filter(Number.isFinite);
-  expect(initialNumeric).toEqual([...initialNumeric].sort((a, b) => b - a));
-  await expect(rows.first().locator(".entry-score-button strong")).toHaveText(/^\d+\.\d{2}$/);
-  await expect(rows.first().locator(".entry-score-change")).toContainText(/較前期|當日資料不足|前期資料不足|尚無前期資料/);
+  await expect(rows.first().locator(".entry-score-button strong")).toHaveText(/^(\d+|—)$/);
+  await expect(rows.first().locator(".research-gate")).toContainText(/門檻 \d\/5/);
   const firstListScore = await rows.first().locator(".entry-score-button strong").textContent();
   const firstSymbol = await rows.first().getAttribute("data-symbol");
   await rows.first().locator(".entry-score-button").click();
@@ -34,8 +32,11 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   await expect(page.locator("#dialog-content")).toContainText("波段順勢進場");
   await expect(page.locator("#dialog-content")).toContainText("進場位置與風險");
   await expect(page.locator(".entry-summary-reason")).toHaveCount(0);
-  await expect(page.locator(".entry-summary-head strong")).toContainText(firstListScore);
-  await expect(page.locator(".entry-summary-head strong")).toHaveAttribute("data-score-target", String(Number(firstListScore)));
+  // The dialog's readiness matches the list, and the V1.2 score is labelled as the old composite.
+  if (firstListScore === "—") await expect(page.locator(".research-readiness .research-empty")).toBeVisible();
+  else await expect(page.locator(".research-readiness-score strong")).toHaveText(firstListScore);
+  await expect(page.locator(".entry-legacy > h3")).toContainText("舊版株研評分 V1.2");
+  await expect(page.locator(".entry-summary-head strong")).toHaveAttribute("data-score-target", /\d/);
   await expect(page.locator(".entry-summary-facts")).toHaveCount(0);
   const chart = page.locator(".entry-price-chart");
   const plot = chart.locator(".entry-chart-plot");
@@ -166,15 +167,19 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   await page.locator("#close-dialog").click();
   await rows.first().locator("[data-favorite]").click();
   await expect(page.locator("#info-dialog")).toBeHidden();
-  await page.locator('[data-sort="entryScore"]').click();
+  await page.locator('[data-sort="readiness"]').click();
   const scores = await rows.locator(".entry-score-button strong").allTextContents();
   const numeric = scores.map((value) => Number(value)).filter(Number.isFinite);
-  expect(numeric).toEqual([...numeric].sort((a, b) => a - b));
+  expect(numeric).toEqual([...numeric].sort((a, b) => b - a));
+  await page.locator('[data-sort="readiness"]').click();
+  const ascending = (await rows.locator(".entry-score-button strong").allTextContents()).map(Number).filter(Number.isFinite);
+  expect(ascending).toEqual([...ascending].sort((a, b) => a - b));
+  // Phones show one card per stock without horizontal scrolling.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(rows.first().locator(".entry-score-button")).toBeVisible();
   const bounds = await page.locator(".table-scroll").evaluate((element) =>
     ({ client: element.clientWidth, content: element.scrollWidth }));
-  expect(bounds.content).toBeGreaterThan(bounds.client);
+  expect(bounds.content).toBeLessThanOrEqual(bounds.client);
   await rows.first().locator(".entry-score-button").click();
   await expect(page.locator("#info-dialog")).toBeVisible();
   await expect(page.locator(".entry-price-chart svg circle")).toHaveCount(30);
