@@ -18,9 +18,17 @@ functions without constructing a UI context or supplying formatting callbacks.
 - Net-share totals and estimated monetary totals use the indicator module's
   existing complete-stock-window cohort. Unknown is not zero. Monetary estimates
   use each session's closing price multiplied by that session's net shares.
-- Amount sorting keeps unknown industries last in both directions and preserves
-  input order for equal amounts. Name sorting uses `zh-Hant`. Ranks count only
-  industries with finite monetary totals, in the selected display order.
+- Institutional activity is gross trading regardless of direction: each stock's
+  three institutions' buys plus sells, times that session's close, summed over
+  the window. A stock counts only with every session's close and all three
+  institution rows present. An industry's share is its activity divided by the
+  sum across all listed-company industries (ETFs excluded) for the same window.
+- The default 產業 ordering (`activity-desc`) sorts by that activity, highest
+  first; 買超／賣超 sort by net monetary amount. Unknown values stay last and
+  equal values keep input order. `name-asc` (zh-Hant, i.e. stroke order) remains
+  available to callers but is no longer offered in the UI. Ranks count only
+  industries with a finite value for the active ordering, in display order, so
+  under 產業 the number is the activity rank, not the net-buy rank.
 - TOP1 selects the largest monetary buyer for a positive/zero industry net flow,
   or the largest monetary seller for a negative net flow. Changing display sort
   does not change the leader. Equal candidates retain their original order.

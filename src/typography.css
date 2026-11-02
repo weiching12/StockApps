@@ -185,6 +185,7 @@ thead th button,
   font-size: var(--text-body);
 }
 .sector-breadth,
+.sector-activity,
 .institution-volume-ratio,
 .sector-detail-heading .sector-chart-note {
   font-size: var(--text-meta);

@@ -234,6 +234,27 @@ export function getStockInstitutionEstimate(stock, name, window, tradingDates) {
   return daily.every(Number.isFinite) ? daily.reduce((sum, value) => sum + value, 0) : null;
 }
 
+/** Gross institutional trading (all three institutions' buys + sells) at each session's close, in TWD.
+ * Complete windows only: a missing price or institution row makes the stock's window unknown.
+ */
+export function getStockInstitutionActivity(stock, window, tradingDates) {
+  const days = window === "day" ? 1 : Number(window);
+  const dates = tradingDates.slice(-days);
+  if (![1, 5, 20].includes(days) || dates.length !== days) return null;
+  const history = new Map((stock.history ?? []).map((bar) => [bar.date, bar]));
+  let total = 0;
+  for (const date of dates) {
+    const bar = history.get(date);
+    if (!Number.isFinite(bar?.close) || bar.close <= 0) return null;
+    for (const name of ["外資", "投信", "自營商"]) {
+      const rows = Array.isArray(bar.institutions) ? bar.institutions.filter((item) => item?.name === name) : [];
+      if (rows.length !== 1 || ![rows[0].buy, rows[0].sell].every((n) => Number.isFinite(n) && n >= 0)) return null;
+      total += (rows[0].buy + rows[0].sell) * bar.close;
+    }
+  }
+  return total;
+}
+
 export function getSectorInstitutionEstimate(stocks, window, tradingDates, name = "total") {
   const values = stocks.map((stock) => ({ stock,
     total: getStockInstitutionEstimate(stock, "total", window, tradingDates) }))

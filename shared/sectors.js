@@ -4,6 +4,7 @@ import {
   getInstitutionVolumeRatio,
   getSectorInstitutionEstimate,
   getSectorInstitutionSummary,
+  getStockInstitutionActivity,
   getStockInstitutionEstimate,
   getStockInstitutionValue,
 } from "./indicators.js";
@@ -49,23 +50,43 @@ export function getSectorOverview(snapshots, {
     const { stock: leader, value: leaderValue } = getDirectionalLeader(stocks.map((stock) => ({
       stock, value: getStockInstitutionEstimate(stock, "total", window, selectedDates),
     })), estimate.amount);
+    const activities = stocks.map((stock) => getStockInstitutionActivity(stock, window, selectedDates)).filter(Number.isFinite);
     return {
       name, stocks, summary, estimate, total: summary.total,
+      activity: { amount: activities.length ? activities.reduce((sum, value) => sum + value, 0) : null,
+        available: activities.length, expected: stocks.length, share: null },
       change: priced.length && returns.length === priced.length
         ? returns.reduce((sum, value) => sum + value, 0) / returns.length : null,
       leader, leaderValue,
       leaderChange: leader ? getSectorStockReturn(leader, window, tradingDates) : null,
     };
   });
-  sectors.sort((a, b) => {
+  // Each sector's share of all listed-company institutional trading (ETFs are already excluded).
+  const marketActivity = sectors.reduce((sum, sector) => sum + (sector.activity.amount ?? 0), 0);
+  for (const sector of sectors) sector.activity.share = Number.isFinite(sector.activity.amount) && marketActivity > 0
+    ? sector.activity.amount / marketActivity * 100 : null;
+  sortSectors(sectors, sort);
+  return rankSectors(sectors, sort);
+}
+
+const sortValue = (sector, sort) => sort === "activity-desc" ? sector.activity?.amount ?? null : sector.estimate.amount;
+
+/** Shared by the model and the API client, which re-sorts the server's net-desc overview. */
+export function sortSectors(sectors, sort) {
+  return sectors.sort((a, b) => {
     if (sort === "name-asc") return a.name.localeCompare(b.name, "zh-Hant");
-    if (a.estimate.amount === null) return b.estimate.amount === null ? 0 : 1;
-    if (b.estimate.amount === null) return -1;
-    return (a.estimate.amount - b.estimate.amount) * (sort === "net-asc" ? 1 : -1);
+    const av = sortValue(a, sort), bv = sortValue(b, sort);
+    if (av === null) return bv === null ? 0 : 1;
+    if (bv === null) return -1;
+    return (av - bv) * (sort === "net-asc" ? 1 : -1);
   });
+}
+
+/** Ranks count only sectors with a value for the active ordering. */
+export function rankSectors(sectors, sort) {
   let rank = 0;
-  return sectors.map((sector) => ({ ...sector,
-    rank: Number.isFinite(sector.estimate.amount) ? ++rank : null,
+  return sectors.map((sector) => Object.assign(sector, {
+    rank: Number.isFinite(sortValue(sector, sort)) ? ++rank : null,
   }));
 }
 

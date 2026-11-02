@@ -101,13 +101,16 @@ try {
     await page.locator('.sidebar [data-page="sectors"]').click();
     for (const window of ["day", "5", "20"]) {
       await page.locator(`[data-sector-window="${window}"]`).click();
-      const expected = getSectorOverview(snapshots, { window, sort: "name-asc", tradingDates: dataset.dates, asOf: date });
+      const expected = getSectorOverview(snapshots, { window, sort: "activity-desc", tradingDates: dataset.dates, asOf: date });
       const actual = await page.locator(".sector-card").evaluateAll((cards) => cards.map((card) => card.dataset.sectorName));
       const loadStatus = await page.locator("#load-status").textContent();
       assert.deepEqual(actual, expected.map((sector) => sector.name), JSON.stringify({ errors, loadStatus, serverErrors }));
       const amounts = await page.locator(".sector-card [data-sector-amount]").allTextContents();
       assert.deepEqual(amounts, expected.map(({ estimate: { amount } }) => amount === null ? ""
         : `${amount > 0 ? "+" : ""}${(amount / 1e8).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 億`));
+      // The default 產業 ordering shows each sector's share of gross institutional trading.
+      assert.deepEqual(await page.locator(".sector-card [data-sector-activity]").allTextContents(),
+        expected.map(({ activity: { share } }) => Number.isFinite(share) ? `法人交易占 ${share.toFixed(1)}%` : "法人交易資料不足"));
     }
     const card = page.locator(".sector-card").first(), name = await card.getAttribute("data-sector-name");
     await card.click();

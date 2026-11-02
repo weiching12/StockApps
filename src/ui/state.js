@@ -9,7 +9,7 @@ export const createState = () => ({
   sortDirection: -1,
   favorites: [],
   sectorWindow: "day",
-  sectorSort: "name-asc",
+  sectorSort: "activity-desc",
   sectorName: null,
   settings: { ...DEFAULT_SETTINGS },
   theme: "light",

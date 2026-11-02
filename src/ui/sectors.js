@@ -1,4 +1,4 @@
-import { getSectorOverview, getSectorDetail } from "../../shared/sectors.js";
+import { getSectorOverview, getSectorDetail, rankSectors, sortSectors } from "../../shared/sectors.js";
 export function renderSectorOverviewView(context) {
   const { state, dataset, loading, loadFailed, latestSnapshots, sectorOverviews, loadingIcon, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures } = context;
   if (loading || loadFailed) {
@@ -11,16 +11,7 @@ export function renderSectorOverviewView(context) {
     window: state.sectorWindow, sort: state.sectorSort,
     tradingDates: dataset.dates, asOf: dataset.info.asOf,
   });
-  if (sectorOverviews) {
-    if (state.sectorSort === "name-asc") sectors.sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
-    if (state.sectorSort === "net-asc") sectors.sort((a, b) => {
-      if (a.estimate.amount === null) return b.estimate.amount === null ? 0 : 1;
-      if (b.estimate.amount === null) return -1;
-      return a.estimate.amount - b.estimate.amount;
-    });
-    let rank = 0;
-    for (const sector of sectors) sector.rank = Number.isFinite(sector.estimate.amount) ? ++rank : null;
-  }
+  if (sectorOverviews) rankSectors(sortSectors(sectors, state.sectorSort), state.sectorSort);
   document.querySelectorAll("[data-sector-window]").forEach((button) =>
     button.setAttribute("aria-pressed", button.dataset.sectorWindow === state.sectorWindow));
   document.querySelectorAll("[data-sector-sort]").forEach((button) =>
@@ -35,7 +26,7 @@ export function renderSectorOverviewView(context) {
     const leaderText = leaderValue === null ? "" : `TOP1·${leader.name}`;
     const ranked = Number.isFinite(sector.estimate.amount);
     const bar = ranked ? `<i class="${direction(sector.estimate.amount)}" style="--sector-bar:${Math.max(4, Math.round((Math.abs(sector.estimate.amount) / maxAmount) * 100))}%"></i>` : "";
-    return `<article class="sector-card" data-sector-name="${esc(sector.name)}" data-sector-details="${esc(sector.name)}" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="sector-dialog" aria-label="查看${esc(sector.name)}產業個股與法人買賣超"><div class="sector-main"><span class="sector-rank">${sector.rank ?? ""}</span><span class="sector-marker ${direction(sector.estimate.amount)}"></span><div class="sector-identity"><h3>${esc(sector.name)}</h3><p>${periodLabel}<span>${esc(leaderText)}</span> <span class="${direction(leaderChange)}">${leader ? percent(leaderChange) : ""}</span></p><small class="sector-breadth" data-sector-breadth title="所選區間淨買賣超金額為正的家數／金額資料完整的有效家數">${sector.estimate.available ? `買超 ${sector.estimate.buying}／${sector.estimate.available} 檔` : ""}</small></div><strong class="sector-change ${direction(sector.change)}">${percent(sector.change)}</strong><div class="sector-total">${institutionalFigures(sector.estimate.amount, sector.total, 'data-sector-amount', 'data-sector-lots')}${bar}</div></div></article>`;
+    return `<article class="sector-card" data-sector-name="${esc(sector.name)}" data-sector-details="${esc(sector.name)}" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="sector-dialog" aria-label="查看${esc(sector.name)}產業個股與法人買賣超"><div class="sector-main"><span class="sector-rank">${sector.rank ?? ""}</span><span class="sector-marker ${direction(sector.estimate.amount)}"></span><div class="sector-identity"><h3>${esc(sector.name)}</h3><p>${periodLabel}<span>${esc(leaderText)}</span> <span class="${direction(leaderChange)}">${leader ? percent(leaderChange) : ""}</span></p><small class="sector-breadth" data-sector-breadth title="所選區間淨買賣超金額為正的家數／金額資料完整的有效家數">${sector.estimate.available ? `買超 ${sector.estimate.buying}／${sector.estimate.available} 檔` : ""}</small>${state.sectorSort === "activity-desc" ? `<small class="sector-activity" data-sector-activity title="法人買進＋賣出金額占全市場法人交易的比重">${Number.isFinite(sector.activity?.share) ? `法人交易占 ${sector.activity.share.toFixed(1)}%` : "法人交易資料不足"}</small>` : ""}</div><strong class="sector-change ${direction(sector.change)}">${percent(sector.change)}</strong><div class="sector-total">${institutionalFigures(sector.estimate.amount, sector.total, 'data-sector-amount', 'data-sector-lots')}${bar}</div></div></article>`;
   }).join("");
   if (document.querySelector("#sector-dialog")?.open) renderSectorDialog(state.sectorName);
 }

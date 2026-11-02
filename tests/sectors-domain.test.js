@@ -91,7 +91,8 @@ test("industry overview/detail match the previous UI algorithm across all window
     const snapshots = dataset.stocks.map((stock) => getSnapshot(stock, asOf));
     for (const window of ["day", "5", "20"]) for (const sort of ["net-desc", "net-asc", "name-asc"]) {
       const config = { window, sort, tradingDates, asOf };
-      assert.deepEqual(getSectorOverview(snapshots, config), legacyOverview(snapshots, config), `${asOf}/${window}/${sort}`);
+      assert.deepEqual(getSectorOverview(snapshots, config).map(({ activity: _activity, ...sector }) => sector),
+        legacyOverview(snapshots, config), `${asOf}/${window}/${sort}`);
     }
     for (const sector of new Set(snapshots.map((stock) => stock.sector)))
       assert.deepEqual(withoutVolumeRatios(getSectorDetail(snapshots, sector, { tradingDates, asOf })), legacyDetail(snapshots, sector, { tradingDates, asOf }));
@@ -179,6 +180,32 @@ test("detail uses daily monetary sorting with name ties and one complete cohort 
   assert.equal(detail.periods.day.institutions.投信.amount, 0);
   assert.equal(detail.members[0].volumeRatio, 1);
   assert.equal(detail.members.at(-1).volumeRatio, null);
+});
+
+test("activity sort ranks sectors by their share of gross institutional trading, ignoring direction", () => {
+  // makeStock trades only 外資: buy = max(net, 0), sell = max(-net, 0), close 20.
+  const seller = makeStock("2330", "大賣", "賣壓", -300);
+  const buyer = makeStock("2454", "小買", "買盤", 100);
+  const quiet = makeStock("2303", "冷門", "冷門", 0);
+  const gap = makeStock("2317", "缺漏", "缺漏", 50);
+  gap.history.at(-1).institutions.pop();
+  const day = getSectorOverview([seller, buyer, quiet, gap], options("day", "activity-desc"));
+  assert.deepEqual(day.map(({ name, rank }) => [name, rank]), [["賣壓", 1], ["買盤", 2], ["冷門", 3], ["缺漏", null]]);
+  assert.equal(day[0].activity.amount, 300 * 20);
+  assert.equal(day[0].activity.share, 75, "a net seller ranks first when it trades the most");
+  assert.equal(day[1].activity.share, 25);
+  assert.equal(day[2].activity.share, 0);
+  assert.equal(day[3].activity.amount, null);
+  assert.equal(day[3].activity.share, null);
+  // The incomplete day only blocks windows containing it.
+  const five = getSectorOverview([seller, buyer, gap], options("5", "activity-desc"));
+  assert.equal(five.find(({ name }) => name === "缺漏").activity.amount, null);
+  gap.history.at(-1).institutions.push({ name: "自營商", buy: 0, sell: 0 });
+  const restored = getSectorOverview([seller, buyer, gap], options("20", "activity-desc"));
+  assert.equal(restored.find(({ name }) => name === "缺漏").activity.amount, 50 * 20 * 20);
+  // Other orderings keep ranking by net amount.
+  const net = getSectorOverview([seller, buyer, quiet], options("day", "net-desc"));
+  assert.deepEqual(net.map(({ name, rank }) => [name, rank]), [["買盤", 1], ["冷門", 2], ["賣壓", 3]]);
 });
 
 test("detail volume ratios divide cohort net shares by the same cohort's traded shares", () => {

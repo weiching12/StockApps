@@ -2190,6 +2190,7 @@ dialog h2 {
 .sector-marker.up { background: var(--up); }
 .sector-marker.down { background: var(--down); }
 .sector-identity { min-width: 0; }
+.sector-activity { display: block; margin-top: 2px; color: var(--accent); font-variant-numeric: tabular-nums; }
 .sector-breadth {
   display: block;
   margin-top: 3px;
