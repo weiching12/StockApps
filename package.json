@@ -20,7 +20,7 @@
     "test:native": "playwright test --config playwright.native.config.js",
     "verify:native-build": "node scripts/verify-native-build.mjs",
     "dev:cloudflare": "npm run build:cloudflare && wrangler dev --port 8787",
-    "deploy": "npm run build:cloudflare && wrangler deploy",
+    "deploy": "node scripts/deploy.mjs",
     "deploy:ui": "node scripts/deploy-ui.js",
     "seed": "node scripts/seed-market.js",
     "verify:market": "node scripts/verify-market.js",
