@@ -92,7 +92,8 @@ test("partial sector totals exclude missing data and leave unavailable constitue
     return { total: rows.length ? parts.reduce((a, b) => a + b, 0) : null, parts, cash,
       money: rows.length ? cash.reduce((a, b) => a + b, 0) : null, available: rows.length, expected: stocks.length };
   };
-  const unpriced = manifest.stocks.find((stock) => manifest.coverage.inactive.includes(stock.symbol));
+  // ETFs are excluded from sector rankings, so only an inactive company has a sector card to check.
+  const unpriced = manifest.stocks.find((stock) => manifest.coverage.inactive.includes(stock.symbol) && stock.sector !== "ETF");
   const sectors = [...new Set(["電子零組件業", unpriced?.sector].filter(Boolean))];
   await page.locator('[data-page="sectors"]').click();
   for (const sector of sectors) {

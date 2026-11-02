@@ -23,7 +23,7 @@
 
 - 337 項 Node 單元／整合測試通過。
 - 103 項網頁、25 項 PWA、3 項原生瀏覽器測試，以及 sync、presence、auth、auth proxy、T86、summary cache、PWA build、refactor browser 等 runtime 測試通過。
-- Cloudflare 瀏覽器測試在本機 Worker 上 19／20 通過；`production.spec.js` 的 2031 比較需要正式資料的完整評分歷史，於部署後對正式網站驗證。
+- Cloudflare 瀏覽器測試在本機 Worker 上 19／20 通過；`production.spec.js` 需要正式資料的完整評分歷史，部署後對正式網站執行 4／4 通過。其中產業部分加總測試原本可能挑到停牌 ETF，但 ETF 依規則不列入產業排行，改為只挑一般公司。
 - 網頁／Cloudflare／原生建置、原生資產隔離檢查、`npm audit --omit=dev`（0 個弱點）與 `git diff --check` 通過。
 
 本次未變更評分規則、資料契約、資料庫結構或排程。
