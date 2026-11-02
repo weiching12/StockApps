@@ -96,7 +96,7 @@ docs/data-contract.md      正式資料格式與串接注意事項
 tests/                     計算與瀏覽器測試
 ```
 
-一般 `npm run build` 產出示範模式；`npm run dev:cloudflare` 在 `http://localhost:8787` 預覽正式模式。新環境可用 `npm run seed` 下載最近 90 個交易日，再依 Cloudflare 文件匯入 KV；既有正式站的 ETF 只補初次加入的最新資料，之後每日累積至最多 260 筆。完整回補請求至少間隔 10 秒，正常約 30 分鐘以上，成功下載立即快取，中斷後重跑可續接。每輪正常四個整批 TWSE 請求（法人、公司名錄、ETF 名錄、行情），週五每輪另四個請求複查近期修正，不需行情 API Token。`npm run deploy` 建置正式模式並部署；每次部署會把 `package.json` 版本的最後一碼加一（設定頁顯示的版本，例如 v0.2.0 → v0.2.1），Cloudflare 部署成功後才在本機 commit「Release vX.Y.Z」，失敗則還原版本號，推送 GitHub 仍需手動執行。`node scripts/deploy.mjs --dry-run` 只建置與檢查，不上傳、不改版本。
+一般 `npm run build` 產出示範模式；`npm run dev:cloudflare` 在 `http://localhost:8787` 預覽正式模式。新環境可用 `npm run seed` 下載最近 90 個交易日，再依 Cloudflare 文件匯入 KV；既有正式站的 ETF 只補初次加入的最新資料，之後每日累積至最多 260 筆。完整回補請求至少間隔 10 秒，正常約 30 分鐘以上，成功下載立即快取，中斷後重跑可續接。每輪正常四個整批 TWSE 請求（法人、公司名錄、ETF 名錄、行情），週五每輪另四個請求複查近期修正，不需行情 API Token。`npm run deploy` 建置正式模式並部署；正式 D1 若有尚未套用的 migration 會拒絕部署，需先執行 `npx wrangler d1 migrations apply stockapps-t86 --remote`。每次部署會把 `package.json` 版本的最後一碼加一（設定頁顯示的版本，例如 v0.2.0 → v0.2.1），Cloudflare 部署成功後才在本機 commit「Release vX.Y.Z」，失敗則還原版本號，推送 GitHub 仍需手動執行。`node scripts/deploy.mjs --dry-run` 只建置與檢查，不上傳、不改版本。
 
 正式資料串接契約與算法約定請見 [docs/data-contract.md](docs/data-contract.md)。
 

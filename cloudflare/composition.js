@@ -31,6 +31,7 @@ export const createPushService = (env) => {
     if (!native.config().enabled) return result;
     const nativeResult = await native.notifyPublished(manifest);
     return { sent: result.sent + nativeResult.sent, removed: (result.removed ?? 0) + nativeResult.removed,
-      failed: (result.failed ?? 0) + nativeResult.failed, hasMore: result.hasMore || nativeResult.hasMore, skipped: false };
+      failed: (result.failed ?? 0) + nativeResult.failed, rejected: result.rejected ?? 0,
+      hasMore: result.hasMore || nativeResult.hasMore, skipped: false };
   } };
 };

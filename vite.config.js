@@ -36,7 +36,8 @@ function pwaServiceWorker() {
   };
 }
 
-function serviceWorkerSource(files, bundle, publicFingerprint) {
+// Exported for tests that run the generated worker in a sandbox.
+export function serviceWorkerSource(files, bundle, publicFingerprint) {
   const version = createHash("sha256").update(Object.values(bundle).map((item) =>
     `${item.fileName}:${item.type === "asset" ? String(item.source) : item.code}`).join("|")).update(publicFingerprint).digest("hex").slice(0, 16);
   // Separate this policy from older shells that cached research API responses.
@@ -101,6 +102,20 @@ self.addEventListener("notificationclick", (event) => {
     if (existing) { await existing.navigate(target); return existing.focus(); }
     return self.clients.openWindow(target);
   })());
+});
+
+// Browsers may rotate a subscription; register the replacement so the server keeps reaching
+// this device, and drop the old endpoint. Same-origin requests pass the API's origin check.
+const pushSubscriptionsApi = (method, body) => fetch("/api/v1/push/subscriptions", {
+  method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil((async () => {
+    const previous = event.oldSubscription;
+    const key = previous?.options?.applicationServerKey;
+    const next = event.newSubscription ?? (key ? await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }) : null);
+    if (next) await pushSubscriptionsApi("POST", next.toJSON());
+    if (previous?.endpoint && previous.endpoint !== next?.endpoint) await pushSubscriptionsApi("DELETE", { endpoint: previous.endpoint });
+  })().catch(() => {}));
 });
 
 const cachedFallback = async (request, cacheName) => {

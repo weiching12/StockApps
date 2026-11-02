@@ -80,7 +80,7 @@ test("default push and APNs fetchers keep the global receiver required by Worker
       VAPID_PUBLIC_KEY: encode(await crypto.subtle.exportKey("raw", server.publicKey)),
       VAPID_PRIVATE_KEY: (await crypto.subtle.exportKey("jwk", server.privateKey)).d });
     assert.deepEqual(await service.notifyPublished({ generation: "g1", asOf: "2026-11-03" }),
-      { sent: 1, removed: 0, failed: 0, hasMore: false });
+      { sent: 1, removed: 0, failed: 0, rejected: 0, hasMore: false });
     assert.deepEqual(marks, [[row.endpoint, "2026-11-03"]]);
     assert.equal(calls[0][0], row.endpoint);
     const apns = new ApnsClient({});
@@ -107,14 +107,89 @@ test("notification dispatch encrypts one payload and marks the trade date", asyn
   const service = new PushService(repository, { VAPID_SUBJECT: "https://app.test", VAPID_PUBLIC_KEY: encode(serverPublic), VAPID_PRIVATE_KEY: serverPrivate.d },
     async (endpoint, payload) => { requests.push([endpoint, payload]); return new Response(null, { status: requests.length === 1 ? 503 : 201 }); });
   assert.deepEqual(await service.notifyPublished({ generation: "g1", asOf: "2026-10-21" }),
-    { sent: 0, removed: 1, failed: 1, hasMore: false });
+    { sent: 0, removed: 1, failed: 1, rejected: 0, hasMore: false });
   assert.deepEqual(await service.notifyPublished({ generation: "g1", asOf: "2026-10-21" }),
-    { sent: 1, removed: 1, failed: 0, hasMore: false });
+    { sent: 1, removed: 1, failed: 0, rejected: 0, hasMore: false });
   assert.deepEqual(marks, [["https://fcm.googleapis.com/fcm/send/subscription", "2026-10-21"]]);
   assert.ok(requests.every(([endpoint]) => endpoint === row.endpoint), "legacy non-push hosts are never contacted");
   assert.deepEqual(removed, [legacy.endpoint, legacy.endpoint]);
   assert.equal(new Headers(requests[0][1].headers).get("Content-Encoding"), "aes128gcm");
   assert.deepEqual(await service.notifyPublished({ generation: "g1", asOf: "2026-10-21" }),
-    { sent: 0, removed: 0, failed: 0, hasMore: false });
+    { sent: 0, removed: 0, failed: 0, rejected: 0, hasMore: false });
   assert.equal(requests.length, 2);
+});
+
+test("refused pushes log the service reason, skip the rest of the day and are pruned after three trade dates", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { readFileSync } = await import("node:fs");
+  const { PushRepository } = await import("../cloudflare/repositories/push-repository.js");
+  const sqlite = new DatabaseSync(":memory:");
+  for (const file of ["0004_push_subscriptions.sql", "0009_push_failures.sql"])
+    sqlite.exec(readFileSync(new URL(`../cloudflare/migrations/${file}`, import.meta.url), "utf8"));
+  const db = { prepare(sql) { let values = []; const statement = sqlite.prepare(sql);
+    return { bind(...args) { values = args; return this; }, async first() { return statement.get(...values) ?? null; },
+      async all() { return { results: statement.all(...values) }; }, async run() { return statement.run(...values); } }; },
+  async batch(statements) { for (const statement of statements) await statement.run(); } };
+  const repository = new PushRepository(db);
+  const encode = (value) => Buffer.from(value).toString("base64url");
+  const server = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const keys = async () => { const client = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+    return { p256dh: encode(await crypto.subtle.exportKey("raw", client.publicKey)), auth: encode(crypto.getRandomValues(new Uint8Array(16))) }; };
+  const refused = "https://web.push.apple.com/refused", healthy = "https://fcm.googleapis.com/fcm/send/healthy";
+  await repository.save({ endpoint: refused, keys: await keys() }, "2026-11-01T00:00:00Z");
+  await repository.save({ endpoint: healthy, keys: await keys() }, "2026-11-01T00:00:01Z");
+  const requests = [], logs = [];
+  const service = new PushService(repository, { VAPID_SUBJECT: "https://app.test",
+    VAPID_PUBLIC_KEY: encode(await crypto.subtle.exportKey("raw", server.publicKey)),
+    VAPID_PRIVATE_KEY: (await crypto.subtle.exportKey("jwk", server.privateKey)).d },
+  async (endpoint) => { requests.push(endpoint); return endpoint === refused
+    ? Response.json({ reason: "BadJwtToken" }, { status: 400 }) : new Response(null, { status: 201 }); });
+  const originalError = console.error;
+  console.error = (line) => logs.push(JSON.parse(line));
+  try {
+    assert.deepEqual(await service.notifyPublished({ generation: "g1", asOf: "2026-11-02" }),
+      { sent: 1, removed: 0, failed: 0, rejected: 1, hasMore: false });
+    assert.deepEqual(logs.at(-1), { event: "push-rejected", status: 400, endpointHost: "web.push.apple.com", reason: "BadJwtToken", failureDays: 1 });
+    assert.ok(!JSON.stringify(logs).includes("/refused"), "logs never contain the private endpoint path");
+    // Not retried again the same evening, so the sync's retry loop can finish.
+    assert.deepEqual(await service.notifyPublished({ generation: "g1", asOf: "2026-11-02" }),
+      { sent: 0, removed: 0, failed: 0, rejected: 0, hasMore: false });
+    assert.equal(requests.filter((endpoint) => endpoint === refused).length, 1);
+    const row = () => sqlite.prepare("SELECT FailureDays days, LastFailure failure FROM push_subscriptions WHERE Endpoint=?").get(refused);
+    assert.deepEqual({ ...row() }, { days: 1, failure: "400 BadJwtToken" });
+    await service.notifyPublished({ generation: "g2", asOf: "2026-11-03" });
+    assert.equal(row().days, 2);
+    assert.deepEqual(await service.notifyPublished({ generation: "g3", asOf: "2026-11-04" }),
+      { sent: 1, removed: 1, failed: 0, rejected: 1, hasMore: false });
+    assert.equal(logs.at(-1).event, "push-pruned");
+    assert.equal(row(), undefined, "deleted after refusals on three trade dates");
+    assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM push_subscriptions").get().n, 1, "healthy subscription kept");
+    // A successful delivery resets an earlier refusal streak.
+    await repository.save({ endpoint: refused, keys: await keys() }, "2026-11-05T00:00:00Z");
+    await repository.recordRejection(refused, "2026-11-04", "400 BadJwtToken", 3);
+    await repository.mark(refused, "2026-11-05");
+    assert.deepEqual({ ...row() }, { days: 0, failure: null });
+  } finally { console.error = originalError; }
+});
+
+test("temporary push-service errors are retried and never count toward pruning", async () => {
+  const encode = (value) => Buffer.from(value).toString("base64url");
+  const server = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const client = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const rows = [{ endpoint: "https://fcm.googleapis.com/fcm/send/busy", p256dh: encode(await crypto.subtle.exportKey("raw", client.publicKey)),
+    auth: encode(crypto.getRandomValues(new Uint8Array(16))) }];
+  const recorded = [], logs = [];
+  const service = new PushService({ pending: async () => rows, mark: async () => {}, removeMany: async () => {},
+    recordRejection: async (...args) => recorded.push(args) }, { VAPID_SUBJECT: "https://app.test",
+    VAPID_PUBLIC_KEY: encode(await crypto.subtle.exportKey("raw", server.publicKey)),
+    VAPID_PRIVATE_KEY: (await crypto.subtle.exportKey("jwk", server.privateKey)).d },
+  async () => new Response("Service Unavailable\n try later", { status: 503 }));
+  const originalError = console.error;
+  console.error = (line) => logs.push(JSON.parse(line));
+  try {
+    assert.deepEqual(await service.notifyPublished({ generation: "g", asOf: "2026-11-02" }),
+      { sent: 0, removed: 0, failed: 1, rejected: 0, hasMore: false });
+    assert.deepEqual(logs, [{ event: "push-failed", status: 503, endpointHost: "fcm.googleapis.com", reason: "Service Unavailable try later" }]);
+    assert.deepEqual(recorded, []);
+  } finally { console.error = originalError; }
 });

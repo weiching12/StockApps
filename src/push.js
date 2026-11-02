@@ -6,10 +6,16 @@ const decodeKey = (value) => {
   return Uint8Array.from(raw, (char) => char.charCodeAt(0));
 };
 
+const SYNC_KEY = "stock-insight-push-sync";
+const SYNC_INTERVAL = 12 * 60 * 60 * 1000;
+const defaultStorage = () => { try { return globalThis.localStorage; } catch { return null; } };
+
 export function startPushNotifications(button, {
   client = new PushApiClient(),
   onMessage,
   onStatus,
+  storage = defaultStorage(),
+  now = Date.now,
   runtime = {
     navigator: globalThis.navigator,
     window: globalThis.window,
@@ -18,6 +24,26 @@ export function startPushNotifications(button, {
   },
 } = {}) {
   const { navigator, window, document, Notification } = runtime;
+  // The bell only reflects the browser's subscription, so re-register it with the server
+  // whenever the app opens: a row the server lost or pruned is restored without user action.
+  // Kept in memory too, so a page without usable storage still syncs only once.
+  let lastSync = null;
+  const readSync = () => { try { return JSON.parse(storage?.getItem(SYNC_KEY) ?? "null") ?? lastSync; } catch { return lastSync; } };
+  const writeSync = (value) => {
+    lastSync = value;
+    try { if (value) storage?.setItem(SYNC_KEY, JSON.stringify(value)); else storage?.removeItem(SYNC_KEY); } catch { /* best effort */ }
+  };
+  let syncing = null;
+  const resync = (subscription) => {
+    if (syncing || typeof subscription?.toJSON !== "function") return syncing;
+    const last = readSync();
+    if (last?.endpoint === subscription.endpoint && now() - last.at < SYNC_INTERVAL) return null;
+    syncing = client.subscribe(subscription.toJSON())
+      .then(() => writeSync({ endpoint: subscription.endpoint, at: now() }))
+      .catch((error) => console.warn("Push subscription sync failed", error))
+      .finally(() => { syncing = null; });
+    return syncing;
+  };
   const supported = Boolean(navigator && window && Notification && "serviceWorker" in navigator && "PushManager" in window);
   if (!supported || !button) { if (button) button.hidden = true; onStatus?.({ supported: false, subscribed: false }); return; }
   let version = 0;
@@ -37,7 +63,11 @@ export function startPushNotifications(button, {
     const currentVersion = ++version;
     return navigator.serviceWorker.ready
       .then((registration) => registration.pushManager.getSubscription())
-      .then((subscription) => { if (currentVersion === version && !button.disabled) render(Boolean(subscription)); })
+      .then((subscription) => {
+        if (currentVersion !== version || button.disabled) return;
+        render(Boolean(subscription));
+        if (subscription) resync(subscription);
+      })
       .catch(() => { if (currentVersion === version && !button.disabled) { button.hidden = true; onStatus?.({ supported: false, subscribed: false }); } });
   };
   const refreshWhenVisible = () => { if (!document || document.visibilityState === "visible") refresh(); };
@@ -53,6 +83,7 @@ export function startPushNotifications(button, {
       const current = await registration.pushManager.getSubscription();
       if (current) {
         if (!await current.unsubscribe()) throw new Error("Browser push unsubscribe failed");
+        writeSync(null);
         render(false);
         try { await client.unsubscribe(current.endpoint); }
         catch (error) {
@@ -68,6 +99,7 @@ export function startPushNotifications(button, {
       if (!config.enabled || !config.publicKey) throw new Error("Push notifications are unavailable");
       const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeKey(config.publicKey) });
       try { await client.subscribe(subscription.toJSON()); } catch (error) { await subscription.unsubscribe(); throw error; }
+      writeSync({ endpoint: subscription.endpoint, at: now() });
       render(true); onMessage?.("每日資料更新完成後會通知你");
     } catch (error) {
       subscriptionError = error?.name === "AbortError"
@@ -78,6 +110,7 @@ export function startPushNotifications(button, {
   });
   return {
     refresh,
+    whenSynced: () => syncing ?? Promise.resolve(),
     destroy() {
       document?.removeEventListener?.("visibilitychange", refreshWhenVisible);
       window.removeEventListener?.("pageshow", refresh);

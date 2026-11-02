@@ -171,3 +171,70 @@ test("a failed browser unsubscribe keeps the server subscription and enabled sta
   assert.equal(statuses.at(-1).subscribed, true);
   assert.equal(button.getAttribute("aria-pressed"), "true");
 });
+
+const syncRuntime = (getSubscription) => ({
+  navigator: { serviceWorker: { ready: Promise.resolve({ pushManager: { getSubscription } }) } },
+  window: { PushManager: class {}, addEventListener() {}, removeEventListener() {} },
+  document: { visibilityState: "visible", addEventListener() {}, removeEventListener() {} },
+  Notification: { permission: "granted" },
+});
+const memoryStorage = () => { const items = new Map(); return { getItem: (key) => items.get(key) ?? null,
+  setItem: (key, value) => items.set(key, String(value)), removeItem: (key) => items.delete(key) }; };
+const browserSubscription = (endpoint) => ({ endpoint, toJSON: () => ({ endpoint, keys: { p256dh: "abcdefgh", auth: "ijklmnop" } }) });
+
+test("an existing browser subscription is re-sent to the server on open, at most every 12 hours", async () => {
+  let subscription = browserSubscription("https://fcm.googleapis.com/fcm/send/a");
+  const posted = [], storage = memoryStorage();
+  let clock = Date.parse("2026-11-03T09:00:00Z");
+  const client = { subscribe: async (body) => { posted.push(body.endpoint); return { data: { subscribed: true } }; } };
+  const open = async () => {
+    const controller = startPushNotifications(fakeButton(), { runtime: syncRuntime(async () => subscription), client, storage, now: () => clock });
+    await flushPromises(); await controller.whenSynced();
+    return controller;
+  };
+  const controller = await open();
+  assert.deepEqual(posted, ["https://fcm.googleapis.com/fcm/send/a"], "restores a row the server may have lost");
+  await controller.refresh(); await controller.whenSynced();
+  clock += 11 * 3600_000; await open();
+  assert.equal(posted.length, 1, "no repeat within 12 hours, even across app launches");
+  clock += 2 * 3600_000; await open();
+  assert.equal(posted.length, 2, "re-sent after 12 hours");
+  subscription = browserSubscription("https://fcm.googleapis.com/fcm/send/rotated");
+  await open();
+  assert.deepEqual(posted.at(-1), "https://fcm.googleapis.com/fcm/send/rotated", "a changed endpoint is sent immediately");
+});
+
+test("a failed re-sync keeps the bell enabled and retries on the next open", async () => {
+  const subscription = browserSubscription("https://web.push.apple.com/a");
+  const statuses = [], storage = memoryStorage();
+  let attempts = 0;
+  const client = { subscribe: async () => { attempts++; throw new Error("offline"); } };
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  try {
+    for (let open = 0; open < 2; open++) {
+      const controller = startPushNotifications(fakeButton(), { runtime: syncRuntime(async () => subscription), client, storage,
+        onStatus: (status) => statuses.push(status) });
+      await flushPromises(); await controller.whenSynced();
+    }
+  } finally { console.warn = originalWarn; }
+  assert.equal(attempts, 2);
+  assert.equal(statuses.at(-1).subscribed, true);
+});
+
+test("re-sync works without usable storage and turning notifications off forgets the sync", async () => {
+  const posted = [];
+  const broken = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); }, removeItem() { throw new Error("blocked"); } };
+  const controller = startPushNotifications(fakeButton(), { runtime: syncRuntime(async () => browserSubscription("https://fcm.googleapis.com/fcm/send/a")),
+    client: { subscribe: async (body) => posted.push(body.endpoint) }, storage: broken });
+  await flushPromises(); await controller.whenSynced();
+  assert.equal(posted.length, 1);
+
+  const storage = memoryStorage(), button = fakeButton();
+  storage.setItem("stock-insight-push-sync", JSON.stringify({ endpoint: "https://fcm.googleapis.com/fcm/send/a", at: Date.now() }));
+  startPushNotifications(button, { runtime: syncRuntime(async () => ({ endpoint: "https://fcm.googleapis.com/fcm/send/a", unsubscribe: async () => true })),
+    client: { subscribe: async () => {}, unsubscribe: async () => {} }, storage });
+  await flushPromises();
+  await button.click();
+  assert.equal(storage.getItem("stock-insight-push-sync"), null);
+});

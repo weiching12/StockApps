@@ -26,7 +26,7 @@ npm run test:native         # tests/native-browser
 npm run build               # dist/, demo mode
 npm run build:cloudflare    # dist/, API mode (what deploy uses)
 npm run build:native        # dist-native/, for Capacitor (STOCKAPPS_NATIVE_API_ORIGIN, HTTPS origin only)
-npm run deploy              # scripts/deploy.mjs: bump patch version, build:cloudflare, wrangler deploy, then commit "Release vX.Y.Z" locally (restored on failure) — production, ask first
+npm run deploy              # scripts/deploy.mjs: refuse if remote D1 has unapplied migrations, bump patch version, build:cloudflare, wrangler deploy, then commit "Release vX.Y.Z" locally (restored on failure) — production, ask first
 node scripts/deploy.mjs --dry-run   # build and wrangler --dry-run only; version restored, nothing committed
 ```
 

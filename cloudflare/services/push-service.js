@@ -4,6 +4,8 @@ import { buildPushPayload } from "@block65/webcrypto-web-push";
 const PUSH_SERVICE_HOSTS = ["fcm.googleapis.com", "android.googleapis.com", "push.services.mozilla.com",
   "web.push.apple.com", "notify.windows.com"];
 const MAX_ENDPOINT_LENGTH = 1024;
+// Trade dates a push service may refuse a subscription before it is deleted.
+const MAX_REJECTION_DAYS = 3;
 const validEndpoint = (value) => {
   try { return new URL(value).protocol === "https:"; } catch { return false; }
 };
@@ -51,7 +53,7 @@ export class PushService {
     if (!this.config().enabled) return { sent: 0, skipped: true };
     const rows = await this.repository.pending(manifest.asOf, 501);
     const stale = [];
-    let sent = 0, failed = 0;
+    let sent = 0, failed = 0, rejected = 0, pruned = 0;
     const data = JSON.stringify({ title: "株研資料已更新", body: `${manifest.asOf} 台股行情與法人資料已完成更新`,
       url: "/", tag: `market-${manifest.asOf}`, generation: manifest.generation });
     for (const row of rows.slice(0, 500)) {
@@ -62,12 +64,36 @@ export class PushService {
         const payload = await buildPushPayload({ data, options: { ttl: 86400, urgency: "normal", topic: `market-${manifest.asOf}` } }, subscription,
           { subject: this.env.VAPID_SUBJECT, publicKey: this.env.VAPID_PUBLIC_KEY, privateKey: this.env.VAPID_PRIVATE_KEY });
         const response = await this.fetcher(subscription.endpoint, payload);
+        const endpointHost = new URL(row.endpoint).host;
         if (response.ok) { sent++; await this.repository.mark(row.endpoint, manifest.asOf); }
         else if (response.status === 404 || response.status === 410) stale.push(row.endpoint);
-        else { failed++; console.error(JSON.stringify({ event: "push-failed", status: response.status, endpointHost: new URL(row.endpoint).host })); }
+        else if (response.status === 429 || response.status >= 500) {
+          // Temporary: retried on the next scheduled attempt today.
+          failed++;
+          console.error(JSON.stringify({ event: "push-failed", status: response.status, endpointHost, reason: await rejectionReason(response) }));
+        } else {
+          // Refused: skipped for the rest of this trade date and removed after repeated days.
+          rejected++;
+          const reason = await rejectionReason(response);
+          const failureDays = await this.repository.recordRejection(row.endpoint, manifest.asOf, `${response.status} ${reason}`.trim(), MAX_REJECTION_DAYS);
+          if (!failureDays) pruned++;
+          console.error(JSON.stringify({ event: failureDays ? "push-rejected" : "push-pruned", status: response.status, endpointHost, reason, failureDays }));
+        }
       } catch (error) { failed++; console.error(JSON.stringify({ event: "push-failed", error: error.message })); }
     }
     await this.repository.removeMany(stale);
-    return { sent, removed: stale.length, failed, hasMore: rows.length > 500 };
+    return { sent, removed: stale.length + pruned, failed, rejected, hasMore: rows.length > 500 };
   }
+}
+
+/** Push services explain refusals in the body, e.g. Apple's {"reason":"BadJwtToken"}. Never includes the endpoint. */
+async function rejectionReason(response) {
+  let text = "";
+  try { text = (await response.text()).slice(0, 500); } catch { return ""; }
+  try {
+    const body = JSON.parse(text);
+    const reason = body?.reason ?? body?.error?.message ?? body?.error ?? body?.message;
+    if (typeof reason === "string") return reason.slice(0, 120);
+  } catch { /* plain-text body */ }
+  return text.replace(/\s+/g, " ").trim().slice(0, 120);
 }

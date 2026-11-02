@@ -96,7 +96,18 @@ bodies are limited to 4 KiB even when streamed without `Content-Length`. Stored 
 other hosts are removed at the next send instead of being contacted.
 After a validated manifest for the current Taipei trade date is published, the sync
 service sends one notification per subscription and trade date. Expired `404`/`410`
-subscriptions are removed automatically. Push delivery failures never roll back the
-market publication.
+subscriptions are removed automatically. `429` and `5xx` responses are temporary and
+retried on later scheduled ticks that evening. Any other `4xx` is a refusal: the push
+service's reason (for example Apple's `{"reason":"BadJwtToken"}`) is logged as
+`push-rejected` with the endpoint host only, the subscription is skipped for the rest of
+that trade date, and after refusals on 3 distinct trade dates it is deleted
+(`push-pruned`); a successful delivery resets the count (migration
+`0009_push_failures.sql`). Push delivery failures never roll back the market publication.
+
+Clients keep the server in step with the browser: whenever the app opens or returns to
+the foreground with an existing browser subscription, it re-sends it (at most every 12
+hours unless the endpoint changed), so a row the server lost or pruned is restored. The
+service worker handles `pushsubscriptionchange` by registering the replacement
+subscription and deleting the old endpoint.
 
 Account authentication: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`, and `POST /api/v1/auth/change-password`. Session cookies are HttpOnly, Secure, SameSite=Strict and expire after 12 hours. Auth responses are never cached. Account objects include boolean `mustChangePassword`; temporary-password sessions must change their password before querying protected administrator statistics. The change endpoint accepts `{password, confirmPassword}`, requires an authenticated temporary-password session, rejects mismatched or reused passwords, and returns `{user}` with a rotated Session Cookie after storing a salted hash and revoking previous sessions. See [accounts](accounts.md) for provisioning and the `--temporary` option.

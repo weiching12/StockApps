@@ -21,6 +21,15 @@ function git(...args) {
 if (!dryRun && git("status", "--porcelain", "--", "package.json", "package-lock.json").trim())
   throw new Error("package.json or package-lock.json has uncommitted changes; commit or discard them before deploying");
 
+// Code that reads a new D1 column must not go live before its migration has been applied.
+const wrangler = resolve(root, "node_modules/wrangler/bin/wrangler.js");
+const migrations = spawnSync(process.execPath, [wrangler, "d1", "migrations", "list", "stockapps-t86", "--remote"], { encoding: "utf8" });
+if (migrations.status !== 0 || !`${migrations.stdout}${migrations.stderr}`.includes("No migrations to apply")) {
+  const message = "Remote D1 has unapplied migrations (or the check failed). Apply them first: npx wrangler d1 migrations apply stockapps-t86 --remote";
+  if (!dryRun) throw new Error(message);
+  console.warn(message);
+}
+
 const original = { package: readFileSync(files.package, "utf8"), lock: readFileSync(files.lock, "utf8") };
 const previous = JSON.parse(original.package).version;
 const version = nextPatchVersion(previous);
@@ -37,7 +46,7 @@ let status = 1;
 try {
   const build = run(process.execPath, [resolve(root, "node_modules/vite/bin/vite.js"), "build", "--mode", "cloudflare", "--configLoader", "runner"]);
   if (build.status !== 0) throw new Error("Build failed");
-  const deploy = run(process.execPath, [resolve(root, "node_modules/wrangler/bin/wrangler.js"), "deploy",
+  const deploy = run(process.execPath, [wrangler, "deploy",
     "--message", `v${version}`, ...(dryRun ? ["--dry-run"] : [])]);
   if (deploy.status !== 0) throw new Error("wrangler deploy failed");
   status = 0;
