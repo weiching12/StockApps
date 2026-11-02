@@ -582,7 +582,7 @@ const updateSegmentedControls = controls.updateSegmentedAll;
 function sectorContext() { return { state, dataset, loading, loadFailed, latestSnapshots,
   sectorOverviews: apiMode ? latestSummary?.data.sectors : null,
   sectorDetail: apiMode ? sectorDetailCache.get(`${summaryKey(dataset.info.asOf)}:${state.sectorName}`) : null,
-  loadingIcon, stockMoney, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures, isDemo, number, institutionSparkline }; }
+  loadingIcon, stockMoney, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures, institutionalMoney, isDemo, number, institutionSparkline }; }
 function renderSectorOverview() { renderSectorOverviewView(sectorContext()); }
 function renderSectorDialog(name) { renderSectorDialogView(name, sectorContext()); }
 

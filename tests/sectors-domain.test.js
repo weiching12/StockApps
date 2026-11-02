@@ -94,9 +94,16 @@ test("industry overview/detail match the previous UI algorithm across all window
       assert.deepEqual(getSectorOverview(snapshots, config), legacyOverview(snapshots, config), `${asOf}/${window}/${sort}`);
     }
     for (const sector of new Set(snapshots.map((stock) => stock.sector)))
-      assert.deepEqual(getSectorDetail(snapshots, sector, { tradingDates, asOf }), legacyDetail(snapshots, sector, { tradingDates, asOf }));
+      assert.deepEqual(withoutVolumeRatios(getSectorDetail(snapshots, sector, { tradingDates, asOf })), legacyDetail(snapshots, sector, { tradingDates, asOf }));
   }
 });
+
+// Volume ratios were added after the legacy algorithm; parity covers every field it had.
+function withoutVolumeRatios(detail) {
+  if (!detail) return detail;
+  return { ...detail, periods: Object.fromEntries(Object.entries(detail.periods).map(([window, { volume, ratio, institutions, ...period }]) =>
+    [window, { ...period, institutions: Object.fromEntries(Object.entries(institutions).map(([name, { ratio: _ratio, ...values }]) => [name, values])) }])) };
+}
 
 test("both ETF markers are excluded even if an ETF is incorrectly labeled as an industry company", () => {
   const company = makeStock("2330", "公司", "半導體");
@@ -172,6 +179,29 @@ test("detail uses daily monetary sorting with name ties and one complete cohort 
   assert.equal(detail.periods.day.institutions.投信.amount, 0);
   assert.equal(detail.members[0].volumeRatio, 1);
   assert.equal(detail.members.at(-1).volumeRatio, null);
+});
+
+test("detail volume ratios divide cohort net shares by the same cohort's traded shares", () => {
+  const buyer = makeStock("2330", "買超", "產業", 10);
+  const seller = makeStock("2454", "賣超", "產業", -30);
+  const incomplete = makeStock("2317", "缺漏", "產業", 100);
+  incomplete.history.at(-1).institutions.pop(); incomplete.latest.institutionalNet = null;
+  const detail = getSectorDetail([buyer, seller, incomplete], "產業", options());
+  // The incomplete stock's volume is excluded with its flows: (10 - 30) / (1000 + 1000).
+  assert.equal(detail.periods.day.volume, 2000);
+  assert.equal(detail.periods.day.ratio, -1);
+  assert.equal(detail.periods.day.institutions.外資.ratio, -1);
+  assert.equal(detail.periods.day.institutions.投信.ratio, 0);
+  assert.equal(detail.periods["5"].volume, 10000);
+  assert.equal(detail.periods["20"].ratio, -20 * 20 / 40000 * 100);
+
+  const missingVolume = makeStock("2303", "缺量", "產業", 10);
+  missingVolume.history.at(-3).volume = null;
+  const unknown = getSectorDetail([buyer, missingVolume], "產業", options());
+  assert.equal(unknown.periods.day.volume, 2000, "a gap outside the window does not matter");
+  assert.equal(unknown.periods["5"].volume, null);
+  assert.equal(unknown.periods["5"].ratio, null);
+  assert.equal(unknown.periods["5"].institutions.外資.ratio, null);
 });
 
 test("sector models are read-only and handle empty or unknown industries without fabricated totals", () => {

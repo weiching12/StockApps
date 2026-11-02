@@ -79,6 +79,7 @@ test("partial sector totals exclude missing data and leave unavailable constitue
   const histories = new Map(chunks.flatMap((chunk) => chunk.stocks).map((stock) => [stock.symbol, new Map(stock.history.map((row) => [row[0], row]))]));
   const amount = (shares, unit = false) => shares === null ? ""
     : `${shares > 0 ? "+" : ""}${(shares / 1000).toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(shares / 1000) ? 0 : 2, maximumFractionDigits: Number.isInteger(shares / 1000) ? 0 : 2 })}${unit ? " 張" : ""}`;
+  const percent = (value) => `${value > 0 ? "+" : ""}${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
   const money = (value) => value === null ? "" : `${value > 0 ? "+" : ""}${(value / 100000000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 億`;
   const expected = (sector, days) => {
     const stocks = manifest.stocks.filter((stock) => stock.sector === sector);
@@ -89,7 +90,11 @@ test("partial sector totals exclude missing data and leave unavailable constitue
     const parts = [6, 8, 10].map(net);
     const cash = [6, 8, 10].map((offset) => rows.length ? rows.reduce((total, history) => total
       + history.reduce((sum, row) => sum + (row[offset] - row[offset + 1]) * row[4], 0), 0) : null);
-    return { total: rows.length ? parts.reduce((a, b) => a + b, 0) : null, parts, cash,
+    const volumes = rows.flat().map((row) => row[5]);
+    const volume = rows.length && volumes.every(Number.isFinite) ? volumes.reduce((a, b) => a + b, 0) : 0;
+    const total = rows.length ? parts.reduce((a, b) => a + b, 0) : null;
+    const ratio = (shares) => shares === null || !volume ? "" : percent(shares / volume * 100);
+    return { total, parts, cash, ratios: [total, ...parts].map(ratio),
       money: rows.length ? cash.reduce((a, b) => a + b, 0) : null, available: rows.length, expected: stocks.length };
   };
   // ETFs are excluded from sector rankings, so only an inactive company has a sector card to check.
@@ -109,10 +114,10 @@ test("partial sector totals exclude missing data and leave unavailable constitue
     for (const [key, days] of [["day", 1], ["5", 5], ["20", 20]]) {
       const result = expected(sector, days);
       const summary = page.locator(`#sector-dialog [data-sector-period="${key}"]`);
-      await expect(summary.locator('[data-sector-summary="total"]')).toHaveText(amount(result.total, true));
+      await expect(summary.locator('[data-sector-ratio="total"]')).toHaveText(result.ratios[0]);
       await expect(summary.locator('[data-sector-money="total"]')).toHaveText(money(result.money));
       for (const [i, name] of ["外資", "投信", "自營商"].entries()) {
-        await expect(summary.locator(`[data-sector-summary="${name}"]`)).toHaveText(amount(result.parts[i], true));
+        await expect(summary.locator(`[data-sector-ratio="${name}"]`)).toHaveText(result.ratios[i + 1]);
         await expect(summary.locator(`[data-sector-money="${name}"]`)).toHaveText(money(result.cash[i]));
       }
       await expect(summary.locator("[data-sector-coverage]")).toHaveCount(0);

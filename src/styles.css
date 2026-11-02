@@ -2294,7 +2294,7 @@ dialog h2 {
     color: var(--ink);
     border-color: var(--border);
   }
-  :is(.sector-summary-period, .source-banner, .guide-item code, .app-status, .search-box, input, select) {
+  :is(.sector-summary-grid, .source-banner, .guide-item code, .app-status, .search-box, input, select) {
     background: #0d1726;
     color: var(--ink);
     border-color: var(--border);
@@ -2521,48 +2521,72 @@ dialog.sector-dialog {
   color: var(--muted);
   font-size: var(--text-secondary);
 }
+/* Periods sit side by side as columns; institution rows line up across them through subgrid. */
 .sector-summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-.sector-summary-period {
-  min-width: 0;
-  padding: 14px;
+  grid-template-columns: max-content repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(5, auto);
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: #f8fafc;
 }
-.sector-summary-period h4 {
-  margin: 0 0 8px;
-  color: var(--muted);
-  font-size: var(--text-secondary);
+.sector-summary-labels,
+.sector-summary-period {
+  display: grid;
+  grid-row: 1 / span 5;
+  grid-template-rows: subgrid;
+  min-width: 0;
 }
-.sector-summary-values .institution-money {
-  display: block;
-  overflow-wrap: anywhere;
-  font-size: var(--text-title);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.3;
+.sector-summary-period :is(header, dl, dl > div) { display: contents; }
+.sector-summary-period dt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
-.sector-summary-values { min-width: 0; text-align: right; }
-.sector-summary-period dl {
-  margin: 12px 0 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-.sector-summary-period dl > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  font-size: var(--text-secondary);
-}
-.sector-summary-period dt { color: var(--muted); }
+.sector-summary-labels > span,
+.sector-summary-period h4,
+.sector-summary-values,
 .sector-summary-period dd {
   min-width: 0;
   margin: 0;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+.sector-summary-labels > span:first-child,
+.sector-summary-period h4 { border-top: 0; }
+.sector-summary-labels > span {
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+  color: var(--muted);
+  font-size: var(--text-secondary);
+  white-space: nowrap;
+}
+.sector-summary-labels > span:nth-child(2) { color: var(--ink); font-weight: 600; }
+.sector-summary-labels > span:nth-child(2),
+.sector-summary-values { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.sector-summary-period h4 {
+  padding-bottom: 8px;
+  color: var(--muted);
+  font-size: var(--text-secondary);
+  font-weight: 500;
+  text-align: right;
+}
+.sector-summary-values,
+.sector-summary-period dd {
   overflow-wrap: anywhere;
+  text-align: right;
+  font-size: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+.sector-summary-values .institution-money {
+  display: block;
+  font-size: var(--text-title);
+  line-height: 1.3;
 }
 .sector-stock-section { margin-top: 24px; }
 .sector-stock-period-label {
@@ -2709,14 +2733,10 @@ dialog.sector-dialog {
   }
   .pull-refresh.is-refreshing > span { animation: pull-refresh-spin 700ms linear infinite; }
   @keyframes pull-refresh-spin { to { transform: rotate(360deg); } }
-  .sector-summary-grid { grid-template-columns: minmax(0, 1fr); }
   .sector-detail-heading { gap: 10px; }
-  .sector-summary-period { padding: 12px; }
-  .sector-summary-period header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-  .sector-summary-period h4 { margin: 0; }
-  .sector-summary-period dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .sector-summary-period dl > div { display: block; }
-  .sector-summary-period dd { margin-top: 3px; }
+  .sector-summary-labels > span, .sector-summary-period h4, .sector-summary-values, .sector-summary-period dd { padding: 9px 6px; }
+  .sector-summary-labels > span { padding-left: 10px; }
+  .sector-summary-period:last-child :is(h4, .sector-summary-values, dd) { padding-right: 10px; }
   .sector-stock-scroll { max-height: none; overflow: visible; scrollbar-gutter: auto; }
   .sector-stock-table,
   .sector-stock-table tbody { display: block; }
@@ -2744,6 +2764,12 @@ dialog.sector-dialog {
   .sector-stock-net { text-align: left !important; }
   .institution-sparkline { margin-inline-start: 0; }
   .sector-stock-period-label { display: block; margin-bottom: 3px; }
+}
+@media (max-width: 380px) {
+  /* Keep amounts such as "+148.73 億" on one line at 320px; larger values still wrap. */
+  .sector-summary-labels > span, .sector-summary-period h4, .sector-summary-values, .sector-summary-period dd { padding: 8px 2px; }
+  .sector-summary-labels > span { padding-left: 6px; }
+  .sector-summary-period:last-child :is(h4, .sector-summary-values, dd) { padding-right: 4px; }
 }
 @media (max-width: 520px) {
   dialog.sector-dialog {
@@ -2794,7 +2820,6 @@ dialog.sector-dialog {
   }
   #close-sector-dialog { display: none; }
   .sector-dialog-body { padding: 15px 16px 20px; }
-  .sector-summary-grid { gap: 8px; }
   .sector-detail-heading { align-items: flex-start; }
   .sector-stock-section { margin-top: 20px; }
   .sector-stock-scroll { border-radius: 8px; }

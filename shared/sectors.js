@@ -69,6 +69,30 @@ export function getSectorOverview(snapshots, {
   }));
 }
 
+/** Traded shares for the same complete-window cohort as the institution summary.
+ * Any missing session volume leaves the ratio unknown rather than understated.
+ */
+function getSectorCohortVolume(stocks, window, tradingDates) {
+  const days = window === "day" ? 1 : Number(window);
+  const dates = tradingDates.slice(-days);
+  const cohort = stocks.filter((stock) => Number.isFinite(getStockInstitutionEstimate(stock, "total", window, tradingDates))
+    && ["total", ...INSTITUTIONS].every((name) => Number.isFinite(getStockInstitutionValue(stock, name, window))));
+  if (!cohort.length || dates.length !== days) return null;
+  let volume = 0;
+  for (const stock of cohort) {
+    const history = new Map((stock.history ?? []).map((bar) => [bar.date, bar]));
+    for (const date of dates) {
+      const traded = history.get(date)?.volume;
+      if (!Number.isFinite(traded)) return null;
+      volume += traded;
+    }
+  }
+  return volume > 0 ? volume : null;
+}
+
+/** Signed net shares as a percentage of the cohort's traded shares, like a stock's 法人占量. */
+const volumeRatio = (shares, volume) => Number.isFinite(shares) && volume ? shares / volume * 100 : null;
+
 /** Detail cohort, shared institution totals and daily-money member ordering.
  * Amounts are closing-price estimates in TWD; share totals remain in shares.
  * No DOM, HTTP, storage or formatted strings enter the research model.
@@ -80,10 +104,12 @@ export function getSectorDetail(snapshots, name, { tradingDates, asOf = tradingD
   const periods = Object.fromEntries(PERIODS.map((window) => {
     const summary = getSectorInstitutionSummary(stocks, window, tradingDates);
     const estimate = getSectorInstitutionEstimate(stocks, window, tradingDates);
-    return [window, { summary, estimate,
+    const volume = getSectorCohortVolume(stocks, window, tradingDates);
+    return [window, { summary, estimate, volume, ratio: volumeRatio(summary.total, volume),
       institutions: Object.fromEntries(INSTITUTIONS.map((institution) => [institution, {
         shares: summary[institution],
         amount: getSectorInstitutionEstimate(stocks, window, tradingDates, institution).amount,
+        ratio: volumeRatio(summary[institution], volume),
       }])),
     }];
   }));

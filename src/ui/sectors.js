@@ -41,7 +41,9 @@ export function renderSectorOverviewView(context) {
 }
 
 export function renderSectorDialogView(name, context) {
-  const { dataset, latestSnapshots, sectorDetail, isDemo, esc, number, direction, percent, institutionSparkline, institutionalFigures } = context;
+  const { dataset, latestSnapshots, sectorDetail, isDemo, esc, number, direction, percent, institutionSparkline, institutionalFigures, institutionalMoney } = context;
+  // Summary cells pair each amount with its share of the cohort's traded volume.
+  const summaryFigures = (amount, ratio, key) => `<strong class="institution-money ${direction(amount)}" data-sector-money="${key}">${institutionalMoney(amount)}</strong><small class="institution-lots" data-sector-ratio="${key}" title="占量：淨買賣超股數／同期成交股數">${Number.isFinite(ratio) ? percent(ratio) : ""}</small>`;
   const detail = sectorDetail ?? (isDemo ? getSectorDetail(latestSnapshots, name, { tradingDates: dataset.dates, asOf: dataset.info.asOf }) : null);
   if (!detail) return;
   const { members, tradingDates } = detail;
@@ -51,14 +53,12 @@ export function renderSectorDialogView(name, context) {
   document.querySelector("#sector-dialog-meta").textContent = `${isDemo ? "最新完整交易日" : "報表交易日"} ${tradingDates.at(-1)}`;
   document.querySelector("#sector-dialog-content").innerHTML = `
     <section class="sector-detail-summary" aria-labelledby="sector-summary-heading">
-      <div class="sector-detail-heading"><div><h3 id="sector-summary-heading">法人淨買賣超金額</h3><p>當日與近 5／20 個交易日累計；金額：億，張數為輔</p></div></div>
-      <div class="sector-summary-grid">${periods.map(([key, label]) => {
-        const { summary, estimate, institutions } = detail.periods[key];
-        const total = summary.total;
-        const amount = estimate.amount;
-        return `<article class="sector-summary-period" data-sector-period="${key}" aria-label="${label}法人買賣超"><header><h4>${label}</h4><div class="sector-summary-values">${institutionalFigures(amount, total, 'data-sector-money="total"', 'data-sector-summary="total"')}</div></header><dl>${["外資", "投信", "自營商"].map((institution) => {
-          const { shares: value, amount: money } = institutions[institution];
-          return `<div><dt>${institution}</dt><dd>${institutionalFigures(money, value, `data-sector-money="${institution}"`, `data-sector-summary="${institution}"`)}</dd></div>`;
+      <div class="sector-detail-heading"><div><h3 id="sector-summary-heading">法人淨買賣超金額</h3><p>當日與近 5／20 個交易日累計；金額：億。占量＝淨買賣超股數／同期成交股數</p></div></div>
+      <div class="sector-summary-grid"><div class="sector-summary-labels" aria-hidden="true"><span></span>${["合計", "外資", "投信", "自營商"].map((label) => `<span>${label}</span>`).join("")}</div>${periods.map(([key, label]) => {
+        const { estimate, ratio, institutions } = detail.periods[key];
+        return `<article class="sector-summary-period" data-sector-period="${key}" aria-label="${label}法人買賣超"><header><h4>${label}</h4><div class="sector-summary-values"><span class="sr-only">合計</span>${summaryFigures(estimate.amount, ratio, "total")}</div></header><dl>${["外資", "投信", "自營商"].map((institution) => {
+          const { amount: money, ratio: share } = institutions[institution];
+          return `<div><dt>${institution}</dt><dd>${summaryFigures(money, share, institution)}</dd></div>`;
         }).join("")}</dl></article>`;
       }).join("")}</div>
     </section>
