@@ -641,7 +641,7 @@ h1 {
 #info-dialog:has(.entry-dialog) { position: fixed; inset: 0; margin: auto; padding-top: 18px; }
 #info-dialog:has(.entry-dialog) .dialog-top { height: 0; margin: 0; }
 #info-dialog:has(.entry-dialog) .dialog-top .eyebrow { display: none; }
-#info-dialog:has(.entry-dialog) #close-dialog { position: absolute; top: 11px; right: 13px; z-index: 1; }
+#info-dialog:has(.entry-dialog) #close-dialog { position: absolute; top: 11px; right: 13px; z-index: 3; }
 @media (min-width: 900px) {
   #info-dialog[data-entry-drawer="true"] {
     position: fixed;
@@ -664,6 +664,7 @@ h1 {
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  #info-dialog[data-entry-drawer="true"] .entry-dialog-header { --entry-header-inset: 28px; --entry-header-top: 64px; }
   @keyframes entry-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
 }
 .entry-dialog-sector { grid-column: 2; margin: 0; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; }
@@ -671,6 +672,15 @@ h1 {
 .entry-dialog h2 { grid-column: 2; grid-row: 2; min-width: 0; margin: 6px 0 4px; font-size: 20px; line-height: 1.4; }
 .entry-dialog-title .favorite-button { grid-column: 1; grid-row: 2; }
 .entry-dialog-meta { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+/* The stock identity stays pinned while the score detail scrolls. It bleeds over the
+   scroller's side padding (--entry-header-inset) so content never shows at its edges, and
+   Chrome keeps sticky boxes inside the scroller's top padding, so it offsets that too. */
+.entry-dialog-header { --entry-header-inset: 30px; --entry-header-top: 18px; position: sticky;
+  top: calc(-1 * var(--entry-header-top)); z-index: 1;
+  margin: 0 calc(-1 * var(--entry-header-inset)) 14px; padding: 12px 56px 10px var(--entry-header-inset);
+  border-bottom: 1px solid var(--border); background: #fff; }
+[data-theme="dark"] .entry-dialog-header { background: #111b2b; }
+.entry-dialog-header .entry-dialog-meta { margin: 0; }
 .entry-summary { --entry-neutral: #f7f9fc; --entry-card-border: #e3e9f1; --entry-pass: #0f766e; --entry-pass-soft: #eaf7f1; --entry-fail: #b54750; --entry-fail-soft: #fff2f1; --entry-track: #e4eaf2; --entry-fill: #3e6fcd; --entry-excluded-fill: #a1afc2;
   padding: 18px; border: 1px solid var(--entry-card-border); border-radius: 12px; background: #fff; box-shadow: 0 6px 22px rgb(15 23 42 / 4%); }
 .entry-price-chart + .entry-summary { position: relative; margin-top: 36px; }
@@ -3035,7 +3045,8 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
   .info-dialog-handle::before { content: ""; width: 40px; height: 5px; border-radius: 999px; background: #cbd5e1; }
   #info-dialog { transform: translateY(var(--mobile-drag-y, 0px)); transition: transform 180ms ease-out; }
   #info-dialog.is-dragging { transition: none; user-select: none; }
-  #info-dialog[data-mobile-sheet="preview"] .entry-dialog > :not(.entry-dialog-title):not(.entry-dialog-meta):not(.entry-price-chart) { display: none; }
+  #info-dialog[data-mobile-sheet="preview"] .entry-dialog > :not(.entry-dialog-header):not(.entry-price-chart) { display: none; }
+  #info-dialog .entry-dialog-header { --entry-header-inset: 16px; padding-right: 16px; }
   #info-dialog .entry-dialog-title { grid-template-columns: minmax(0, 1fr) 44px; }
   #info-dialog .entry-dialog-sector, #info-dialog .entry-dialog h2 { grid-column: 1; }
   #info-dialog .entry-dialog-title .favorite-button { grid-column: 2; grid-row: 1 / span 2; align-self: start; }

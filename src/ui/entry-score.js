@@ -150,8 +150,8 @@ export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = f
     metrics.institutionBuyDays, metrics.institutionPositiveCategories);
   const chartSeries = stock.priceHistory ?? dailyCloseSeries(stock.history,
     stock.tradingDates ?? stock.history?.map((bar) => bar.date), score.asOf);
-  return `<div class="entry-dialog">${heading}
-    <p class="entry-dialog-meta">波段順勢進場 · ${esc(score.asOf)}</p>
+  return `<div class="entry-dialog"><header class="entry-dialog-header">${heading}
+    <p class="entry-dialog-meta">波段順勢進場 · ${esc(score.asOf)}</p></header>
     ${priceChartMarkup(stock, esc, number, chartSeries)}
     <section class="entry-summary" data-conditions-passed="${Boolean(score.coreConditionsPassed)}"><time class="entry-summary-date" datetime="${esc(score.asOf ?? "")}">${esc(score.asOf?.replaceAll("-", "/") ?? "—")}</time><div class="entry-summary-head"><strong${valid ? ` data-score-target="${score.finalScore}"` : ""}>${valid ? `${number(score.finalScore, 2)} / 100` : "—"}</strong><span>${esc(score.status)}</span></div>
     <section class="entry-evidence entry-core-panel"><h3>核心條件檢查</h3><div class="entry-condition-list">${Object.entries(CORE_LABELS).map(([key, label]) => {
