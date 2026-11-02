@@ -60,6 +60,36 @@ test("failed summary keeps the shell usable and retry loads the complete result"
   await expect(page.locator("#stock-rows tr")).toHaveCount(manifest.coverage.traded);
 });
 
+test("home screen launch downloads market data while the launch animation plays", async ({ page }) => {
+  // Emulate an installed app so the 1.8 s branded launch animation runs.
+  await page.addInitScript(() => {
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = (query) => {
+      const result = nativeMatchMedia(query);
+      return query === "(display-mode: standalone)" ? new Proxy(result, { get: (target, key) =>
+        key === "matches" ? true : typeof target[key] === "function" ? target[key].bind(target) : target[key] }) : result;
+    };
+  });
+  const requested = {};
+  await page.route("**/api/**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    requested[path] ??= Date.now();
+    if (path === "/api/v1/presence") return route.fulfill({ json: { today: 1 } });
+    if (path === "/api/v1/market") return route.fulfill({ json: versionedManifest });
+    if (path === "/api/v1/market/summary") return route.fulfill({ json: summary });
+    return route.fulfill({ status: 404 });
+  });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveClass(/is-standalone/);
+  await expect(page.locator("#app-splash")).toBeVisible();
+  // Both requests start while the splash still covers the app, not after it leaves.
+  await expect.poll(() => Boolean(requested["/api/v1/market/summary"])).toBe(true);
+  await expect(page.locator("#app-splash")).toBeVisible();
+  await expect(page.locator("#app-splash")).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "false");
+  await expect(page.locator("#stock-rows tr")).toHaveCount(manifest.coverage.traded);
+});
+
 test("switching dates fetches that date once and reuses the result", async ({ page }) => {
   const next = "2026-10-19";
   const future = { ...day, date: next, records: Object.fromEntries(Object.entries(day.records).map(([symbol, row]) => {

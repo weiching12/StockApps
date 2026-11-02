@@ -1238,6 +1238,10 @@ async function init() {
   restorePage(state, nativeMode ? nativeStorage : undefined);
   applyTheme();
   startVersionChecks();
+  // Download while the launch animation plays; the splash only delays showing the result.
+  const pendingData = apiMode ? loadMarketSummary(fetch, { settings: state.settings,
+    onCacheFallback: () => { usingCachedData = true; renderConnectionState(); } }) : loadDataset();
+  pendingData.catch(() => {}); // Failures surface when awaited below, after the splash.
   await finishAppSplashBeforeLoading();
   const prepare = () => {
     state.date = dataset.info.asOf;
@@ -1253,8 +1257,7 @@ async function init() {
     snapshots = []; latestSnapshots = [];
     pendingSymbols.clear();
     shell(); bindEvents(); enablePwa(); refreshData();
-    const loaded = await loadMarketSummary(fetch, { settings: state.settings,
-      onCacheFallback: () => { usingCachedData = true; renderConnectionState(); } });
+    const loaded = await pendingData;
     dataset = loaded.dataset;
     prepare();
     latestSummary = loaded.summary;
@@ -1271,7 +1274,7 @@ async function init() {
     updateFlow.finishStartup({ fresh: !usingCachedData });
     return;
   }
-  dataset = await loadDataset();
+  dataset = await pendingData;
   isDemo = dataset.info.mode === "demo";
   prepare(); shell(); bindEvents(); enablePwa();
   refreshData();

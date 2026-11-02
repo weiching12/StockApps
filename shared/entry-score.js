@@ -71,13 +71,16 @@ export function getQualifiedEntryScore(baseScore, coreConditions, contributions)
   return { finalScore: qualifiedScore, qualifiedScore };
 }
 
-/** Keep whole-market responses small; stock analysis returns the full result. */
+/** Keep whole-market responses small; stock analysis returns the full result.
+ * Per-condition reasons and data stay out: the list never shows them and the
+ * detail dialog always loads them from the analysis resource.
+ */
 export function entryScoreSummary(result) {
   return { modelVersion: result.modelVersion, strategy: result.strategy, asOf: result.asOf,
     baseScore: result.baseScore, qualifiedScore: result.qualifiedScore, finalScore: result.finalScore,
     totalScore: result.totalScore, displayScore: result.displayScore,
     coreConditionsPassed: result.coreConditionsPassed, passedCount: result.passedCount,
-    totalConditions: result.totalConditions, coreConditions: result.coreConditions,
+    totalConditions: result.totalConditions,
     status: result.status,
     priceCaution: result.conflictingEvidence.some((item) => item.includes("未還原價格")),
     missingData: result.missingData };

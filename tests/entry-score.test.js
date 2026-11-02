@@ -260,7 +260,11 @@ test("market Summary API and stock Analysis API return the same score on selecte
     assert.equal(fromList.totalScore, fromDetail.totalScore);
     assert.equal(fromList.modelVersion, fromDetail.modelVersion);
     assert.equal(fromList.coreConditionsPassed, fromDetail.coreConditionsPassed);
-    assert.deepEqual(fromList.coreConditions, fromDetail.coreConditions);
+    assert.equal(fromList.passedCount, fromDetail.passedCount);
+    assert.deepEqual(fromList.missingData, fromDetail.missingData);
+    // Condition reasons and evidence come only from the per-stock analysis resource.
+    assert.equal("coreConditions" in fromList, false);
+    assert.equal(Object.keys(fromDetail.coreConditions).length, 5);
     assert.ok(Object.keys(fromDetail.categories).length === 5);
   }
 });
