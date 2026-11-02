@@ -14,6 +14,35 @@
     }
   ],
   "paths": {
+    "/api/v1/research/samples": {
+      "get": {
+        "operationId": "getEntryResearchSamples",
+        "description": "Saved daily entry research samples (one per stock, trading date and model version, never overwritten) with their after-the-fact outcomes. Samples include stocks that failed the gates. Model parameters are provisional and unvalidated. Outcome values are null while PENDING or UNAVAILABLE.",
+        "parameters": [
+          { "name": "model", "in": "query", "schema": { "type": "string", "default": "entry-research-v1" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "symbol", "in": "query", "schema": { "type": "string" } },
+          { "name": "gate", "in": "query", "schema": { "type": "string", "enum": ["PASS", "FAIL", "UNKNOWN"] } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["WAIT_TRIGGER", "TRIGGERED", "SIGNAL_EXPIRED", "SIGNAL_INVALIDATED", "DATA_INSUFFICIENT", "NOT_ELIGIBLE"] } },
+          { "name": "setup", "in": "query", "schema": { "type": "string", "enum": ["PULLBACK_RECOVERY", "RANGE_BREAKOUT"] } },
+          { "name": "nextDay", "in": "query", "schema": { "type": "string", "enum": ["NEXT_DAY_CANDIDATE", "WAIT_TRIGGER", "PRICE_TOO_HIGH", "PLAN_INVALIDATED", "DATA_INSUFFICIENT", "NOT_ELIGIBLE"] } },
+          { "name": "source", "in": "query", "schema": { "type": "string", "enum": ["daily", "historical-recalculation"] } },
+          { "name": "minScore", "in": "query", "schema": { "type": "number", "minimum": 0, "maximum": 100 } },
+          { "name": "maxScore", "in": "query", "schema": { "type": "number", "minimum": 0, "maximum": 100 } },
+          { "name": "detail", "in": "query", "schema": { "type": "string", "enum": ["1", "true"] }, "description": "Include the saved explanation and outcome detail" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0, "default": 0 } }
+        ],
+        "responses": { "200": { "description": "Samples, newest first", "content": { "application/json": {
+          "schema": { "type": "object", "required": ["data", "meta"], "properties": {
+            "data": { "type": "array", "items": { "type": "object" } },
+            "meta": { "type": "object", "required": ["modelVersion", "total", "limit", "offset"] }
+          } }
+        } } } }
+      },
+      "head": { "responses": { "200": { "description": "Same status and headers without a body" } } }
+    },
     "/api/v1/favorites/summary": {
       "get": {
         "operationId": "getFavoriteSummary",

@@ -106,6 +106,41 @@ ATR14 一律以 t 日為終點的 61 個交易日計算，與 V1.2 相同。
 
 沒有即時行情，候選一律 `requiresPriceConfirmation: true`。`checkNextDayPlan(plan, nextBar)` 只用下一交易日的**開盤價**判斷：高於上限 `OPEN_ABOVE_UPPER`（不追價）、不高於失效價 `OPEN_BELOW_INVALIDATION`（取消）、其餘 `WITHIN_PLAN`（以開盤價模擬成交）；還沒有隔日行情為 `AWAITING_PRICE`。原計畫的上限與失效價不會因為市場價格而調整。
 
+## 每日樣本保存（批次 B）
+
+### 資料表（migration `0010_entry_research.sql`，只新增）
+
+- `entry_research_samples`：主鍵 `(Symbol, TradeDate, ModelVersion)`，**全市場每一檔**（含未通過門檻者）每日一列。五個門檻結果、通過數、準備度與三個分項、研究狀態、策略類型、訊號日、明日評估、參考價、上限、失效價、風險、ATR14、資料品質、價格基準、來源（`daily`／`historical-recalculation`）與發布版本各自成欄並建立索引；完整說明（門檻原因與數值、訊號依據、價格計畫、警示）存在 `DetailJson`。寫入一律 `INSERT OR IGNORE`：同一股票、日期、模型版本只保留第一次的結果，不會被後來的資料覆蓋。要重算必須升模型版本。
+- `entry_research_outcomes`：同主鍵，後續表現與模擬交易，與樣本分開存放，樣本列永遠不變。
+- `entry_research_runs`：每次擷取的紀錄（交易日、模型、發布版本、樣本數、新增、略過、後續表現更新數、狀態、錯誤）。同一交易日若之後出現修正版發布，會新增一筆紀錄，但不改寫已存在的樣本。
+
+### 盤後流程
+
+`worker.js` 的排程在同步完成（`phase === "done"`）後依序執行：V1.2 研究快照 → **進場研究擷取**（`entry-research-capture.js`，在同步協調器的佇列內執行）。兩者互相獨立，任一失敗不影響另一個，失敗會記錄原因並在下一次排程重試。
+
+1. 同一發布版本已完成就立即返回（排程每分鐘觸發，不會重複讀取全市場）。
+2. 以與 V1.2 相同的已分析行情與公司行動資料，對每一檔執行 `evaluateEntryResearch()` 並寫入樣本。
+3. 更新最近 35 個交易日內、後續表現仍為 `PENDING` 的樣本；只寫入結果有變化的列。樣本日後 30 個交易日仍無法完成者標記為 `UNAVAILABLE`。
+4. 記錄執行結果。
+
+### 後續表現（`shared/entry-research-outcome.js`）
+
+- 1／5／10／20 日報酬：以樣本日收盤為基準，比較第 N 個市場交易日收盤。
+- MFE／MAE：其後 20 個交易日的最高價、最低價相對樣本日收盤。
+- 是否觸及失效價（最低價 ≤ 失效價）、是否達到目標價（進場參考價 ＋ 2 × 風險距離，暫定）；同一天兩者都觸及時標記無法判斷先後。
+- 模擬交易：只對 `NEXT_DAY_CANDIDATE`，以下一交易日開盤價依 `checkNextDayPlan()` 判斷成交；成交後持有 5／10／20 日，或收盤跌破失效價時於隔日開盤出場。報酬扣除手續費雙邊 0.1425%、證交稅 0.3%、滑價雙邊各 0.1%。
+- 未完成的期間為 `PENDING`，值為 `null`，不填 0；期間有除權息（未還原價格無法比較）、停牌或缺行情為 `UNAVAILABLE`；公司行動尚未查核時維持 `PENDING`。
+
+### 查詢 API
+
+`GET /api/v1/research/samples`：參數 `model`、`from`、`to`、`symbol`、`gate`、`status`、`setup`、`nextDay`、`source`、`minScore`、`maxScore`、`limit`（≤ 200）、`offset`、`detail=1`（附完整說明）。依日期新到舊、同日依準備度排序。
+
+### 容量
+
+workerd／D1 實測：每筆樣本說明約 1.4 KB，加上欄位與索引約 2 KB；全市場約 1,340 檔，每日約 2.5～3 MB。
+
+**保留期限（暫定）：半年。** 每次擷取完成後，刪除交易日早於「評估日往前 6 個月」的樣本、後續表現與執行紀錄（`retentionCutoff()`，月底日期取當月最後一天）。穩定狀態約 125 個交易日，樣本約 330～380 MB。回測只能涵蓋最近半年；已刪除的資料無法復原。
+
 ## 暫定參數總表
 
 全部位於 `ENTRY_RESEARCH_MODEL`，修改任何會影響結果的值時，必須同時更新 `ENTRY_RESEARCH_MODEL_VERSION`：

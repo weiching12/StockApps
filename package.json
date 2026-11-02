@@ -30,7 +30,8 @@
     "test:refactor-browser": "node tests/refactor-browser-runtime.mjs",
     "test:auth-runtime": "node tests/auth-runtime.mjs",
     "test:auth-proxy-runtime": "node tests/auth-proxy-runtime.mjs",
-    "test:pwa-build-runtime": "node tests/pwa-build-runtime.mjs"
+    "test:pwa-build-runtime": "node tests/pwa-build-runtime.mjs",
+    "test:entry-research-runtime": "node tests/entry-research-runtime.mjs"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.3",

@@ -1,4 +1,4 @@
-import { analysisOptions, stockCollectionOptions } from "./validators.js";
+import { analysisOptions, researchSampleOptions, stockCollectionOptions } from "./validators.js";
 
 // Controllers own API representations and HTTP input adaptation.
 export async function marketController(route, url, services) {
@@ -31,6 +31,7 @@ export async function marketController(route, url, services) {
     case "stock": return market.stock(route.params.symbol);
     case "history": return history.stock(route.params.symbol);
     case "review": return history.review(route.params.symbol);
+    case "researchSamples": return services.entryResearch.samples(researchSampleOptions(url.searchParams));
     default: throw new Error("Unregistered market controller");
   }
 }

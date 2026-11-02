@@ -15,6 +15,7 @@ export function resolveApiRoute(path) {
   if (versioned && resource === "/market/summary") return route("marketSummary");
   if (versioned && resource === "/favorites/summary") return route("favoriteSummary");
   if (versioned && resource === "/favorites/research") return route("favoriteResearch");
+  if (versioned && resource === "/research/samples") return route("researchSamples");
   const sector = versioned && resource.match(/^\/sectors\/([^/]+)$/);
   if (sector) return route("sectorDetail", { name: sector[1] });
   if (versioned && resource === "/stocks") return route("stocks");

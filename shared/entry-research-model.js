@@ -29,6 +29,7 @@ export const ENTRY_RESEARCH_MODEL = Object.freeze({
   plan: Object.freeze({
     upperAtr: 0.5,             // acceptable upper price = entry reference + 0.5 × ATR14
     maxRiskPercent: 8,         // from the upper price down to invalidation
+    targetRiskMultiple: 2,     // outcome target = entry reference + 2 × (entry reference − invalidation)
   }),
   // Backtest assumptions (used by the outcome module in a later batch).
   costs: Object.freeze({ commissionPercent: 0.1425, sellTaxPercent: 0.3, slippagePercent: 0.1 }),

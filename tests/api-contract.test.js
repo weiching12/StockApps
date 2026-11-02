@@ -45,6 +45,7 @@ test("documented market, stock, history and analysis responses match the publish
   for (let index = 0; index < 128; index++) data.set(shardKey("contract", index), { ...mergeShard(catalog, index, null, [day]), generation: "contract", index });
   const db = testDatabase();
   db.sqlite.exec(readFileSync(new URL("../cloudflare/migrations/0005_research_snapshots.sql", import.meta.url), "utf8"));
+  db.sqlite.exec(readFileSync(new URL("../cloudflare/migrations/0010_entry_research.sql", import.meta.url), "utf8"));
   const env = { MARKET_DATA: { get: async (key) => structuredClone(data.get(key) ?? null) }, T86_DB: db };
   for (const [path, definition] of Object.entries(spec.paths)) {
     if (path.endsWith("presence") || path.includes("/push/") || path.includes("/auth/")) continue;

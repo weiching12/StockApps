@@ -98,4 +98,5 @@
 
 ## 6. 進度
 
-- 批次 A（研究引擎、明日價格計畫）：已完成，規則見 [entry-research.md](entry-research.md)。尚未接入 API、資料庫或畫面。
+- 批次 A（研究引擎、明日價格計畫）：已完成，規則見 [entry-research.md](entry-research.md)。
+- 批次 B（每日樣本、後續表現、樣本 API）：已完成，尚未部署。正式啟用需先 `npx wrangler d1 migrations apply stockapps-t86 --remote` 套用 `0010_entry_research.sql`。歷史回補（`historical-recalculation`）尚未實作。
