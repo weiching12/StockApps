@@ -122,6 +122,28 @@ export function getAtr14(history) {
 const statusFor = (score) => score >= 85 ? "條件高度一致" : score >= 70 ? "進場條件接近完整" :
   score >= 50 ? "部分條件成立" : score >= 30 ? "條件偏弱" : "與目前策略不符";
 
+/** The price history a research model may use at asOf. Dividends inside the 60-session
+ * window are reference-adjusted only when every one is verified; otherwise the
+ * unadjusted history comes back with `unverified` set so callers withhold results.
+ */
+export function researchPriceHistory(stock, tradingDates, asOf, options = {}) {
+  const priceBasis = options.priceBasis ?? stock.priceBasis ?? "unadjusted";
+  const index = tradingDates?.indexOf(asOf) ?? -1;
+  const requiredActionDates = index >= 0 ? tradingDates.slice(Math.max(0, index - 59), index + 1) : [];
+  const actionDates = new Set(requiredActionDates);
+  const actionsForStock = options.corporateActions?.eventsBySymbol?.get(stock.symbol);
+  const relevantActions = new Map([...actionsForStock ?? []].filter(([date]) => actionDates.has(date)));
+  if (priceBasis !== "unadjusted" || !relevantActions.size)
+    return { stock, priceBasis, requiredActionDates, unverified: false };
+  const covered = options.corporateActions?.coveredDates;
+  const adjusted = [...relevantActions.keys()].every((date) => covered?.has(date))
+    ? referenceAdjustedDividendHistory(stock.history, relevantActions) : null;
+  return adjusted
+    ? { stock: { ...stock, history: analyzeHistory(adjusted, options.settings) }, priceBasis: "reference-adjusted",
+      requiredActionDates, unverified: false }
+    : { stock, priceBasis, requiredActionDates, unverified: true };
+}
+
 /** Pure, calendar-aware research score; future history is ignored. */
 export function getEntryScore(stock, tradingDates, asOf, options = {}) {
   const base = { modelVersion: ENTRY_MODEL_VERSION, strategy: ENTRY_STRATEGY, asOf,
@@ -133,21 +155,14 @@ export function getEntryScore(stock, tradingDates, asOf, options = {}) {
     pendingConditions: [], missingData: [], rawCategories: {}, rawBaseScore: null, rawFinalScore: null };
   const index = tradingDates?.indexOf(asOf) ?? -1;
   if (index < 60) base.missingData.push("需截至評估日連續 61 個市場交易日行情");
-  const requiredActionDates = index >= 0 ? tradingDates.slice(Math.max(0, index - 59), index + 1) : [];
-  const actionDates = new Set(requiredActionDates);
-  const actionsForStock = options.corporateActions?.eventsBySymbol?.get(stock.symbol);
-  const relevantActions = new Map([...actionsForStock ?? []].filter(([date]) => actionDates.has(date)));
-  if (base.priceBasis === "unadjusted" && relevantActions.size) {
-    const covered = options.corporateActions?.coveredDates;
-    const adjusted = [...relevantActions.keys()].every((date) => covered?.has(date))
-      ? referenceAdjustedDividendHistory(stock.history, relevantActions) : null;
-    if (adjusted) {
-      stock = { ...stock, history: analyzeHistory(adjusted, options.settings) };
-      base.priceBasis = "reference-adjusted";
-      base.conflictingEvidence.push("已依核對的除息參考價調整歷史價格；不含股息再投資");
-    } else {
-      base.missingData.push("公司行動參考價無法核對；未還原價格不適合直接評分");
-    }
+  const priced = researchPriceHistory(stock, tradingDates, asOf, { ...options, priceBasis: base.priceBasis });
+  const { requiredActionDates } = priced;
+  if (priced.priceBasis === "reference-adjusted") {
+    stock = priced.stock;
+    base.priceBasis = "reference-adjusted";
+    base.conflictingEvidence.push("已依核對的除息參考價調整歷史價格；不含股息再投資");
+  } else if (priced.unverified) {
+    base.missingData.push("公司行動參考價無法核對；未還原價格不適合直接評分");
   }
   const byDate = new Map((stock.history ?? []).filter((bar) => bar.date <= asOf).map((bar) => [bar.date, bar]));
   const window = index >= 0 ? tradingDates.slice(Math.max(0, index - 60), index + 1).map((date) => byDate.get(date)) : [];
