@@ -175,14 +175,17 @@ test("phone sector identity stays compact while amounts and percentages align fo
   }));
   await page.goto("/");
   await page.locator('.sidebar [data-page="sectors"]').click();
-  for (const width of [320, 360, 390, 700]) {
+  // 產業 (activity) omits the TOP1 line; 買超 keeps it between the name and the breadth.
+  for (const sort of ["activity-desc", "net-desc"]) for (const width of [320, 360, 390, 700]) {
+    await page.locator(`[data-sector-sort="${sort}"]`).click();
     await page.setViewportSize({ width, height: 844 });
     for (const period of ["day", "5", "20"]) {
       await page.locator(`[data-sector-window="${period}"]`).click();
-      const issues = await page.locator("#sector-grid .sector-card").evaluateAll((cards) => cards.flatMap((card) => {
+      const issues = await page.locator("#sector-grid .sector-card").evaluateAll((cards, sort) => cards.flatMap((card) => {
         const name = card.querySelector(".sector-identity h3").getBoundingClientRect();
         const identity = card.querySelector(".sector-identity");
-        const note = card.querySelector(".sector-identity p").getBoundingClientRect();
+        const leader = card.querySelector(".sector-identity p");
+        const note = leader ? leader.getBoundingClientRect() : name;
         const breadth = card.querySelector(".sector-breadth").getBoundingClientRect();
         const amount = card.querySelector(".sector-total strong");
         const change = card.querySelector(".sector-change");
@@ -193,7 +196,9 @@ test("phone sector identity stays compact while amounts and percentages align fo
         const lots = textBounds(amount), percentage = textBounds(change), bounds = card.getBoundingClientRect();
         const estimate = textBounds(card.querySelector("[data-sector-lots]"));
         return [
-          (note.top - name.bottom < 0 || note.top - name.bottom > 4) && "TOP1 does not follow the industry name compactly",
+          sort === "activity-desc" && leader && "產業 ordering still shows the TOP1 line",
+          sort !== "activity-desc" && !leader && "net ordering lost the TOP1 line",
+          leader && (note.top - name.bottom < 0 || note.top - name.bottom > 4) && "TOP1 does not follow the industry name compactly",
           (breadth.top - note.bottom < 0 || breadth.top - note.bottom > 4) && "breadth does not follow TOP1 compactly",
           identity.scrollWidth > identity.clientWidth + 1 && "industry information extends outside its column",
           Math.abs(lots.right - percentage.right) > 1 && "amount and percentage do not share the right edge",
@@ -202,8 +207,8 @@ test("phone sector identity stays compact while amounts and percentages align fo
           estimate.left < name.right && "estimate overlaps the sector name",
           estimate.right > bounds.right && "estimate extends outside the card",
         ].filter(Boolean).map((issue) => `${card.dataset.sectorName}: ${issue}`);
-      }));
-      expect(issues, `Sector numbers at ${width}px / ${period}`).toEqual([]);
+      }), sort);
+      expect(issues, `Sector numbers at ${width}px / ${period} / ${sort}`).toEqual([]);
     }
   }
 });
