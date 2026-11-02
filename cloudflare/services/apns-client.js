@@ -4,7 +4,8 @@ const encode = (value) => btoa(String.fromCharCode(...new Uint8Array(value)))
 const json64 = (value) => encode(new TextEncoder().encode(JSON.stringify(value)));
 
 export class ApnsClient {
-  constructor(env, fetcher = fetch, now = Date.now) { this.env = env; this.fetcher = fetcher; this.now = now; }
+  // A bare `fetch` stored on the instance would run with the wrong receiver in Workers.
+  constructor(env, fetcher = (input, init) => fetch(input, init), now = Date.now) { this.env = env; this.fetcher = fetcher; this.now = now; }
   async authorization() {
     const { APNS_PRIVATE_KEY: pem, APNS_KEY_ID: keyId, APNS_TEAM_ID: teamId } = this.env;
     const key = `${keyId}:${teamId}:${pem}`;

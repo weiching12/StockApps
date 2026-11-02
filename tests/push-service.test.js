@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { PushService, allowedPushEndpoint } from "../cloudflare/services/push-service.js";
 import { pushController } from "../cloudflare/api/push-controller.js";
+import { ApnsClient } from "../cloudflare/services/apns-client.js";
 
 const valid = { endpoint: "https://fcm.googleapis.com/fcm/send/subscription", expirationTime: null,
   keys: { p256dh: "abcdefgh", auth: "ijklmnop" } };
@@ -52,6 +53,39 @@ test("push config is public while subscription writes require same origin", asyn
 test("notification dispatch skips cleanly until VAPID secrets are configured", async () => {
   const service = new PushService({ pending() { throw new Error("must not read subscriptions"); } }, { VAPID_PUBLIC_KEY: "public" });
   assert.deepEqual(await service.notifyPublished({ generation: "g", asOf: "2026-10-21" }), { sent: 0, skipped: true });
+});
+
+// Workers throw "Illegal invocation" when fetch runs with another object as `this`;
+// every production send failed this way while tests injected their own fetcher.
+async function withWorkersFetch(run) {
+  const original = globalThis.fetch, calls = [];
+  globalThis.fetch = function (input, init) {
+    if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation: function called with incorrect `this` reference.");
+    calls.push([String(input), init]);
+    return Promise.resolve(new Response(null, { status: 201 }));
+  };
+  try { await run(calls); } finally { globalThis.fetch = original; }
+}
+
+test("default push and APNs fetchers keep the global receiver required by Workers", async () => {
+  const encode = (value) => Buffer.from(value).toString("base64url");
+  const server = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const client = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const row = { endpoint: "https://web.push.apple.com/subscription", p256dh: encode(await crypto.subtle.exportKey("raw", client.publicKey)),
+    auth: encode(crypto.getRandomValues(new Uint8Array(16))) };
+  const marks = [];
+  const repository = { pending: async () => marks.length ? [] : [row], mark: async (...args) => marks.push(args), removeMany: async () => {} };
+  await withWorkersFetch(async (calls) => {
+    const service = new PushService(repository, { VAPID_SUBJECT: "https://app.test",
+      VAPID_PUBLIC_KEY: encode(await crypto.subtle.exportKey("raw", server.publicKey)),
+      VAPID_PRIVATE_KEY: (await crypto.subtle.exportKey("jwk", server.privateKey)).d });
+    assert.deepEqual(await service.notifyPublished({ generation: "g1", asOf: "2026-11-03" }),
+      { sent: 1, removed: 0, failed: 0, hasMore: false });
+    assert.deepEqual(marks, [[row.endpoint, "2026-11-03"]]);
+    assert.equal(calls[0][0], row.endpoint);
+    const apns = new ApnsClient({});
+    assert.equal((await apns.fetcher("https://api.push.apple.com/3/device/token", { method: "POST" })).status, 201);
+  });
 });
 
 test("notification dispatch encrypts one payload and marks the trade date", async () => {

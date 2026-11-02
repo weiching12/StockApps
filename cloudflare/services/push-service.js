@@ -16,7 +16,9 @@ export const allowedPushEndpoint = (value) => {
 const validKey = (value, max) => typeof value === "string" && value.length >= 8 && value.length <= max && /^[A-Za-z0-9_-]+$/.test(value);
 
 export class PushService {
-  constructor(repository, env, fetcher = fetch) {
+  // Workers reject `fetch` invoked as a method of another object ("Illegal invocation"),
+  // so the default keeps the global receiver when called as this.fetcher(...).
+  constructor(repository, env, fetcher = (input, init) => fetch(input, init)) {
     this.repository = repository;
     this.env = env;
     this.fetcher = fetcher;
