@@ -9,6 +9,8 @@ test("research center preserves favorites and opens existing score detail", asyn
   await expect(page.locator("#watchlist h2")).toHaveCount(0);
   await expect(page.locator("#legacy-watchlist")).toBeHidden();
   await expect(page.locator("#research-stats")).toContainText("追蹤股票");
+  await expect(page.locator("#research-stats .research-stat-label")).toHaveText(["追蹤股票", "分數提高", "重要異動"]);
+  await expect(page.locator("#research-stats .research-stat strong").first()).toContainText("檔");
   await expect(page.locator("#research-list table")).toBeVisible();
   await expect(page.locator("#research-list thead")).toContainText("最新異動");
   await expect(page.locator("#research-list thead")).toContainText("分數");
@@ -93,7 +95,14 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
   await expect(page.locator('.research-mobile-detail')).toHaveCount(0);
   for (const width of [320, 390, 483]) {
     await page.setViewportSize({ width, height: 844 });
-    const heading = await page.locator(".page-heading").evaluate((node) => {
+    // Summary stats stay one row, with each label on a single line and nothing clipped.
+    expect(await page.locator("#research-stats").evaluate((stats) => {
+      const items = [...stats.querySelectorAll(".research-stat")].map((item) => item.getBoundingClientRect());
+      const labels = [...stats.querySelectorAll(".research-stat-label")];
+      return stats.scrollWidth <= stats.clientWidth && items.length === 3 && items.every((item) => Math.abs(item.top - items[0].top) < 1)
+        && labels.every((label) => label.scrollWidth <= label.clientWidth && label.getBoundingClientRect().height < 24);
+    }), `stats at ${width}px`).toBe(true);
+    const heading =await page.locator(".page-heading").evaluate((node) => {
       const title = node.querySelector("#page-title").getBoundingClientRect();
       const date = node.querySelector("#research-date").getBoundingClientRect();
       const description = node.querySelector("#page-description").getBoundingClientRect();
