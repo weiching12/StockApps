@@ -2262,7 +2262,7 @@ dialog h2 {
   border-radius: 7px;
   background: #f5f8fc;
 }
-.load-status[hidden], .app-status[hidden], #reload-data[hidden], #apply-update[hidden] { display: none; }
+.load-status[hidden], .app-status[hidden], #reload-data[hidden] { display: none; }
 
 @media (display-mode: standalone) {
   @media (max-width: 1100px) {

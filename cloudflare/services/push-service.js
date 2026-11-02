@@ -1,7 +1,17 @@
 import { buildPushPayload } from "@block65/webcrypto-web-push";
 
+// Browser push services only: anonymous subscriptions must not make scheduled sends reach arbitrary hosts.
+const PUSH_SERVICE_HOSTS = ["fcm.googleapis.com", "android.googleapis.com", "push.services.mozilla.com",
+  "web.push.apple.com", "notify.windows.com"];
+const MAX_ENDPOINT_LENGTH = 1024;
 const validEndpoint = (value) => {
   try { return new URL(value).protocol === "https:"; } catch { return false; }
+};
+export const allowedPushEndpoint = (value) => {
+  if (typeof value !== "string" || value.length > MAX_ENDPOINT_LENGTH || !validEndpoint(value)) return false;
+  const url = new URL(value);
+  return !url.username && !url.password && (url.port === "" || url.port === "443") &&
+    PUSH_SERVICE_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
 };
 const validKey = (value, max) => typeof value === "string" && value.length >= 8 && value.length <= max && /^[A-Za-z0-9_-]+$/.test(value);
 
@@ -17,7 +27,7 @@ export class PushService {
   }
 
   validate(input) {
-    if (!input || !validEndpoint(input.endpoint) || !validKey(input.keys?.p256dh, 256) || !validKey(input.keys?.auth, 64))
+    if (!input || !allowedPushEndpoint(input.endpoint) || !validKey(input.keys?.p256dh, 256) || !validKey(input.keys?.auth, 64))
       throw Object.assign(new Error("Invalid push subscription"), { code: "INVALID_PUSH_SUBSCRIPTION", status: 400 });
     return { endpoint: input.endpoint, expirationTime: input.expirationTime ?? null,
       keys: { p256dh: input.keys.p256dh, auth: input.keys.auth } };
@@ -43,6 +53,8 @@ export class PushService {
     const data = JSON.stringify({ title: "株研資料已更新", body: `${manifest.asOf} 台股行情與法人資料已完成更新`,
       url: "/", tag: `market-${manifest.asOf}`, generation: manifest.generation });
     for (const row of rows.slice(0, 500)) {
+      // Rows saved before the host allowlist existed are dropped instead of contacted.
+      if (!allowedPushEndpoint(row.endpoint)) { stale.push(row.endpoint); continue; }
       const subscription = { endpoint: row.endpoint, expirationTime: null, keys: { p256dh: row.p256dh, auth: row.auth } };
       try {
         const payload = await buildPushPayload({ data, options: { ttl: 86400, urgency: "normal", topic: `market-${manifest.asOf}` } }, subscription,

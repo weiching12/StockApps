@@ -18,7 +18,7 @@ business query options or construct stock/history representations.
 
 `shared/domain-error.js` carries only a code and message. Application services do
 not accept HTTP Request/Response or URLSearchParams, and errors do not contain an
-HTTP status. The old internal MarketError export is a compatibility alias.
+HTTP status.
 `composition.js` creates the Market, Analysis and History services and injects them
 as one application-service collection at the router boundary.
 Existing HTTP paths, response fields, cache headers and error envelopes remain.

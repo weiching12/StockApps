@@ -89,6 +89,11 @@ than forcing every endpoint into one envelope. API version v1 and stored
 - `DELETE /api/v1/push/subscriptions` removes the subscription by endpoint.
 
 Subscriptions contain only the push endpoint and browser-generated encryption keys.
+Endpoints must be HTTPS URLs (at most 1,024 characters, default port, no credentials) on a
+browser push service: `fcm.googleapis.com`, `android.googleapis.com`,
+`*.push.services.mozilla.com`, `web.push.apple.com` or `*.notify.windows.com`. Request
+bodies are limited to 4 KiB even when streamed without `Content-Length`. Stored rows on
+other hosts are removed at the next send instead of being contacted.
 After a validated manifest for the current Taipei trade date is published, the sync
 service sends one notification per subscription and trade date. Expired `404`/`410`
 subscriptions are removed automatically. Push delivery failures never roll back the

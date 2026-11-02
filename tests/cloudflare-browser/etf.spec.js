@@ -44,6 +44,10 @@ test("ETF search and favorites work while every industry ranking and detail excl
     if (path === "/api/v1/favorites/summary") return route.fulfill({ json:
       await services[Number(includeEtfs)].favorites(new URL(route.request().url()).searchParams.get("symbols").split(","),
         current.manifest.asOf, { period: 9, kSmooth: 3, dSmooth: 3 }) });
+    if (path === "/api/v1/favorites/research") return route.fulfill({ json: {
+      data: new URL(route.request().url()).searchParams.get("symbols").split(",").map((symbol) => ({ symbol,
+        latest: null, previous: null, comparison: null, events: [], history: [], timeline: [] })),
+      meta: { asOf: current.manifest.asOf, previousDate: null, revisions: [], source: "saved", coverage: 0 } } });
     if (path.startsWith("/api/v1/sectors/")) return route.fulfill({ json:
       await services[Number(includeEtfs)].sector(decodeURIComponent(path.split("/").at(-1)),
         current.manifest.asOf, { period: 9, kSmooth: 3, dSmooth: 3 }) });
@@ -70,7 +74,7 @@ test("ETF search and favorites work while every industry ranking and detail excl
   await expect(page.locator('#stock-rows [data-symbol="00632R"] .signal-cell')).toContainText("資料不足");
   await page.locator('#stock-rows [data-favorite="00632R"]').click();
   await page.locator('[data-page="favorites"]').click();
-  await expect(page.locator('[data-watch-symbol="00632R"]')).toBeVisible();
+  await expect(page.locator('#research-list .research-card[data-research-symbol="00632R"]')).toBeVisible();
   await page.locator('[data-page="sectors"]').click();
   for (const window of ["day", "5", "20"]) {
     await page.locator(`[data-sector-window="${window}"]`).click();

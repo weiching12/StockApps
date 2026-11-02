@@ -33,6 +33,11 @@ async function reportRoute(page, handle = params => report(params)) {
     return route.fulfill({ json: await handle(new URL(route.request().url()).searchParams) });
   });
 }
+// The page defaults to the current Taipei month; pin it to the fixture's October 2026 data.
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-30T12:00:00+08:00'));
+});
+
 const dayButton = (page, date = 24, count = 102) => page.locator('#trend').getByRole('button', {
   name: new RegExp(`10月${date}日.*${count}.*次造訪`),
 });

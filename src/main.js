@@ -139,6 +139,8 @@ let startupVersionCheck = Promise.resolve(false);
 let touchInteraction = false;
 const ENTRY_CHART_HOLD_MS = 300, ENTRY_CHART_TOUCH_SLOP = 10;
 let entryTouch = null;
+// Once a hold has started scrubbing, keep the finger's movement from scrolling the page.
+const preventEntryTouchScroll = (event) => event.preventDefault();
 const pendingSymbols = new Set();
 let updateFlow;
 const showUpdateState = createUpdateDialog({ onUpdate: () => updateFlow.apply(), isBlocking: () => updateFlow?.isBlocking() ?? true });
@@ -865,6 +867,8 @@ function bindEvents() {
       entryTouch.timer = setTimeout(() => {
         if (!entryTouch || entryTouch.plot !== plot) return;
         entryTouch.active = true;
+        // Touch events stay targeted at the plot, so a scoped listener keeps page scrolling passive.
+        plot.addEventListener("touchmove", preventEntryTouchScroll, { passive: false });
         plot.focus({ preventScroll: true });
         try { plot.setPointerCapture(entryTouch.pointerId); } catch { /* pointer already released */ }
         selectEntryChartPoint(plot, chartIndexAt(plot, entryTouch.x), number);
@@ -875,10 +879,6 @@ function bindEvents() {
     plot.setPointerCapture(event.pointerId);
     selectEntryChartPoint(plot, chartIndexAt(plot, event.clientX), number);
   });
-  // Once a hold has started scrubbing, keep the finger's movement from scrolling the page.
-  document.addEventListener("touchmove", (event) => {
-    if (entryTouch?.active) event.preventDefault();
-  }, { passive: false });
   document.addEventListener("contextmenu", (event) => {
     if (event.target.closest(".entry-chart-plot")) event.preventDefault();
   });
@@ -913,6 +913,7 @@ function bindEvents() {
       if (entryTouch?.pointerId === event.pointerId) {
         const { plot, active, timer, x } = entryTouch;
         clearTimeout(timer);
+        plot.removeEventListener("touchmove", preventEntryTouchScroll);
         entryTouch = null;
         // A short tap still selects the touched trading day.
         if (!active && eventName === "pointerup") {

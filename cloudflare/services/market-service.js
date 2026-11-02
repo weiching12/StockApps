@@ -1,7 +1,6 @@
 import { expandStock, isEtf, shardOf } from "../../shared/market-codec.js";
 
 import { DomainError } from "../../shared/domain-error.js";
-export { DomainError as MarketError } from "../../shared/domain-error.js";
 const unavailable = () => new DomainError("DATA_UNAVAILABLE", "股票資料尚未準備完成，請稍後再試。");
 
 export class MarketService {

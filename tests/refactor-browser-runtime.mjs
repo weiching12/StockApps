@@ -32,6 +32,12 @@ const server = createServer(async (request, response) => {
     const path = url.pathname;
     if (path.startsWith("/api/")) apiRequests.push(path);
     const sector = path.match(/^\/api\/v1\/sectors\/(.+)$/);
+    if (path === "/api/v1/auth/me") {
+      // The shell checks the account session on load; these fixtures browse anonymously.
+      response.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ user: null }));
+      return;
+    }
     if (path === "/api/v1/market" || path === "/api/v1/market/summary" ||
         path === "/api/v1/favorites/summary" || path === "/api/v1/favorites/research" || path === "/api/v1/presence" || sector) {
       response.writeHead(200, { "Content-Type": "application/json" });

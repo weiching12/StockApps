@@ -5,7 +5,7 @@ test("push config and same-origin subscription lifecycle use the versioned API",
   expect(config.ok()).toBeTruthy();
   expect(await config.json()).toEqual(expect.objectContaining({ enabled: expect.any(Boolean) }));
 
-  const subscription = { endpoint: "https://push.example.test/subscription-test", expirationTime: null,
+  const subscription = { endpoint: "https://fcm.googleapis.com/fcm/send/subscription-test", expirationTime: null,
     keys: { p256dh: "abcdefgh", auth: "ijklmnop" } };
   const added = await request.post("/api/v1/push/subscriptions", { data: subscription, headers: { Origin: "http://127.0.0.1:8787" } });
   expect(added.ok()).toBeTruthy();
