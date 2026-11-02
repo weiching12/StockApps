@@ -46,7 +46,11 @@ publishing an older generation after a newer capture.
 Research API requests use the PWA data cache's network-first policy, not the shell
 cache. A cache-policy version change clears old shells that may contain API data;
 `no-store` responses do not overwrite the last cacheable response. Offline fallback
-retains the `X-PWA-Cache: fallback` marker. Regression coverage includes real Chrome
+retains the `X-PWA-Cache: fallback` marker. Because the asset host answers unknown
+paths with the SPA page, an HTML body for a script, stylesheet, image or other file
+asset is never cached; such an entry left by an older worker is discarded and
+refetched, and a version whose shell asset arrives as HTML fails to install so the
+previous version stays active. Regression coverage includes real Chrome
 Service Workers and `node tests/summary-cache-runtime.mjs` with isolated workerd and
 SQLite-backed Durable Object storage.
 

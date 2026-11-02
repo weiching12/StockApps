@@ -44,8 +44,27 @@ function serviceWorkerSource(files, bundle, publicFingerprint) {
 const DATA_CACHE = "stock-insight-market-v2";
 const APP_SHELL = ${JSON.stringify(["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", ...files])};
 
+// The asset host answers unknown paths with the SPA page, so an HTML body for a script,
+// stylesheet or image must never be cached or replayed as that file.
+const ASSET_PATH = /\\.(?:m?js|css|png|svg|ico|webmanifest|json|woff2?)$/i;
+const expectsAsset = (request) => ["script", "style", "worker", "font", "image", "manifest"].includes(request.destination) ||
+  ASSET_PATH.test(new URL(request.url).pathname);
+const isHtml = (response) => (response.headers.get("Content-Type") || "").toLowerCase().includes("text/html");
+const cacheable = (request, response) => response.ok && !(expectsAsset(request) && isHtml(response));
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(APP_SHELL)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(SHELL_CACHE);
+    const entries = await Promise.all(APP_SHELL.map(async (path) => {
+      const request = new Request(path);
+      const response = await fetch(request);
+      if (!cacheable(request, response)) throw new Error("App shell asset unavailable: " + path);
+      // Read each body now: unread bodies hold connections and stall the remaining requests.
+      return [request, new Response(await response.blob(), response)];
+    }));
+    // Store only after every file is verified, so a failed install keeps the previous version.
+    await Promise.all(entries.map(([request, response]) => cache.put(request, response)));
+  })());
 });
 
 self.addEventListener("activate", (event) => {
@@ -102,7 +121,7 @@ const networkFirst = async (request, cacheName) => {
     const response = await fetch(request);
     const noStore = (response.headers.get("Cache-Control") || "").split(",")
       .some((directive) => directive.trim().toLowerCase() === "no-store");
-    if (response.ok && !noStore) {
+    if (cacheable(request, response) && !noStore) {
       const cache = await caches.open(cacheName);
       await cache.put(request, response.clone());
       if (cacheName === DATA_CACHE) await trimCache(cache);
@@ -115,9 +134,11 @@ const networkFirst = async (request, cacheName) => {
 
 const cacheFirst = async (request, cacheName) => {
   const cached = await caches.match(request, { cacheName });
-  if (cached) return cached;
+  if (cached && cacheable(request, cached)) return cached;
+  // Discard an HTML fallback stored by an older worker, then retry the network.
+  if (cached) await (await caches.open(cacheName)).delete(request);
   const response = await fetch(request);
-  if (response.ok) {
+  if (cacheable(request, response)) {
     const cache = await caches.open(cacheName);
     await cache.put(request, response.clone());
     if (cacheName === DATA_CACHE) await trimCache(cache);
