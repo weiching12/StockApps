@@ -3156,7 +3156,6 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 .research-reasons summary { cursor: pointer; font-size: var(--text-secondary); font-weight: 500; }
 .research-reasons h4, .research-strengths h4, .research-signal h4 { margin: 10px 0 4px; font-size: var(--text-secondary); }
 .research-reasons ul, .research-strengths ul, .research-signal ul { margin: 4px 0 0; padding-left: 18px; font-size: var(--text-secondary); line-height: 1.6; }
-.research-confirm { margin: 10px 0 0 !important; font-size: var(--text-meta) !important; color: var(--muted); }
 .research-readiness, .research-gates, .research-signal, .research-price-plan { padding: 16px; border: 1px solid var(--border); border-radius: 12px; }
 :is(.research-readiness, .research-gates, .research-signal, .research-price-plan) h3 { margin: 0 0 12px; font-size: var(--text-body); }
 .research-gates h3 small { margin-left: 6px; color: var(--muted); font-weight: 500; }

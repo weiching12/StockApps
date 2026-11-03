@@ -12,7 +12,7 @@ test("a vetoed stock shows the gates right after the next-day card and opens its
   const dialog = page.locator("#info-dialog");
   const order = await dialog.locator(".entry-dialog > section, .entry-dialog > p").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0]));
   // The data warning appears only when prices carry one; price and date are not repeated.
-  expect(order.filter((name) => name !== "research-basic").slice(0, 4)).toEqual(["entry-price-chart", "research-gates", "research-plan-card", "research-not-evaluated"]);
+  expect(order.filter((name) => name !== "research-basic").slice(0, 4)).toEqual(["entry-price-chart", "research-plan-card", "research-gates", "research-not-evaluated"]);
   await expect(dialog.locator(".research-basic-price")).toHaveCount(0);
   await expect(dialog.locator(".research-readiness, .research-signal, .research-price-plan")).toHaveCount(0);
   const tiles = dialog.locator(".research-gate-tile");
@@ -38,10 +38,13 @@ test("a passing stock keeps the research order and opens a gate panel when its i
   await expect(dialog.locator(".research-gates h3 small")).toHaveText("皆未觸發");
   await expect(dialog.locator(".research-gate-panel:visible")).toHaveCount(0);
   await expect(dialog.locator(".research-readiness")).toBeVisible();
-  const order = await dialog.locator(".entry-dialog > section").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0]));
+  // A price-data warning, when present, sits right under the chart and is not part of the order.
+  const order = (await dialog.locator(".entry-dialog > section").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0])))
+    .filter((name) => name !== "research-basic");
   const at = (name) => order.indexOf(name);
-  expect([at("research-gates"), at("research-signal"), at("research-readiness"), at("research-plan-card"), at("research-price-plan")])
-    .toEqual([...Array(5).keys()].map((step) => at("research-gates") + step));
+  // Quick read first, then the detail in decision order.
+  expect([at("entry-price-chart"), at("research-plan-card"), at("research-gates"), at("research-signal"), at("research-readiness"), at("research-price-plan")])
+    .toEqual([...Array(6).keys()].map((step) => at("entry-price-chart") + step));
   await dialog.locator('.research-gate-tile[data-gate="liquidity"]').click();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toBeVisible();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toContainText("平均成交金額");
