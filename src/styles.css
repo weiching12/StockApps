@@ -1887,29 +1887,27 @@ dialog h2 {
     border-radius: 5px;
   }
 }
-/* Four pages, two guides and settings need the whole phone bar; the 市場 tab leads home. */
+/* Phone bar: the four pages beside the brand; guides and settings move into one menu. */
+.nav-more { display: none; position: relative; }
 @media (max-width: 520px) {
-  .sidebar .brand { display: none; }
-  .sidebar { grid-template-columns: minmax(0, 1fr) auto; }
+  .sidebar nav { grid-template-columns: repeat(4, minmax(44px, 1fr)); }
+  .sidebar nav [data-dialog],
+  .sidebar-bottom > .nav-item[data-dialog="settings"] { display: none; }
+  .nav-more { display: block; }
+  .sidebar-bottom .nav-more-toggle { display: flex; align-items: center; justify-content: center; color: #c9d4e2; }
+  .nav-more-toggle[aria-expanded="true"] { color: #fff; background: rgba(255, 255, 255, .12); }
+  .nav-more-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; display: grid; min-width: 168px; padding: 6px; border: 1px solid var(--border); border-radius: 10px; background: #fff; box-shadow: 0 12px 32px rgba(15, 23, 42, .18); }
+  .nav-more-menu[hidden] { display: none; }
+  .nav-more-menu button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 6px; color: var(--ink); background: transparent; font-size: var(--text-secondary); text-align: left; cursor: pointer; }
+  .nav-more-menu button:hover, .nav-more-menu button:focus-visible { background: var(--accent-soft); }
+  .nav-more-menu .icon { width: 18px; height: 18px; color: var(--muted); }
+  [data-theme="dark"] .nav-more-menu { background: #111b2b; border-color: var(--border); }
 }
 @media (max-width: 360px) {
-  .sidebar .brand { display: none; }
-  .sidebar {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 4px;
-    padding-inline: 6px;
-  }
-  .sidebar nav {
-    grid-template-columns: repeat(6, minmax(40px, 1fr));
-    gap: 1px;
-  }
-  .sidebar nav .nav-item {
-    min-width: 40px;
-  }
-  .sidebar-bottom .nav-item { width: 40px; padding: 10px 8px; }
-  .sidebar nav .nav-item > span:first-of-type {
-    display: none;
-  }
+  .sidebar { gap: 4px; padding-inline: 8px; }
+  .sidebar .brand > span:last-child { display: none; }
+  .sidebar nav { gap: 2px; }
+  .sidebar nav .nav-item { min-width: 44px; }
 }
 
 /* Layout follows the shared type scale; narrow screens wrap instead of shrinking copy. */

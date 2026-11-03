@@ -23,11 +23,16 @@ function report(params = new URLSearchParams(), overrides = {}) {
     overall: { total: 405, firstDay: '2026-09-01', lastDay: '2026-10-30' },
     start: `${month}-01`, end: `${month}-${lastDay}`, daily, total: 107,
     detailTotal: selectedDay ? daily.find(item => item.day === selectedDay)?.visitors || 0 : 107,
-    selectedDay, visitors, limit: 100, offset, ...overrides,
+    selectedDay, visitors, limit: Number(params.get('limit') || 100), offset, ...overrides,
   };
 }
 
+const pushStatus = (overrides = {}) => ({ data: { asOf: '2026-10-30', native: null, web: { total: 3, delivered: 1, rejected: 1, pending: 1,
+  services: [{ service: 'apple', total: 2, delivered: 0, rejected: 1, pending: 1, lastFailure: '400 BadWebPushTopic' },
+    { service: 'google', total: 1, delivered: 1, rejected: 0, pending: 0, lastFailure: null }], ...overrides } } });
+
 async function reportRoute(page, handle = params => report(params)) {
+  await page.route('**/api/v1/push/status', route => route.fulfill({ json: pushStatus() }));
   await page.route('**/api/v1/presence?**', async route => {
     expect(route.request().headers().authorization).toBeUndefined();
     return route.fulfill({ json: await handle(new URL(route.request().url()).searchParams) });
@@ -135,13 +140,15 @@ test('clicking a day filters and paginates detail visits while all aggregate tot
   await dayButton(page).click();
   await expect(page.locator('#selected-day-text')).toContainText(/2026[-/]10[-/]24/);
   await expect(page.locator('#selected-day-text')).toContainText('102');
-  expect(queries.at(-1)).toMatchObject({ month: '2026-10', selectedDay: '2026-10-24', offset: '0' });
+  expect(queries.at(-1)).toMatchObject({ month: '2026-10', selectedDay: '2026-10-24', offset: '0', limit: '10' });
+  await expect(page.locator('#pagination')).toHaveText('第 1／11 頁 · 共 102 筆');
   await expect(dayButton(page)).toHaveAttribute('aria-pressed', 'true');
   await expectTotals(page);
   await page.locator('#next').click();
   await expect(page.locator('#visitors')).toContainText('second-page-browser');
-  expect(queries.at(-1)).toMatchObject({ month: '2026-10', selectedDay: '2026-10-24', offset: '100' });
-  await expect(page.locator('#next')).toBeDisabled();
+  expect(queries.at(-1)).toMatchObject({ month: '2026-10', selectedDay: '2026-10-24', offset: '10', limit: '10' });
+  await expect(page.locator('#pagination')).toHaveText('第 2／11 頁 · 共 102 筆');
+  await expect(page.locator('#next')).toBeEnabled();
   await expectTotals(page);
   await page.locator('#previous').click();
   await expect(page.locator('#visitors tr')).toHaveCount(2);
@@ -342,4 +349,34 @@ test('administrator with a temporary password must change it before viewing visi
   await expect(page.locator('#change-password-form')).toBeVisible();
   await expect(page.locator('#password')).toBeEnabled();
   await expect(page.locator('#visitors')).toHaveCount(0);
+});
+
+test('push panel shows delivery counts by service and resends today\'s update', async ({ page }) => {
+  let resent = 0;
+  await reportRoute(page);
+  await page.unroute('**/api/v1/push/status');
+  await page.route('**/api/v1/push/status', route => route.fulfill({ json: resent
+    ? pushStatus({ delivered: 2, pending: 0, services: [{ service: 'apple', total: 2, delivered: 1, rejected: 1, pending: 0, lastFailure: '400 BadWebPushTopic' },
+      { service: 'google', total: 1, delivered: 1, rejected: 0, pending: 0, lastFailure: null }] }) : pushStatus() }));
+  await page.route('**/api/v1/push/resend', route => {
+    expect(route.request().method()).toBe('POST');
+    resent++;
+    return route.fulfill({ json: { data: { asOf: '2026-10-30', native: null, web: { sent: 1, rejected: 0, failed: 0, removed: 0, hasMore: false } } } });
+  });
+  await page.goto('/admin-visitors.html');
+  await expect(page.locator('h1')).toHaveText('管理');
+  const panel = page.locator('#push-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('#push-date')).toHaveText('資料日 2026/10/30');
+  await expect(panel.locator('#push-total')).toHaveText('3');
+  await expect(panel.locator('#push-delivered')).toHaveText('1');
+  await expect(panel.locator('#push-rejected')).toHaveText('1');
+  await expect(panel.locator('#push-pending')).toHaveText('1');
+  await expect(panel.locator('#push-services tr').first()).toContainText('Apple');
+  await expect(panel.locator('#push-services tr').first()).toContainText('BadWebPushTopic');
+  await panel.locator('#push-resend').click();
+  await expect(panel.locator('#push-message')).toHaveText('已送出 1 則。');
+  expect(resent).toBe(1);
+  await expect(panel.locator('#push-pending')).toHaveText('0');
+  await expect(panel.locator('#push-resend')).toBeDisabled();
 });

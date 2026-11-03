@@ -177,6 +177,8 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkFirst(request, DATA_CACHE));
     return;
   }
+  // Other API responses (research samples, backtests, admin push status) are never cached.
+  if (url.pathname.startsWith("/api/")) return;
   if (request.mode === "navigate") {
     event.respondWith(networkFirst(request, SHELL_CACHE).catch(() => caches.match("/")));
     return;

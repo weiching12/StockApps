@@ -222,3 +222,47 @@ test("only a signed-in administrator can resend the latest update, same-origin o
   assert.deepEqual(await response.json(), { data: { asOf: "2026-11-03", web: { sent: 2, removed: 0, failed: 0, rejected: 0, hasMore: false }, native: null } });
   assert.deepEqual(sent, [{ generation: "g1", asOf: "2026-11-03" }]);
 });
+
+test("push status counts delivered, refused and pending subscriptions per service without exposing endpoints", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { testDatabase } = await import("./helpers/t86-db.js");
+  const { PushRepository } = await import("../cloudflare/repositories/push-repository.js");
+  const db = testDatabase();
+  for (const file of ["0004_push_subscriptions.sql", "0009_push_failures.sql"])
+    db.sqlite.exec(readFileSync(new URL(`../cloudflare/migrations/${file}`, import.meta.url), "utf8"));
+  const insert = db.sqlite.prepare(`INSERT INTO push_subscriptions(Endpoint,P256dh,Auth,CreatedAt,UpdatedAt,LastTradeDate,FailedTradeDate,LastFailure)
+    VALUES(?,'k','a','t','t',?,?,?)`);
+  insert.run("https://web.push.apple.com/one", null, "2026-11-03", "400 BadWebPushTopic");
+  insert.run("https://web.push.apple.com/two", "2026-11-03", null, null);
+  insert.run("https://fcm.googleapis.com/fcm/send/x", "2026-11-02", null, null);
+  insert.run("https://wns2-ln2p.notify.windows.com/w/?token=y", "2026-11-03", null, null);
+  const service = new PushService(new PushRepository(db), {});
+  const status = await service.status("2026-11-03");
+  assert.deepEqual([status.total, status.delivered, status.rejected, status.pending], [4, 2, 1, 1]);
+  assert.deepEqual(status.services, [
+    { service: "apple", total: 2, delivered: 1, rejected: 1, pending: 0, lastFailure: "400 BadWebPushTopic" },
+    { service: "google", total: 1, delivered: 0, rejected: 0, pending: 1, lastFailure: null },
+    { service: "microsoft", total: 1, delivered: 1, rejected: 0, pending: 0, lastFailure: null },
+  ]);
+  assert.ok(!JSON.stringify(status).includes("https://"), "endpoints stay private");
+  db.sqlite.close();
+});
+
+test("push status is administrator-only", async () => {
+  const { createHash } = await import("node:crypto");
+  const { authDatabase } = await import("./helpers/auth-db.js");
+  const { routeApi } = await import("../cloudflare/api/router.js");
+  const db = authDatabase();
+  db.sqlite.prepare("INSERT INTO app_users(id, username, password_hash, role, disabled, created_at) VALUES ('admin', 'admin', 'unused', 'admin', 0, ?)").run(Date.now());
+  db.sqlite.prepare("INSERT INTO auth_sessions VALUES (?, 'admin', ?)").run(createHash("sha256").update("a".repeat(64)).digest("hex"), Date.now() + 3600000);
+  const web = { total: 1, delivered: 1, rejected: 0, pending: 0, services: [] };
+  const services = { market: { market: async () => ({ asOf: "2026-11-03", generation: "g1" }) },
+    push: { status: async (asOf) => (asOf === "2026-11-03" ? web : null) }, nativePush: { config: () => ({ enabled: false }) } };
+  const get = (headers = {}) => routeApi(new Request("https://app.test/api/v1/push/status", { headers }), { T86_DB: db }, services);
+  assert.equal((await get()).status, 401);
+  assert.equal((await get({ Cookie: `__Host-stock_session=${"a".repeat(64)}`, "Sec-Fetch-Site": "cross-site" })).status, 403);
+  const response = await get({ Cookie: `__Host-stock_session=${"a".repeat(64)}` });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await response.json(), { data: { asOf: "2026-11-03", web, native: null } });
+});

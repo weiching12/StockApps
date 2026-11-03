@@ -1,6 +1,8 @@
 import { trendSeries } from './visitor-trend.js';
 const node = id => document.getElementById(id);
 const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+// Visitor details are shown ten rows per page.
+const PAGE_SIZE = 10;
 let month = today.slice(0, 7), selectedDay = null, offset = 0;
 let generation = 0, controller, pendingKey, currentData, renderedWidth, renderedMonth;
 const count = value => value.toLocaleString('zh-TW');
@@ -40,7 +42,7 @@ function clearData() {
 }
 function clearReport() {
   generation++; controller?.abort(); pendingKey = null; clearData();
-  node('report').hidden = true; node('logout').hidden = true;
+  node('report').hidden = true; node('logout').hidden = true; node('push-panel').hidden = true;
   setLoading(false);
   node('login').hidden = true; node('retry').hidden = true; node('status').textContent = '';
 }
@@ -61,12 +63,13 @@ function renderVisitors(data) {
   node('visitors').replaceChildren(...rows);
   node('selected-day-text').textContent = `${selectedDay ? selectedDay.replaceAll('-', '/') : monthLabel(month) + ' · 全月'} · ${count(data.detailTotal)} 次造訪`;
   node('show-month').hidden = !selectedDay;
-  node('pagination').textContent = `共 ${count(data.detailTotal)} 筆 · 本頁 ${data.visitors.length} 筆`;
+  const pages = Math.max(1, Math.ceil(data.detailTotal / data.limit));
+  node('pagination').textContent = `第 ${Math.floor(offset / data.limit) + 1}／${pages} 頁 · 共 ${count(data.detailTotal)} 筆`;
   node('previous').disabled = offset === 0; node('next').disabled = offset + data.limit >= data.detailTotal;
 }
 
 async function load() {
-  const params = new URLSearchParams({ month, offset });
+  const params = new URLSearchParams({ month, offset, limit: PAGE_SIZE });
   if (selectedDay) params.set('selectedDay', selectedDay);
   const key = params.toString();
   if (pendingKey === key) return;
@@ -178,8 +181,8 @@ function renderTrend(data) {
 
 node('month').onchange = () => { month = node('month').value; selectedDay = null; offset = 0; void load(); };
 node('show-month').onclick = () => { selectedDay = null; offset = 0; void load(); };
-node('previous').onclick = () => { offset = Math.max(0, offset - 100); void load(); };
-node('next').onclick = () => { offset += 100; void load(); };
+node('previous').onclick = () => { offset = Math.max(0, offset - PAGE_SIZE); void load(); };
+node('next').onclick = () => { offset += PAGE_SIZE; void load(); };
 node('retry').onclick = () => void load();
 node('logout').onclick = async () => {
   clearReport();
@@ -190,11 +193,69 @@ node('logout').onclick = async () => {
     location.replace('/login.html');
   } catch { node('status').dataset.state = 'error'; node('status').textContent = '登出失敗，請重新登入後重試'; node('login').hidden = false; }
 };
+const SERVICE_LABELS = { apple: 'Apple（iPhone、iPad、Mac Safari）', google: 'Google（Android、Chrome）',
+  microsoft: 'Microsoft（Windows、Edge）', mozilla: 'Mozilla（Firefox）', other: '其他' };
+let pushGeneration = 0, pushSending = false, pushPending = 0;
+function renderPush(data) {
+  const web = data.web, native = data.native;
+  pushPending = web.pending + (native ? native.total - native.delivered : 0);
+  node('push-date').textContent = `資料日 ${data.asOf.replaceAll('-', '/')}`;
+  node('push-total').textContent = count(web.total + (native?.total ?? 0));
+  node('push-delivered').textContent = count(web.delivered + (native?.delivered ?? 0));
+  node('push-rejected').textContent = count(web.rejected);
+  node('push-pending').textContent = count(pushPending);
+  const rows = web.services.map(item => [SERVICE_LABELS[item.service] ?? item.service, item.total, item.delivered, item.rejected, item.pending, item.lastFailure ?? '—']);
+  if (native) rows.push(['iOS App（APNs）', native.total, native.delivered, '—', native.total - native.delivered, '—']);
+  node('push-services').replaceChildren(...(rows.length ? rows : [['目前沒有訂閱裝置']]).map(values => {
+    const row = document.createElement('tr');
+    for (const value of values) { const cell = document.createElement('td'); cell.textContent = typeof value === 'number' ? count(value) : value; row.append(cell); }
+    if (values.length === 1) { row.firstElementChild.colSpan = 6; row.firstElementChild.className = 'empty-state'; }
+    return row;
+  }));
+  node('push-resend').disabled = pushSending || pushPending === 0;
+  node('push-resend').title = pushPending === 0 ? '今日沒有待發送的裝置' : '';
+}
+async function loadPush() {
+  const requestGeneration = ++pushGeneration;
+  node('push-loading').hidden = false; node('push-panel').setAttribute('aria-busy', 'true');
+  try {
+    const response = await fetch('/api/v1/push/status', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(10000) });
+    if (requestGeneration !== pushGeneration) return;
+    // Sign-in and role problems are reported by the visitor report; keep the panel hidden.
+    if ([401, 403].includes(response.status)) { node('push-panel').hidden = true; return; }
+    if (!response.ok) throw new Error();
+    const { data } = await response.json();
+    if (requestGeneration !== pushGeneration) return;
+    renderPush(data); node('push-panel').hidden = false;
+  } catch {
+    if (requestGeneration !== pushGeneration) return;
+    node('push-panel').hidden = false;
+    node('push-message').dataset.state = 'error'; node('push-message').textContent = '無法取得推播狀態，請稍後重新整理。';
+  } finally { if (requestGeneration === pushGeneration) { node('push-loading').hidden = true; node('push-panel').setAttribute('aria-busy', 'false'); } }
+}
+node('push-resend').onclick = async () => {
+  pushSending = true; node('push-resend').disabled = true;
+  node('push-message').dataset.state = 'pending'; node('push-message').textContent = '發送中…';
+  try {
+    const response = await fetch('/api/v1/push/resend', { method: 'POST', credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(body?.error?.message || '重新發送失敗，請稍後再試。');
+    const { web, native } = body.data;
+    const sent = web.sent + (native?.sent ?? 0), failed = web.failed + (native?.failed ?? 0);
+    node('push-message').dataset.state = web.rejected || failed ? 'error' : 'done';
+    node('push-message').textContent = sent + web.rejected + failed === 0 ? '今日沒有待發送的裝置。'
+      : `已送出 ${count(sent)} 則${web.rejected ? `，被拒 ${count(web.rejected)} 則` : ''}${failed ? `，暫時失敗 ${count(failed)} 則（稍後可再試）` : ''}。`;
+  } catch (error) {
+    node('push-message').dataset.state = 'error';
+    node('push-message').textContent = error instanceof TypeError || error.name === 'TimeoutError' ? '無法連線，請確認網路後重試。' : error.message;
+  } finally { pushSending = false; await loadPush(); }
+};
+
 window.addEventListener('pagehide', clearReport);
-window.addEventListener('pageshow', () => void load());
-document.addEventListener('visibilitychange', () => { if (!document.hidden) void load(); });
+window.addEventListener('pageshow', () => { void load(); void loadPush(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { void load(); void loadPush(); } });
 const channel = new BroadcastChannel('stock-insight-auth');
-channel.onmessage = () => { clearReport(); void load(); };
+channel.onmessage = () => { clearReport(); void load(); void loadPush(); };
 new ResizeObserver(() => {
   if (currentData && !node('report').hidden && Math.round(node('trend').clientWidth) !== renderedWidth) renderTrend(currentData);
 }).observe(node('trend'));

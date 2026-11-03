@@ -3,6 +3,15 @@ import { readFileSync } from "node:fs";
 
 const releaseVersion = `v${JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version}`;
 
+// Phones reach settings through the menu; wider screens show the button directly.
+async function openSettings(page) {
+  const menu = page.getByRole("button", { name: "更多選單" });
+  if (await menu.isVisible()) {
+    await menu.click();
+    await page.getByRole("menuitem", { name: "設定" }).click();
+  } else await page.getByRole("button", { name: "設定", exact: true }).click();
+}
+
 test("manifest and install icons are served with the expected metadata", async ({ request }) => {
   const response = await request.get("/manifest.webmanifest");
   expect(response.ok()).toBe(true);
@@ -65,7 +74,7 @@ test("installed shell starts offline and identifies saved data", async ({ page, 
 test("page buttons check on interaction and settings can check immediately", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("button", { name: "檢查更新" }).click();
   await expect(page.locator("#update-check-status")).toHaveText("已是最新版本");
   await page.locator("#close-dialog").click();
@@ -93,7 +102,7 @@ test("page buttons check on interaction and settings can check immediately", asy
   await expect.poll(() => page.evaluate(() => window.__pwaUpdateChecks)).toBe(1);
   await page.getByRole("button", { name: "法人買株" }).click();
   await expect.poll(() => page.evaluate(() => window.__pwaUpdateChecks)).toBe(1);
-  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("button", { name: "檢查更新" }).click();
   await expect.poll(() => page.evaluate(() => window.__pwaUpdateChecks)).toBe(2);
 });
@@ -104,7 +113,7 @@ test("refresh checks the app version before reloading and keeps the current page
   await page.reload();
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await page.getByRole("button", { name: "株研追蹤" }).click();
-  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("button", { name: "檢查更新" }).click();
   await expect(page.locator("#update-check-status")).toHaveText("已是最新版本");
   await page.locator("#close-dialog").click();
@@ -140,7 +149,7 @@ test("settings shows the release version beside update on phone and desktop", as
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
-    await page.getByRole("button", { name: "設定", exact: true }).click();
+    await openSettings(page);
     const button = page.locator("#check-update");
     const version = page.locator("#app-version");
     await expect(version).toBeVisible();

@@ -63,12 +63,21 @@ async function setup(page, { pushEnabled = false } = {}) {
   return { calls, changeGeneration: () => { generation = "native-fixture-v2"; } };
 }
 
+// Phones reach settings through the menu; wider screens show the button directly.
+async function openSettings(page) {
+  const menu = page.getByRole("button", { name: "更多選單" });
+  if (await menu.isVisible()) {
+    await menu.click();
+    await page.getByRole("menuitem", { name: "設定" }).click();
+  } else await page.locator('.sidebar-bottom > [data-dialog="settings"]').click();
+}
+
 test("iPhone entry hydrates native favorites and settings and leaves web app services unused", async ({ page }) => {
   const { calls } = await setup(page);
   const favorite = page.locator('#stock-rows [data-favorite="2330"]');
   await expect(favorite).toHaveAttribute("aria-pressed", "true");
   await favorite.click();
-  await page.locator('.sidebar [data-dialog="settings"]').click();
+  await openSettings(page);
   await page.locator("#theme").selectOption("dark");
   await page.evaluate(() => window.__nativeStorage.flush());
   expect(await page.evaluate(() => window.__prompts)).toBe(0);
@@ -105,7 +114,7 @@ test("iPhone return refreshes a changed generation and restores the selected pag
 
 test("iPhone notification permission is requested only after an explicit tap", async ({ page }) => {
   await setup(page, { pushEnabled: true });
-  await page.locator('.sidebar [data-dialog="settings"]').click();
+  await openSettings(page);
   await expect(page.locator("#push-notifications")).toBeEnabled();
   expect(await page.evaluate(() => window.__prompts)).toBe(0);
   await page.locator("#push-notifications").click();

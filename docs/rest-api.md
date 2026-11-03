@@ -89,6 +89,11 @@ than forcing every endpoint into one envelope. API version v1 and stored
 - `GET /api/v1/push/config` returns Web Push availability and the public VAPID key.
 - `POST /api/v1/push/subscriptions` validates and stores a same-origin browser subscription.
 - `DELETE /api/v1/push/subscriptions` removes the subscription by endpoint.
+- `GET /api/v1/push/status` (administrator session) returns, for the latest published date,
+  web subscriptions total/delivered/refused/pending grouped by push service (`apple`,
+  `google`, `microsoft`, `mozilla`) with the latest refusal reason, plus native counts when
+  enabled. Endpoints are never returned; the response is `no-store` and the service worker
+  never caches API paths outside its market list.
 - `POST /api/v1/push/resend` (administrator session, same-origin only) sends the latest
   published date's update to subscriptions that have neither received nor been refused it
   that date, the same selection as the scheduled send, and returns the web/native counts.

@@ -23,7 +23,7 @@ function render(node, settings) {
   node.append(label);
   const destination = user.mustChangePassword
     ? accountLink('設定新密碼', '/change-password.html', settings)
-    : user.role === 'admin' ? accountLink('訪客統計', '/admin-visitors.html', settings) : null;
+    : user.role === 'admin' ? accountLink('管理', '/admin-visitors.html', settings) : null;
   if (destination && !settings) node.append(destination);
   const logout = document.createElement('button');
   logout.type = 'button'; logout.textContent = busy ? '登出中…' : logoutFailed ? '登出失敗，重試' : '登出';

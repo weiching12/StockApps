@@ -61,6 +61,9 @@ test('events survive midnight and restart, retry the same entry once and retain 
     assert.equal((await f.get('?start=2026-10-24&end=2026-10-23')).status, 400);
     data = await (await f.get('?start=2026-10-22&end=2026-10-23&offset=2')).json();
     assert.equal(data.visitors.length, 1);
+    data = await (await f.get('?start=2026-10-22&end=2026-10-23&limit=2')).json();
+    assert.deepEqual([data.visitors.length, data.limit, data.detailTotal], [2, 2, 3]);
+    for (const limit of ['0', '101', '1.5']) assert.equal((await f.get(`?limit=${limit}`)).status, 400, limit);
     assert.equal((await f.post(id, 'x'.repeat(81))).status, 200); // Retired PWA field is ignored.
     assert.equal((await f.request('', { method: 'POST', body: 'x'.repeat(513) })).status, 413);
     assert.equal((await f.request('', { method: 'POST', headers: { Origin: 'https://other.test' } })).status, 403);

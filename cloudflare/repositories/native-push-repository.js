@@ -16,6 +16,11 @@ export class NativePushRepository {
       ORDER BY UpdatedAt LIMIT ?`).bind(environment, asOf, limit).all();
     return result.results ?? [];
   }
+  async status(asOf) {
+    const row = await this.db.prepare(`SELECT COUNT(*) AS total, SUM(LastTradeDate=?) AS delivered
+      FROM native_push_subscriptions`).bind(asOf).first();
+    return { total: row?.total ?? 0, delivered: row?.delivered ?? 0 };
+  }
   mark(row, asOf) {
     return this.db.prepare("UPDATE native_push_subscriptions SET LastTradeDate=? WHERE DeviceToken=? AND Environment=? AND UpdatedAt=?")
       .bind(asOf, row.token, row.environment, row.updatedAt).run();

@@ -63,6 +63,7 @@ const icons = {
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   trend: '<path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
 };
 const icon = (name, cls = "") =>
   `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] ?? icons.chart}</svg>`;
@@ -845,8 +846,33 @@ function selectResearchReviewPoint(plot, index) {
     activeResearchPeriod(researchStore, symbol), researchRows.get(symbol), point.date, esc);
 }
 
+/** Phone bar: the guides and settings share one menu so the brand fits beside the pages. */
+function bindNavMenu() {
+  const toggle = document.querySelector(".nav-more-toggle"), menu = document.querySelector("#nav-more-menu");
+  const setOpen = (open, focusToggle = false) => {
+    menu.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+    if (open) menu.querySelector("button")?.focus();
+    else if (focusToggle) toggle.focus();
+  };
+  toggle.addEventListener("click", () => setOpen(menu.hidden));
+  // Menu items keep their data-dialog and are opened by the shared click handler.
+  menu.addEventListener("click", (event) => { if (event.target.closest("[data-dialog]")) setOpen(false); });
+  document.addEventListener("click", (event) => { if (!menu.hidden && !event.target.closest(".nav-more")) setOpen(false); });
+  menu.addEventListener("keydown", (event) => {
+    const items = [...menu.querySelectorAll("button")], index = items.indexOf(document.activeElement);
+    if (event.key === "Escape") { event.preventDefault(); setOpen(false, true); }
+    else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      items[(index + (event.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
+    }
+  });
+  matchMedia("(min-width: 521px)").addEventListener("change", () => setOpen(false));
+}
+
 function bindEvents() {
   backtest.bind();
+  bindNavMenu();
   document.addEventListener("click", (event) => {
     document.querySelectorAll(".research-chart-info[open]").forEach((hint) => {
       if (!hint.contains(event.target)) hint.open = false;

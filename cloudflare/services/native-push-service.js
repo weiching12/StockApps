@@ -7,6 +7,7 @@ const hash = async (secret) => [...new Uint8Array(await crypto.subtle.digest("SH
 
 export class NativePushService {
   constructor(repository, env, transport = new ApnsClient(env)) { this.repository = repository; this.env = env; this.transport = transport; }
+  status(asOf) { return this.repository.status(asOf); }
   config() {
     const environment = this.env.APNS_ENVIRONMENT === "production" ? "production" : "sandbox";
     return { enabled: Boolean(this.env.NATIVE_PUSH_ENABLED === "1" && this.env.T86_DB &&

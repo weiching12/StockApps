@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <meta name="theme-color" content="#f5f7fb">
-  <title>訪客統計｜株研管理員</title>
+  <title>管理｜株研管理員</title>
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="stylesheet" href="/admin-visitors.css">
 </head>
@@ -15,9 +15,16 @@
     <nav aria-label="管理頁面導覽"><a class="back-link" href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 5-7 7 7 7M3 12h18"/></svg><span>研究工作台</span></a><button class="quiet-button" id="logout" type="button" hidden>登出</button></nav>
   </div></header>
   <main>
-    <header class="page-heading"><div><p class="eyebrow">VISITOR ANALYTICS</p><h1>訪客統計</h1></div><span class="timezone">台灣時間 UTC+8</span></header>
+    <header class="page-heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>管理</h1></div><span class="timezone">台灣時間 UTC+8</span></header>
     <div class="feedback" role="status" aria-live="polite"><p id="status"></p><button class="quiet-button" id="retry" type="button" hidden>重新載入</button><p id="login" hidden><a href="/login.html">使用其他帳號登入</a></p></div>
     <div id="initial-loading" class="initial-loading" hidden><span class="loading-spinner" role="status" aria-label="資料載入中"></span></div>
+    <section id="push-panel" class="panel push-panel" aria-labelledby="push-title" aria-busy="false" hidden>
+      <div class="section-heading"><div><h2 id="push-title">推播通知 <span id="push-loading" class="loading-spinner" role="status" aria-label="推播狀態載入中" hidden></span></h2><p id="push-date" class="metric-date"></p></div><button class="primary-button" id="push-resend" type="button">重新發送今日通知</button></div>
+      <div class="push-metrics"><div><p class="section-label">訂閱裝置</p><div class="metric-number"><strong id="push-total">—</strong><span>個</span></div></div><div><p class="section-label">已送達</p><div class="metric-number"><strong id="push-delivered">—</strong><span>個</span></div></div><div><p class="section-label">被拒</p><div class="metric-number"><strong id="push-rejected">—</strong><span>個</span></div></div><div><p class="section-label">待發送</p><div class="metric-number"><strong id="push-pending">—</strong><span>個</span></div></div></div>
+      <div class="scroll" role="region" aria-label="各推播服務的送達狀態" tabindex="0"><table class="push-table"><thead><tr><th scope="col">推播服務</th><th scope="col">訂閱</th><th scope="col">已送達</th><th scope="col">被拒</th><th scope="col">待發送</th><th scope="col">最近拒收原因</th></tr></thead><tbody id="push-services"></tbody></table></div>
+      <p id="push-message" class="push-message" role="status" aria-live="polite"></p>
+      <p class="push-note">重新發送只會送給今天尚未收到、也未被拒的裝置，不會重複通知。被拒的裝置當日不再重試，連續 3 個交易日被拒會自動移除。</p>
+    </section>
     <div id="report" hidden>
       <section class="panel overview" aria-label="造訪摘要">
         <div class="summary-metrics"><div><p class="section-label">今日瀏覽數</p><div class="metric-number"><strong id="today">—</strong><span>次</span></div><p id="today-date" class="metric-date"></p></div><div><p class="section-label">累積瀏覽數</p><div class="metric-number"><strong id="cumulative">—</strong><span>次</span></div><p id="overall-start" class="metric-date"></p></div></div>

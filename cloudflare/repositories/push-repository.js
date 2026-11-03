@@ -36,6 +36,20 @@ export class PushRepository {
     return 0;
   }
 
+  /** Per push service counts for one trade date; endpoints never leave the database. */
+  async status(tradeDate) {
+    const result = await this.db.prepare(`SELECT CASE
+        WHEN Endpoint LIKE 'https://web.push.apple.com/%' THEN 'apple'
+        WHEN Endpoint LIKE 'https://fcm.googleapis.com/%' OR Endpoint LIKE 'https://android.googleapis.com/%' THEN 'google'
+        WHEN Endpoint LIKE '%.notify.windows.com/%' THEN 'microsoft'
+        WHEN Endpoint LIKE '%push.services.mozilla.com/%' THEN 'mozilla' ELSE 'other' END AS service,
+      COUNT(*) AS total, SUM(LastTradeDate=?) AS delivered, SUM(FailedTradeDate=?) AS rejected,
+      MAX(CASE WHEN FailedTradeDate=? THEN LastFailure END) AS lastFailure
+      FROM push_subscriptions GROUP BY service ORDER BY service`).bind(tradeDate, tradeDate, tradeDate).all();
+    return (result.results ?? []).map((row) => ({ service: row.service, total: row.total, delivered: row.delivered ?? 0,
+      rejected: row.rejected ?? 0, pending: row.total - (row.delivered ?? 0) - (row.rejected ?? 0), lastFailure: row.lastFailure ?? null }));
+  }
+
   async removeMany(endpoints) {
     if (!endpoints.length) return;
     await this.db.batch(endpoints.map((endpoint) => this.db.prepare("DELETE FROM push_subscriptions WHERE Endpoint=?").bind(endpoint)));

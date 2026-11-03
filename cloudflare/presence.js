@@ -40,12 +40,15 @@ export class OnlinePresence {
       }
       const validDay = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
       const offset = Number(url.searchParams.get("offset") || 0);
-      if (!validDay(start) || !validDay(end) || start > end || (scope !== "history" && Date.parse(end) - Date.parse(start) > (period === "day" ? 365 : 3650) * 86400000) || !Number.isSafeInteger(offset) || offset < 0)
+      // Detail page size: 1–100 rows, 100 by default.
+      const limit = Number(url.searchParams.get("limit") || 100);
+      if (!validDay(start) || !validDay(end) || start > end || (scope !== "history" && Date.parse(end) - Date.parse(start) > (period === "day" ? 365 : 3650) * 86400000) || !Number.isSafeInteger(offset) || offset < 0
+          || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
         return reply({ error: "Invalid date range or offset" }, 400);
       const selectedDay = url.searchParams.get("selectedDay");
       if (url.searchParams.has("selectedDay") && (!validDay(selectedDay) || selectedDay < start || selectedDay > end || selectedDay > today))
         return reply({ error: "Invalid selected day" }, 400);
-      const analytics = this.repository.analytics(start, end, 100, offset, period, selectedDay);
+      const analytics = this.repository.analytics(start, end, limit, offset, period, selectedDay);
       analytics.visitors = analytics.visitors.map(row => ({ ...row, country: normalizeCountry(row.country) }));
       return reply({ ...analytics,
         overall: this.repository.overall(), months: this.repository.months(today),

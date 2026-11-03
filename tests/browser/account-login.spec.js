@@ -1,11 +1,20 @@
 import { test, expect } from '@playwright/test';
 
+// Phones reach settings through the menu; wider screens show the button directly.
+async function openSettings(page) {
+  const menu = page.getByRole('button', { name: '更多選單' });
+  if (await menu.isVisible()) {
+    await menu.click();
+    await page.getByRole('menuitem', { name: '設定' }).click();
+  } else await page.getByRole('button', { name: '設定', exact: true }).click();
+}
+
 for (const width of [320, 390, 700]) {
   test(`mobile settings provides a login entry at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 956 });
     await page.route('**/api/v1/auth/me', route => route.fulfill({ json: { user: null } }));
     await page.goto('/');
-    await page.getByRole('button', { name: '設定', exact: true }).click();
+    await openSettings(page);
     const login = page.getByRole('dialog').getByRole('link', { name: '登入', exact: true });
     await expect(login).toBeVisible();
     await expect(login).toHaveAttribute('href', '/login.html');
@@ -24,7 +33,7 @@ test('desktop keeps its existing account entry in the top bar', async ({ page })
   await page.route('**/api/v1/auth/me', route => route.fulfill({ json: { user: null } }));
   await page.goto('/');
   await expect(page.locator('#account-menu').getByRole('link', { name: '登入', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '設定', exact: true }).click();
+  await openSettings(page);
   await expect(page.locator('.settings-account')).toBeHidden();
 });
 
@@ -39,20 +48,20 @@ for (const account of [
       user: { id: 'settings-account', username: 'settings-account', ...account },
     } }));
     await page.goto('/');
-    await page.getByRole('button', { name: '設定', exact: true }).click();
+    await openSettings(page);
     const menu = page.locator('#settings-account-menu');
     const logout = menu.getByRole('button', { name: '登出', exact: true });
     await expect(logout).toBeVisible();
     await expect(menu.getByRole('link', { name: '登入', exact: true })).toHaveCount(0);
     expect((await logout.boundingBox()).height).toBeGreaterThanOrEqual(44);
-    const destination = account.mustChangePassword ? '設定新密碼' : account.role === 'admin' ? '訪客統計' : null;
+    const destination = account.mustChangePassword ? '設定新密碼' : account.role === 'admin' ? '管理' : null;
     if (destination) {
       const link = menu.getByRole('link', { name: destination, exact: true });
       await expect(link).toBeVisible();
       await expect(link).toHaveAttribute('href', account.mustChangePassword ? '/change-password.html' : '/admin-visitors.html');
       expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(44);
     } else await expect(menu.getByRole('link')).toHaveCount(0);
-    if (account.mustChangePassword) await expect(menu.getByRole('link', { name: '訪客統計', exact: true })).toHaveCount(0);
+    if (account.mustChangePassword) await expect(menu.getByRole('link', { name: '管理', exact: true })).toHaveCount(0);
   });
 }
 
@@ -68,12 +77,12 @@ test('settings logout failure stays signed in and successful retry updates both 
     return route.fulfill({ json: { loggedOut: true } });
   });
   await page.goto('/');
-  await page.getByRole('button', { name: '設定', exact: true }).click();
+  await openSettings(page);
   const menu = page.locator('#settings-account-menu');
   await menu.getByRole('button', { name: '登出', exact: true }).click();
   const retry = menu.getByRole('button', { name: '登出失敗，重試', exact: true });
   await expect(retry).toBeEnabled();
-  await expect(menu.getByRole('link', { name: '訪客統計', exact: true })).toBeVisible();
+  await expect(menu.getByRole('link', { name: '管理', exact: true })).toBeVisible();
   await expect(menu.getByRole('link', { name: '登入', exact: true })).toHaveCount(0);
   await retry.click();
   await expect(menu.getByRole('link', { name: '登入', exact: true })).toBeVisible();
@@ -98,17 +107,17 @@ test('cross-tab account changes update settings without accumulating channel sub
   await page.goto('/');
   const other = await context.newPage();
   await other.goto('/');
-  await page.getByRole('button', { name: '設定', exact: true }).click();
+  await openSettings(page);
   await expect(page.locator('#settings-account-menu').getByRole('link', { name: '登入', exact: true })).toBeVisible();
   user = { id: 'cross-tab-admin', username: 'cross-tab-admin', role: 'admin', mustChangePassword: false };
   await other.evaluate(() => {
     const channel = new BroadcastChannel('stock-insight-auth'); channel.postMessage('changed'); channel.close();
   });
-  await expect(page.locator('#settings-account-menu').getByRole('link', { name: '訪客統計', exact: true })).toBeVisible();
+  await expect(page.locator('#settings-account-menu').getByRole('link', { name: '管理', exact: true })).toBeVisible();
   await expect(page.locator('#account-menu .account-identity')).toHaveText('cross-tab-admin');
   for (let i = 0; i < 3; i++) {
     await page.getByRole('button', { name: '關閉視窗', exact: true }).click();
-    await page.getByRole('button', { name: '設定', exact: true }).click();
+    await openSettings(page);
     await expect(page.locator('#settings-account-menu').getByRole('button', { name: '登出', exact: true })).toBeVisible();
   }
   expect(await page.evaluate(() => window.authChannelCount)).toBe(1);

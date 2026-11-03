@@ -24,25 +24,46 @@ const body = async (request) => {
   try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { throw Object.assign(new Error("Invalid JSON"), { status: 400, code: "INVALID_JSON" }); }
 };
 
+/** Same-origin administrator session, or the error response to return. */
+async function administrator(request, env) {
+  if (!strictSameOrigin(request)) return { failure: error(request, true, "CROSS_ORIGIN", "Cross-origin request rejected", 403) };
+  let user;
+  try { user = await currentUser(request, env); }
+  catch { return { failure: error(request, true, "AUTH_UNAVAILABLE", "帳號服務暫時無法使用", 503) }; }
+  if (!user) return { failure: error(request, true, "UNAUTHENTICATED", "請先登入", 401) };
+  if (user.mustChangePassword) return { failure: error(request, true, "PASSWORD_CHANGE_REQUIRED", "請先更改初始密碼", 403) };
+  if (user.role !== "admin") return { failure: error(request, true, "FORBIDDEN", "僅管理員可使用推播管理", 403) };
+  return { user };
+}
+
+async function latestPublished(services) {
+  const manifest = await services.market.market();
+  return manifest?.asOf && manifest.generation ? { generation: manifest.generation, asOf: manifest.asOf } : null;
+}
+
+/** Administrator-only: delivery counts for the latest published date, by push service. */
+export async function pushStatusController(request, env, services) {
+  const { failure } = await administrator(request, env);
+  if (failure) return failure;
+  const published = await latestPublished(services);
+  if (!published) return error(request, true, "DATA_UNAVAILABLE", "尚無已發布的資料", 503);
+  const native = services.nativePush.config().enabled ? await services.nativePush.status(published.asOf) : null;
+  return json(request, { data: { asOf: published.asOf, web: await services.push.status(published.asOf), native } });
+}
+
 /**
  * Administrator-only: send the latest published date's update to subscriptions that have
  * neither received nor been refused it today, the same selection as the scheduled send.
  */
 export async function pushResendController(request, env, services) {
-  if (!strictSameOrigin(request)) return error(request, true, "CROSS_ORIGIN", "Cross-origin request rejected", 403);
-  let user;
-  try { user = await currentUser(request, env); }
-  catch { return error(request, true, "AUTH_UNAVAILABLE", "帳號服務暫時無法使用", 503); }
-  if (!user) return error(request, true, "UNAUTHENTICATED", "請先登入", 401);
-  if (user.mustChangePassword) return error(request, true, "PASSWORD_CHANGE_REQUIRED", "請先更改初始密碼", 403);
-  if (user.role !== "admin") return error(request, true, "FORBIDDEN", "僅管理員可重送通知", 403);
-  const manifest = await services.market.market();
-  if (!manifest?.asOf || !manifest.generation) return error(request, true, "DATA_UNAVAILABLE", "尚無已發布的資料", 503);
-  const published = { generation: manifest.generation, asOf: manifest.asOf };
+  const { user, failure } = await administrator(request, env);
+  if (failure) return failure;
+  const published = await latestPublished(services);
+  if (!published) return error(request, true, "DATA_UNAVAILABLE", "尚無已發布的資料", 503);
   const web = await services.push.notifyPublished(published);
   const native = services.nativePush.config().enabled ? await services.nativePush.notifyPublished(published) : null;
-  console.log(JSON.stringify({ event: "push-resend", user: user.username, asOf: manifest.asOf, web, native }));
-  return json(request, { data: { asOf: manifest.asOf, web, native } });
+  console.log(JSON.stringify({ event: "push-resend", user: user.username, asOf: published.asOf, web, native }));
+  return json(request, { data: { asOf: published.asOf, web, native } });
 }
 
 export async function pushController(request, route, service) {

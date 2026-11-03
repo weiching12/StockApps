@@ -127,7 +127,11 @@ try {
     await page.locator('.sidebar [data-page="favorites"]').click();
     await expect(page.locator("#research-list .research-card").first()).toBeVisible();
     assert.equal(apiRequests.filter((path) => path === "/api/v1/favorites/summary").length, previousFavoriteRequests);
-    await page.locator('.sidebar [data-dialog="source"]').click();
+    // Phones reach the guides through the menu.
+    if (width <= 520) {
+      await page.locator(".nav-more-toggle").click();
+      await page.locator('#nav-more-menu [data-dialog="source"]').click();
+    } else await page.locator('.sidebar nav [data-dialog="source"]').click();
     await expect(page.locator(".source-about")).toContainText("從數據到洞察");
     await page.keyboard.press("Escape");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

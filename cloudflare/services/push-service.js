@@ -49,6 +49,13 @@ export class PushService {
     return { subscribed: false };
   }
 
+  /** Delivery counts for one trade date, by push service, for the administrator page. */
+  async status(asOf) {
+    const services = await this.repository.status(asOf);
+    const sum = (key) => services.reduce((total, row) => total + row[key], 0);
+    return { total: sum("total"), delivered: sum("delivered"), rejected: sum("rejected"), pending: sum("pending"), services };
+  }
+
   async notifyPublished(manifest) {
     if (!this.config().enabled) return { sent: 0, skipped: true };
     const rows = await this.repository.pending(manifest.asOf, 501);
