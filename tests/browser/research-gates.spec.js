@@ -11,7 +11,9 @@ test("a vetoed stock shows the gates right after the next-day card and opens its
   await openStock(page, "2317");
   const dialog = page.locator("#info-dialog");
   const order = await dialog.locator(".entry-dialog > section, .entry-dialog > p").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0]));
-  expect(order.slice(0, 5)).toEqual(["entry-price-chart", "research-basic", "research-gates", "research-plan-card", "research-not-evaluated"]);
+  // The data warning appears only when prices carry one; price and date are not repeated.
+  expect(order.filter((name) => name !== "research-basic").slice(0, 4)).toEqual(["entry-price-chart", "research-gates", "research-plan-card", "research-not-evaluated"]);
+  await expect(dialog.locator(".research-basic-price")).toHaveCount(0);
   await expect(dialog.locator(".research-readiness, .research-signal, .research-price-plan")).toHaveCount(0);
   const tiles = dialog.locator(".research-gate-tile");
   await expect(tiles).toHaveCount(5);

@@ -117,13 +117,16 @@ const NEXT_EXPLANATION = {
 /** Dialog sections in the required order; the chart and the V1.2 detail follow them. */
 export function researchDialogSections(result, stock, { esc, number, percent }) {
   const { gateResult: gate, entryResearch: research, nextDayPlan: plan, dataQuality: quality } = result;
-  const latest = stock.latest ?? {};
-  const qualityLabel = quality.status === "VALID" ? "資料完整" : quality.status === "WARNING" ? "資料有提醒" : "資料不足";
-  const basic = `<section class="research-basic" aria-label="個股基本資訊"><div class="research-basic-price"><strong>${price(latest.close ?? plan.referenceClose, number)}</strong><span class="${latest.changePercent > 0 ? "up" : latest.changePercent < 0 ? "down" : ""}">${Number.isFinite(latest.change) ? `${latest.change > 0 ? "+" : ""}${number(latest.change, 2)}` : ""} ${Number.isFinite(latest.changePercent) ? percent(latest.changePercent) : ""}</span></div><dl><div><dt>資料日期</dt><dd>${esc(result.asOf)}</dd></div><div><dt>資料品質</dt><dd class="research-quality ${quality.status.toLowerCase()}">${qualityLabel}</dd></div></dl>${quality.warnings.length || quality.missing.length ? `<div class="research-warning" role="note">${items([...quality.missing, ...quality.warnings], esc, "")}</div>` : ""}</section>`;
+  // Price, change and date already show in the header and chart above; only price-data warnings
+  // (e.g. unadjusted prices around a dividend) stay here, once. Missing data is explained by the
+  // pending gates themselves.
+  const basic = quality.warnings.length
+    ? `<section class="research-basic" aria-label="資料提醒"><div class="research-warning" role="note">${items(quality.warnings, esc, "")}</div></section>` : "";
 
   const reasons = research.status === "TRIGGERED" ? research.triggeredConditions : gate.status !== "PASS" ? gate.reasons : research.pendingConditions;
+  const risks = research.riskWarnings.filter((warning) => !quality.warnings.includes(warning));
   const card = `<section class="research-plan-card ${NEXT_TONE[plan.status] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估 · 依 ${esc(plan.planAsOf)} 收盤</p><h3 id="research-plan-title">${esc(plan.label)}</h3><p>${esc(NEXT_EXPLANATION[plan.status] ?? "")}</p><dl class="research-plan-facts"><div><dt>進場準備度</dt><dd>${Number.isFinite(research.score) ? `${number(research.score, 0)} / 100` : "—"}</dd></div><div><dt>初步門檻</dt><dd>${gateSummary(gate, result.modelVersion)}</dd></div><div><dt>進場策略</dt><dd>${esc(research.setupLabel ?? "—")}</dd></div><div><dt>訊號日</dt><dd>${esc(research.signal?.date ?? "—")}</dd></div></dl>
-    <details class="research-reasons"${plan.status === "NEXT_DAY_CANDIDATE" ? " open" : ""}><summary>${research.status === "TRIGGERED" ? "主要成立原因" : "目前狀態原因"}</summary>${items(reasons, esc, "沒有額外說明。")}${research.riskWarnings.length ? `<h4>主要風險</h4>${items(research.riskWarnings, esc, "")}` : ""}${plan.conditionsToConfirm.length ? `<h4>明日需確認</h4>${items(plan.conditionsToConfirm, esc, "")}` : ""}</details>
+    <details class="research-reasons"${plan.status === "NEXT_DAY_CANDIDATE" ? " open" : ""}><summary>${research.status === "TRIGGERED" ? "主要成立原因" : "目前狀態原因"}</summary>${items(reasons, esc, "沒有額外說明。")}${risks.length ? `<h4>主要風險</h4>${items(risks, esc, "")}` : ""}${plan.conditionsToConfirm.length ? `<h4>明日需確認</h4>${items(plan.conditionsToConfirm, esc, "")}` : ""}</details>
     ${plan.requiresPriceConfirmation && plan.status === "NEXT_DAY_CANDIDATE" ? '<p class="research-confirm">等待實際價格確認：目前沒有即時行情，以下一交易日實際開盤價判斷是否仍符合計畫。</p>' : ""}</section>`;
 
   const component = (label, value, weight) => `<div class="research-component"><span>${label}<small>權重 ${weight}%</small></span><strong>${Number.isFinite(value) ? number(value, 0) : "—"}</strong><progress value="${Number.isFinite(value) ? value : 0}" max="100" aria-label="${label} ${Number.isFinite(value) ? number(value, 0) : "無資料"} 分"></progress></div>`;

@@ -3137,16 +3137,7 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 
 /* Score dialog: research sections come before the chart and the legacy V1.2 detail. */
 .entry-dialog.has-research > section + section { margin-top: 14px; }
-.research-basic { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
-.research-basic-price strong { font-size: var(--text-section); font-variant-numeric: tabular-nums; }
-.research-basic-price span { margin-left: 8px; font-variant-numeric: tabular-nums; }
-.research-basic-price .up { color: var(--up); }
-.research-basic-price .down { color: var(--down); }
-.research-basic dl { display: flex; gap: 16px; margin: 0; font-size: var(--text-meta); color: var(--muted); }
-.research-basic dl div { display: flex; gap: 6px; }
-.research-basic dd { margin: 0; color: var(--ink); }
-.research-quality.warning { color: #a16207; }
-.research-quality.insufficient { color: #b54750; }
+.research-basic { display: block; }
 .research-warning { width: 100%; padding: 8px 12px; border-radius: 8px; background: #fff7e6; color: #7a4b00; font-size: var(--text-meta); }
 .research-warning ul { margin: 0; padding-left: 18px; }
 .research-plan-card { padding: 16px; border: 1px solid var(--border); border-left: 4px solid #94a3b8; border-radius: 12px; background: #f8fafc; }
@@ -3213,14 +3204,14 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 .entry-chart-plan-legend .signal span { color: #7c3aed; border-top-style: dotted; }
 [data-theme="dark"] .research-plan-card { background: #0d1726; }
 [data-theme="dark"] :is(.research-plan-card h3, .research-plan-card > p, .research-plan-facts dd, .research-readiness-score strong,
-  .research-component strong, .research-basic dd, .research-gate-head strong) { color: var(--ink); }
+  .research-component strong, .research-gate-head strong) { color: var(--ink); }
 [data-theme="dark"] .research-plan-card.positive { background: #13213a; }
 [data-theme="dark"] .research-plan-card.warning { background: #251d0c; }
 [data-theme="dark"] .research-plan-card.negative { background: #26151a; }
 [data-theme="dark"] .research-warning { background: #2b2210; color: #f5d08a; }
 [data-theme="dark"] .research-gate-status.pass { color: #5eead4; }
-[data-theme="dark"] :is(.research-gate-status.fail, .research-quality.insufficient) { color: #f3a6ad; }
-[data-theme="dark"] :is(.research-gate-status.unknown, .research-quality.warning) { color: #f5c66b; }
+[data-theme="dark"] .research-gate-status.fail { color: #f3a6ad; }
+[data-theme="dark"] .research-gate-status.unknown { color: #f5c66b; }
 [data-theme="dark"] .research-component progress { background: #26364d; }
 [data-theme="dark"] .research-component progress::-webkit-progress-bar { background: #26364d; }
 @media (max-width: 520px) {
