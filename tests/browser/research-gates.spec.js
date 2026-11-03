@@ -11,7 +11,7 @@ test("a vetoed stock shows the gates right after the next-day card and opens its
   await openStock(page, "2317");
   const dialog = page.locator("#info-dialog");
   const order = await dialog.locator(".entry-dialog > section, .entry-dialog > p").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0]));
-  expect(order.slice(0, 5)).toEqual(["entry-price-chart", "research-basic", "research-plan-card", "research-gates", "research-not-evaluated"]);
+  expect(order.slice(0, 5)).toEqual(["entry-price-chart", "research-basic", "research-gates", "research-plan-card", "research-not-evaluated"]);
   await expect(dialog.locator(".research-readiness, .research-signal, .research-price-plan")).toHaveCount(0);
   const tiles = dialog.locator(".research-gate-tile");
   await expect(tiles).toHaveCount(5);
@@ -36,6 +36,8 @@ test("a passing stock keeps the research order and opens a gate panel when its i
   await expect(dialog.locator(".research-gates h3 small")).toHaveText("皆未觸發");
   await expect(dialog.locator(".research-gate-panel:visible")).toHaveCount(0);
   await expect(dialog.locator(".research-readiness")).toBeVisible();
+  const order = await dialog.locator(".entry-dialog > section").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0]));
+  expect(order.indexOf("research-gates")).toBe(order.indexOf("research-plan-card") - 1);
   await dialog.locator('.research-gate-tile[data-gate="liquidity"]').click();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toBeVisible();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toContainText("平均成交金額");

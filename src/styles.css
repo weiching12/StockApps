@@ -3228,7 +3228,6 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
   .research-readiness-body { grid-template-columns: 1fr; gap: 12px; }
   .research-strengths, .research-gate-item dl, .research-signal-facts, .research-plan-table { grid-template-columns: 1fr; }
   .research-plan-card, .research-readiness, .research-gates, .research-signal, .research-price-plan { padding: 12px; }
-  /* Half-open sheet: identity, price and the next-day card come first. */
 }
 
 /* Strategy backtest page. Returns use the market convention (red up, green down); sign is
