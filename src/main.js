@@ -29,10 +29,8 @@ import { calculateMarketSentiment } from "../shared/sentiment.js";
 import { entryScoreDayChange, getEntryScore } from "../shared/entry-score.js";
 import { evaluateEntryResearch } from "../shared/entry-research.js";
 import { compareResearchSnapshots, researchSnapshot } from "../shared/research-tracking.js";
-import { activeResearchPeriod, addResearchPeriod, loadResearchStore, persistResearchStore, recordFirstValidSnapshot, recordFirstValidPriceBaseline, removeResearchPeriod } from "./ui/research-store.js";
-import { renderResearchCenter, researchDetailMarkup, selectResearchScorePoint } from "./ui/research.js";
-import { researchPriceChart, selectResearchPricePoint } from "./ui/research-review.js";
-import { updateResearchComparison } from "./ui/research-comparison.js";
+import { activeResearchPeriod, addResearchPeriod, loadResearchStore, persistResearchStore, recordFirstValidSnapshot, removeResearchPeriod } from "./ui/research-store.js";
+import { renderResearchCenter } from "./ui/research.js";
 import { dailyCloseSeries } from "../shared/price-history.js";
 import { priceBaseline } from "../shared/research-review.js";
 import { entryScoreDialogMarkup, selectEntryChartPoint, restoreEntryChartTitle } from "./ui/entry-score.js";
@@ -124,7 +122,6 @@ const marketClient = new MarketApiClient();
 const backtest = createBacktestController({ client: marketClient, apiMode, esc, loadingIcon, openSample: openBacktestSample });
 const summaryCache = new RequestCache(), sectorDetailCache = new RequestCache(), stockDetailCache = new RequestCache();
 let researchStore, researchRows = new Map(), researchRequest = 0;
-const researchReviewCache = new RequestCache();
 let researchMeta = null;
 let researchSort = "readiness", researchFilter = "all";
 let researchLoadKey = "";
@@ -163,70 +160,6 @@ const appStorage = () => nativeMode ? nativeStorage : preferenceStorage();
 function readPreferences() { loadPreferences(state, appStorage()); }
 function savePreferences() { persistPreferences(state, toast, appStorage()); }
 function saveResearch() { return persistResearchStore(appStorage(), researchStore); }
-
-async function loadResearchReview(symbol, { force = false } = {}) {
-  const key = `${dataset.info.generation ?? "demo"}:${symbol}`;
-  const previous = researchReviewCache.get(key);
-  if (force) researchReviewCache.delete(key);
-  return researchReviewCache.load(key, async () => {
-    let review;
-    if (apiMode) {
-      const response = await marketClient.review(symbol, { cache: "no-store" });
-      if (response.data.meta?.asOf !== dataset.info.asOf || response.data.data?.symbol !== symbol)
-        throw new Error("價格回顧資料版本與清單不一致");
-      review = response.data.data;
-      review.source = response.data.meta.source;
-      review.retrievedAt = response.data.meta.retrievedAt;
-    } else {
-      const stock = dataset.stocks.find((item) => item.symbol === symbol);
-      const dates = dataset.dates.slice(-120);
-      const bars = new Map(stock?.history.map((bar) => [bar.date, bar]) ?? []);
-      review = { symbol, dates, bars: dates.map((date) => ({ date, close: bars.get(date)?.close ?? null })),
-        priceBasis: "unadjusted", corporateActions: { coveredDates: dates.slice(1), events: [], revisionId: "demo-no-actions" },
-        source: "demo", retrievedAt: new Date().toISOString() };
-    }
-    const period = activeResearchPeriod(researchStore, symbol);
-    if (period && !period.baseline) {
-      const latest = review.bars.findLast((bar) => bar.date === dataset.info.asOf);
-      recordFirstValidPriceBaseline(researchStore, symbol, priceBaseline(latest,
-        { asOf: dataset.info.asOf, capturedAt: review.retrievedAt, source: review.source,
-          priceBasis: review.priceBasis, revisionId: review.corporateActions?.revisionId }));
-      saveResearch();
-    }
-    const row = researchRows.get(symbol);
-    if (row) row.review = review;
-    if (previous?.corporateActions?.revisionId === review.corporateActions?.revisionId) return review;
-    renderResearch();
-    const dialog = document.querySelector("#info-dialog");
-    if (dialog?.open && dialog.dataset.entrySymbol === symbol && dialog.dataset.showResearch === "true") {
-      const existing = dialog.querySelector(".research-detail");
-      if (existing) {
-        const scrollTop = dialog.scrollTop, chart = existing.querySelector(".research-price-chart"), plot = chart?.querySelector(".research-chart-plot");
-        const selectedDate = plot ? JSON.parse(plot.dataset.points)[Number(plot.getAttribute("aria-valuenow")) - 1]?.date : null;
-        const range = Number(chart?.dataset.range) || 60;
-        existing.outerHTML = researchDetailMarkup({ symbol, row: researchRows.get(symbol), store: researchStore, esc });
-        const next = dialog.querySelector(".research-price-chart");
-        if (next && range !== 60) next.outerHTML = researchPriceChart(activeResearchPeriod(researchStore, symbol), row, esc, range);
-        const nextPlot = dialog.querySelector(".research-chart-plot");
-        if (nextPlot && selectedDate) {
-          const index = JSON.parse(nextPlot.dataset.points).findIndex(point => point.date === selectedDate);
-          if (index >= 0) selectResearchReviewPoint(nextPlot, index);
-        }
-        dialog.scrollTop = scrollTop;
-      }
-    }
-    return review;
-  });
-}
-
-function refreshOpenResearchReview() {
-  const dialog = document.querySelector('#info-dialog[open][data-show-research="true"]');
-  if (!apiMode || !dialog || document.hidden || updateFlow.isBlocking()) return;
-  const symbol = dialog.dataset.entrySymbol, review = researchRows.get(symbol)?.review;
-  const covered = new Set(review?.corporateActions?.coveredDates ?? []);
-  if (review?.dates.slice(1).some(date => !covered.has(date)))
-    void loadResearchReview(symbol, { force: true }).catch(error => console.warn("Research coverage refresh failed", error));
-}
 
 function renderResearch() {
   if (!researchStore || !document.querySelector("#research-list")) return;
@@ -283,8 +216,7 @@ async function loadResearch() {
         asOf: previousDate, settings: state.settings, source: "historical-recalculation" }) : null;
       const comparison = compareResearchSnapshots(latest, prior, previousDate);
       return [symbol, { latest, previous: prior, comparison, events: comparison.events,
-        history: [prior, latest].filter(Boolean), source: "historical-recalculation",
-        review: researchReviewCache.get(`${dataset.info.generation ?? "demo"}:${symbol}`) }];
+        history: [prior, latest].filter(Boolean), source: "historical-recalculation" }];
     }));
     renderResearch(); return;
   }
@@ -301,8 +233,7 @@ async function loadResearch() {
       rows.push(...data.data);
     }
     if (request !== researchRequest || date !== state.date) return;
-    researchRows = new Map(rows.map((row) => [row.symbol,
-      { ...row, review: researchReviewCache.get(`${dataset.info.generation ?? "demo"}:${row.symbol}`) }]));
+    researchRows = new Map(rows.map((row) => [row.symbol, row]));
     researchMeta = meta;
     for (const row of rows) if (row.latest) {
       const period = activeResearchPeriod(researchStore, row.symbol);
@@ -676,12 +607,11 @@ function animateEntryScore(dialog) {
   requestAnimationFrame(frame);
 }
 
-function openDialog(type, focusClose = true, showResearch = false) {
+function openDialog(type, focusClose = true) {
   settingsAccountMenu?.stop(); settingsAccountMenu = null;
   const infoDialog = document.querySelector("#info-dialog");
   if (!type.startsWith("entry:") || infoDialog.dataset.entrySymbol !== type.slice(6)) delete infoDialog.dataset.mobileSheet;
   infoDialog.dataset.entrySymbol = type.startsWith("entry:") ? type.slice(6) : "";
-  infoDialog.dataset.showResearch = String(type.startsWith("entry:") && showResearch);
   infoDialog.dataset.request = String(Number(infoDialog.dataset.request ?? 0) + 1);
   const content = document.querySelector("#dialog-content");
   document.querySelector("#settings-notifications").hidden = type !== "settings";
@@ -700,7 +630,7 @@ function openDialog(type, focusClose = true, showResearch = false) {
     const stock = snapshots.find((item) => item.symbol === symbol);
     const detail = stockDetailCache.get(`${summaryKey(state.date)}:${symbol}`);
     content.innerHTML = stock ? entryScoreDialogMarkup(detail ? { ...stock, ...detail } : stock, esc, number, percent,
-      state.favorites.includes(symbol), icon, showResearch ? researchDetailMarkup({ symbol, row: researchRows.get(symbol), store: researchStore, esc }) : "") :
+      state.favorites.includes(symbol), icon) :
       `<h2 id="dialog-heading">個股進場評估</h2><p>找不到這檔股票。</p>`;
   } else if (type === "backtest-sample") {
     content.innerHTML = `<h2 id="dialog-heading">研究樣本說明</h2><div class="backtest-loading">${loadingIcon("樣本說明載入中")}<span>樣本說明載入中</span></div>`;
@@ -750,12 +680,10 @@ function closeEntryDrawer() {
   if (dialog?.open) dialog.close();
 }
 
-async function openEntryScoreDialog(symbol, focusClose = true, showResearch = false) {
+async function openEntryScoreDialog(symbol, focusClose = true) {
   const date = state.date, key = `${summaryKey(date)}:${symbol}`;
   const dialog = document.querySelector("#info-dialog");
-  openDialog(`entry:${symbol}`, focusClose, showResearch);
-  if (showResearch && state.favorites.includes(symbol)) void loadResearchReview(symbol, { force: apiMode })
-    .catch((error) => console.warn("Research price review unavailable", error));
+  openDialog(`entry:${symbol}`, focusClose);
   const request = dialog.dataset.request;
   const isCurrent = () => dialog.open && dialog.dataset.request === request &&
     dialog.dataset.entrySymbol === symbol && key === `${summaryKey(state.date)}:${symbol}`;
@@ -773,13 +701,12 @@ async function openEntryScoreDialog(symbol, focusClose = true, showResearch = fa
     if (isCurrent()) {
       document.querySelector("#dialog-content").innerHTML = entryScoreDialogMarkup(
         { ...snapshots.find((stock) => stock.symbol === symbol), ...entryDetail }, esc, number, percent,
-        state.favorites.includes(symbol), icon,
-        showResearch ? researchDetailMarkup({ symbol, row: researchRows.get(symbol), store: researchStore, esc }) : "");
+        state.favorites.includes(symbol), icon);
       animateEntryScore(dialog);
     }
   } catch (error) {
     if (isCurrent())
-      document.querySelector("#dialog-content").innerHTML = `<h2 id="dialog-heading">個股進場評估</h2><p role="alert">${esc(error.message || "評分明細載入失敗")}</p>${showResearch ? researchDetailMarkup({ symbol, row: researchRows.get(symbol), store: researchStore, esc }) : ""}`;
+      document.querySelector("#dialog-content").innerHTML = `<h2 id="dialog-heading">個股進場評估</h2><p role="alert">${esc(error.message || "評分明細載入失敗")}</p>`;
   }
 }
 
@@ -839,13 +766,6 @@ function syncTableFavorite(symbol) {
   if (cached) cached.favorite = favorite;
 }
 
-function selectResearchReviewPoint(plot, index) {
-  const point = selectResearchPricePoint(plot, index);
-  const symbol = plot.closest(".research-price-chart").dataset.reviewSymbol;
-  updateResearchComparison(plot.closest(".research-detail")?.querySelector(".research-initial-comparison"),
-    activeResearchPeriod(researchStore, symbol), researchRows.get(symbol), point.date, esc);
-}
-
 /** Phone bar: the guides and settings share one menu so the brand fits beside the pages. */
 function bindNavMenu() {
   const toggle = document.querySelector(".nav-more-toggle"), menu = document.querySelector("#nav-more-menu");
@@ -875,7 +795,7 @@ function bindEvents() {
   bindNavMenu();
   document.addEventListener("click", (event) => {
     // Info messages close when the reader taps anywhere else.
-    document.querySelectorAll(".research-chart-info[open], .research-plan-help[open]").forEach((hint) => {
+    document.querySelectorAll(".research-plan-help[open]").forEach((hint) => {
       if (!hint.contains(event.target)) hint.open = false;
     });
   });
@@ -884,28 +804,7 @@ function bindEvents() {
     const position = ((clientX - rect.left) / rect.width * 600 - 8) / 584;
     return Math.round(Math.max(0, Math.min(1, position)) * (Number(plot.getAttribute("aria-valuemax")) - 1));
   };
-  const reviewIndexAt = (plot, clientX) => {
-    const rect = plot.querySelector("svg").getBoundingClientRect();
-    const position = ((clientX - rect.left) / rect.width * 320 - 12) / 296;
-    return Math.round(Math.max(0, Math.min(1, position)) * (Number(plot.getAttribute("aria-valuemax")) - 1));
-  };
   document.addEventListener("pointerdown", (event) => {
-    const scorePlot = event.target.closest(".research-score-plot");
-    if (scorePlot) {
-      scorePlot.focus({ preventScroll: true });
-      scorePlot.setPointerCapture(event.pointerId);
-      const rect = scorePlot.querySelector("svg").getBoundingClientRect();
-      selectResearchScorePoint(scorePlot, Math.round(Math.max(0, Math.min(1,
-        (event.clientX - rect.left) / rect.width)) * (Number(scorePlot.getAttribute("aria-valuemax")) - 1)));
-      return;
-    }
-    const reviewPlot = event.target.closest(".research-chart-plot");
-    if (reviewPlot) {
-      reviewPlot.focus({ preventScroll: true });
-      reviewPlot.setPointerCapture(event.pointerId);
-      selectResearchReviewPoint(reviewPlot, reviewIndexAt(reviewPlot, event.clientX));
-      return;
-    }
     const plot = event.target.closest(".entry-chart-plot");
     if (!plot) return;
     if (event.pointerType === "touch") {
@@ -932,18 +831,6 @@ function bindEvents() {
     if (event.target.closest(".entry-chart-plot")) event.preventDefault();
   });
   document.addEventListener("pointermove", (event) => {
-    const scorePlot = event.target.closest(".research-score-plot");
-    if (scorePlot?.hasPointerCapture(event.pointerId)) {
-      const rect = scorePlot.querySelector("svg").getBoundingClientRect();
-      selectResearchScorePoint(scorePlot, Math.round(Math.max(0, Math.min(1,
-        (event.clientX - rect.left) / rect.width)) * (Number(scorePlot.getAttribute("aria-valuemax")) - 1)));
-      return;
-    }
-    const reviewPlot = event.target.closest(".research-chart-plot");
-    if (reviewPlot?.hasPointerCapture(event.pointerId)) {
-      selectResearchReviewPoint(reviewPlot, reviewIndexAt(reviewPlot, event.clientX));
-      return;
-    }
     if (entryTouch?.pointerId === event.pointerId) {
       entryTouch.x = event.clientX;
       if (entryTouch.active) selectEntryChartPoint(entryTouch.plot, chartIndexAt(entryTouch.plot, event.clientX), number);
@@ -980,24 +867,6 @@ function bindEvents() {
     if (plot) restoreEntryChartTitle(plot);
   });
   document.addEventListener("keydown", (event) => {
-    const scorePlot = event.target.closest(".research-score-plot");
-    if (scorePlot && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
-      event.preventDefault();
-      const current = Number(scorePlot.getAttribute("aria-valuenow")) - 1;
-      const last = Number(scorePlot.getAttribute("aria-valuemax")) - 1;
-      selectResearchScorePoint(scorePlot, event.key === "Home" ? 0 : event.key === "End" ? last :
-        Math.max(0, Math.min(last, current + (event.key === "ArrowLeft" ? -1 : 1))));
-      return;
-    }
-    const reviewPlot = event.target.closest(".research-chart-plot");
-    if (reviewPlot && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
-      event.preventDefault();
-      const current = Number(reviewPlot.getAttribute("aria-valuenow")) - 1;
-      const last = Number(reviewPlot.getAttribute("aria-valuemax")) - 1;
-      selectResearchReviewPoint(reviewPlot, event.key === "Home" ? 0 : event.key === "End" ? last :
-        Math.max(0, Math.min(last, current + (event.key === "ArrowLeft" ? -1 : 1))));
-      return;
-    }
     const plot = event.target.closest(".entry-chart-plot");
     if (!plot || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
@@ -1051,28 +920,12 @@ function bindEvents() {
     }
     const researchRow = event.target.closest("#research-list tr.research-card[data-entry-score]");
     if (researchRow && !event.target.closest("button, a, input, select, textarea")) {
-      void openEntryScoreDialog(researchRow.dataset.entryScore, !touchInteraction, true);
+      void openEntryScoreDialog(researchRow.dataset.entryScore, !touchInteraction);
       return;
     }
     const button = event.target.closest("button");
     if (!button) return;
     if (button.closest("#required-update-dialog")) return;
-    if (button.dataset.reviewRange) {
-      const chart = button.closest(".research-price-chart");
-      const symbol = chart?.dataset.reviewSymbol;
-      const period = activeResearchPeriod(researchStore, symbol);
-      if (chart && period) {
-        const plot = chart.querySelector(".research-chart-plot"), detail = chart.closest(".research-detail");
-        const selectedDate = JSON.parse(plot.dataset.points)[Number(plot.getAttribute("aria-valuenow")) - 1]?.date;
-        chart.outerHTML = researchPriceChart(period, researchRows.get(symbol), esc, Number(button.dataset.reviewRange));
-        const nextPlot = detail.querySelector(".research-chart-plot");
-        if (nextPlot) {
-          const points = JSON.parse(nextPlot.dataset.points), index = points.findIndex(point => point.date === selectedDate);
-          selectResearchReviewPoint(nextPlot, index < 0 ? points.length - 1 : index);
-        }
-      }
-      return;
-    }
     if (button.dataset.chartSeries) {
       const visible = button.getAttribute("aria-pressed") !== "true";
       button.setAttribute("aria-pressed", String(visible));
@@ -1271,8 +1124,6 @@ function bindEvents() {
   });
   dialogs.bindBackdropDismiss();
   dialogs.bindMobileDismiss(document.querySelector("#info-dialog"), ".info-dialog-handle");
-  setInterval(refreshOpenResearchReview, 60_000);
-  document.addEventListener("visibilitychange", refreshOpenResearchReview);
   const sectorDialog = document.querySelector("#sector-dialog");
   dialogs.bindMobileDismiss(sectorDialog, ".sector-dialog-handle");
   sectorDialog.addEventListener("close", () => {

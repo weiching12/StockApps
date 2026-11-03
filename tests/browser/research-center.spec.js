@@ -32,24 +32,10 @@ test("research center preserves favorites and opens existing score detail", asyn
   await expect(card.locator(".research-stock")).not.toContainText("評分交易日");
   await card.locator(".research-card-main").click();
   await expect(page.locator(".research-edit")).toHaveCount(0);
-  await expect(page.locator(".research-detail")).toContainText("追蹤價格與評分");
-  await expect(page.locator(".research-detail")).toContainText("加入時與所選日研究差異");
-  await expect(page.locator(".research-detail")).not.toContainText("基礎分數");
-  await expect(page.locator(".research-detail")).not.toContainText("最終分數");
+  await expect(page.locator("#info-dialog .entry-dialog")).toBeVisible();
+  await expect(page.locator(".research-detail")).toHaveCount(0);
   await expect(page.locator(".entry-summary")).not.toContainText("基礎分數");
   await expect(page.locator("#research-note-form")).toHaveCount(0);
-  await page.reload();
-  await page.getByRole("button", { name: "株研追蹤" }).first().click();
-  const same = page.locator(".research-card").first();
-  await same.locator(".research-card-main").click();
-  await expect(page.locator(".research-detail")).toContainText("研究追蹤");
-  await expect(page.locator(".research-tracking-facts > div")).toHaveCount(2);
-  await expect(page.locator(".research-tracking-facts")).toContainText("追蹤時間");
-  await expect(page.locator(".research-tracking-facts")).toContainText("追蹤時評分");
-  await expect(page.locator(".research-tracking-facts")).not.toContainText("最新保存快照");
-  await expect(page.locator(".research-review-summary")).toHaveCount(0);
-  await expect(page.locator(".research-comparison-summary")).toContainText("收盤");
-  await expect(page.locator(".research-comparison-summary")).toContainText("加權總分");
   await expect(page.locator("#dialog-heading")).not.toContainText("株研評分");
 });
 
@@ -57,22 +43,17 @@ test("research table rows open score details across the row", async ({ page }) =
   await page.goto("/");
   await page.getByRole("button", { name: "株研追蹤" }).first().click();
   await page.locator(".research-card .research-price").first().click();
-  await expect(page.locator("#info-dialog")).toBeVisible();
-  await expect(page.locator(".research-detail")).toContainText("研究追蹤");
+  await expect(page.locator("#info-dialog .entry-dialog")).toBeVisible();
 });
 
-test("a saved stock shows research history only when opened from research tracking", async ({ page }) => {
+test("a saved stock opens the same detail from tracking and the market list, without the retired tracking history", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "株研追蹤" }).first().click();
   const symbol = await page.locator(".research-card").first().getAttribute("data-research-symbol");
-  await page.getByRole("button", { name: "市場觀察清單" }).first().click();
-  await page.locator(`#stock-rows tr[data-symbol="${symbol}"]`).click();
-  await expect(page.locator("#info-dialog")).toBeVisible();
-  await expect(page.locator(".research-detail")).toHaveCount(0);
-  await page.locator(".info-dialog-handle").click();
-  await page.getByRole("button", { name: "株研追蹤" }).first().click();
   await page.locator(`.research-card[data-research-symbol="${symbol}"] .research-card-main`).click();
-  await expect(page.locator(".research-detail")).toContainText("研究追蹤");
+  await expect(page.locator("#info-dialog .entry-dialog")).toBeVisible();
+  await expect(page.locator("#info-dialog")).not.toContainText("研究追蹤");
+  await expect(page.locator(".research-detail, .research-review-detail")).toHaveCount(0);
 });
 
 test("pointer clicks do not leave a focus ring but keyboard focus remains visible", async ({ page }) => {
@@ -144,13 +125,6 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
   await page.locator("#research-filter").selectOption("all");
   await page.locator("#research-list .research-card-main").first().click();
   await expect(page.locator("#info-dialog")).toBeVisible();
-  const facts = await page.locator(".research-tracking-facts").evaluate((node) => {
-    const rows = [...node.children].map((row) => row.getBoundingClientRect());
-    const bounds = node.getBoundingClientRect();
-    return { width: bounds.width, scrollWidth: node.scrollWidth, singleColumn: rows.every((row, index) => index === 0 || row.top > rows[index - 1].top) };
-  });
-  expect(facts.scrollWidth).toBeLessThanOrEqual(facts.width + 1);
-  expect(facts.singleColumn).toBe(true);
 });
 
 test("research tracking always compares the latest available trading day", async ({ page }) => {
@@ -185,7 +159,7 @@ test("desktop market date label and selector stay on one line", async ({ page })
   expect(positions.labelRight).toBeLessThan(positions.selectLeft);
 });
 
-test("phone history review opens on demand and chart responds to touch and keyboard", async ({ page }) => {
+test("phone tracking cards align the code and name and open the detail without overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: "株研追蹤" }).first().click();
@@ -199,38 +173,7 @@ test("phone history review opens on demand and chart responds to touch and keybo
   expect(Math.abs(alignment.codeY - alignment.nameY)).toBeLessThan(5);
   expect(alignment.gap).toBeGreaterThanOrEqual(0);
   await page.locator(".research-card-main").first().click();
-  await expect(page.locator(".research-review-detail")).not.toContainText("基準後第 5 個交易日價格變化");
-  await expect(page.locator(".research-chart-heading h4")).toHaveText("個股歷史評分");
-  await expect(page.locator(".research-price-chart .research-chart-heading h5")).toHaveText("追蹤價格與評分");
-  await page.getByLabel("個股歷史評分說明").click();
-  await expect(page.locator(".research-chart-info").first()).toContainText("沒有可用分數的日期不列入圖表");
-  const scoredDates = await page.locator(".research-score-plot").evaluate((plot) => JSON.parse(decodeURIComponent(plot.dataset.points)));
-  expect(scoredDates.every((point) => Number.isFinite(point.finalScore))).toBe(true);
-  await expect(page.locator(".research-chart > div:last-child > span:first-child")).toHaveText(scoredDates[0].date);
-  await page.getByLabel("個股歷史評分說明").click();
-  await page.getByLabel("追蹤價格與評分說明").click();
-  await expect(page.locator(".research-chart-info").last()).toContainText("不代表實際投資報酬");
-  await expect(page.locator(".research-chart-info").last()).toContainText("變化點數");
-  await page.getByLabel("追蹤價格與評分說明").click();
-  const chart = page.locator(".research-chart-plot");
-  await expect(chart).toBeVisible();
-  await chart.focus();
-  await chart.press("ArrowLeft");
-  await expect(chart).toHaveAttribute("aria-valuenow", /\d+/);
-  await expect(page.locator(".research-price-chart [data-review-mode]")).toHaveCount(0);
-  await expect(page.locator(".research-chart-plot .price-marker")).not.toHaveCount(0);
-  const series = await chart.evaluate((plot) => JSON.parse(plot.dataset.points));
-  expect(series.every((point) => Object.hasOwn(point, "close") && Object.hasOwn(point, "score"))).toBe(true);
-  expect(series.every((point) => Object.hasOwn(point, "priceChange") && Object.hasOwn(point, "scoreChange"))).toBe(true);
-  expect(series.some((point) => Number.isFinite(point.score))).toBe(true);
-  await chart.press("Home");
-  await expect(chart.locator(".research-selected-date text")).toHaveText(series[0].date.slice(5).replace("-", "/"));
-  await expect(page.locator(".research-comparison-summary strong")).toHaveCount(2);
-  await expect(page.locator(".research-comparison-summary strong").first()).toHaveCSS("font-weight", "700");
-  await expect(page.locator(".research-comparison-summary")).toContainText(series[0].priceChange);
-  expect(await chart.getAttribute("aria-valuetext")).toContain(series[0].scoreChange);
-  await page.locator('[data-review-range="20"]').click();
-  await expect(page.locator(".research-price-chart")).toHaveAttribute("data-range", "20");
+  await expect(page.locator("#info-dialog .entry-dialog")).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });

@@ -160,10 +160,10 @@ function legacyChange(stock, esc, number) {
   return `<p class="entry-score-change" title="${esc(title)}">${esc(label)}</p>`;
 }
 
-export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = false, icon = () => "", trackingHtml = "") {
+export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = false, icon = () => "") {
   const score = stock.entryScore;
   const heading = `<div class="entry-dialog-title"><p class="entry-dialog-sector">${esc(stock.sector ?? "產業未分類")}</p><button type="button" class="icon-button favorite-button ${favorite ? "is-favorite" : ""}" data-favorite="${esc(stock.symbol)}" aria-label="${favorite ? "移除" : "加入"}${esc(stock.name)}自選" aria-pressed="${favorite}">${icon("star")}</button><h2 id="dialog-heading">${esc(stock.symbol)} ${esc(stock.name)}</h2></div>`;
-  if (!score) return `${heading}<p>資料不足，無法評分。</p>${trackingHtml}`;
+  if (!score) return `${heading}<p>資料不足，無法評分。</p>`;
   const valid = Number.isFinite(score.finalScore);
   if (!score.categories || !Object.keys(score.categories).length && valid)
     return `${heading}<p role="status">評分明細載入中…</p>`;
@@ -203,7 +203,7 @@ export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = f
       ${guideItem("04", "進場位置與波動", `<p>月線乖離 ${percent(metrics.deviation20)} · 近十日前低點 ${number(metrics.previous10Low, 2)} · 距離 ${percent(metrics.riskDistance)}</p><code>ATR14 ${number(metrics.atr14, 2)}（${percent(metrics.atrPercent)}）</code>`)}</details></div>` : ""}</section></section>
     ${!valid ? `<section class="entry-evidence"><h3>無法評分的原因</h3>${list(score.missingData, esc, "必要資料尚未齊備。")}</section>` : ""}`;
   if (!research) return `<div class="entry-dialog">${header}${chart}${legacy}
-    ${trackingHtml}<p class="helper-text entry-disclaimer">此分數僅表示固定研究策略的條件符合程度，不代表上漲機率、預期報酬率或買賣指令。法人完整明細請至法人買賣頁面查看。<br>模型版本：${esc(score.modelVersion)}</p></div>`;
+    <p class="helper-text entry-disclaimer">此分數僅表示固定研究策略的條件符合程度，不代表上漲機率、預期報酬率或買賣指令。法人完整明細請至法人買賣頁面查看。<br>模型版本：${esc(score.modelVersion)}</p></div>`;
   const sections = researchDialogSections(research, stock, { esc, number, percent });
   // Under the chart, the next-day card is the quick read; the detail then follows the order the
   // research is decided in: gates, signal, readiness and the price plan. Stocks stopped by stage 1
@@ -213,5 +213,5 @@ export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = f
     : `${sections.basic}${sections.card}${sections.gates}${sections.notice}`;
   return `<div class="entry-dialog has-research">${header}${chart}${body}
     <section class="entry-legacy" aria-labelledby="entry-legacy-title"><h3 id="entry-legacy-title">舊版株研評分 V1.2 <small>綜合研究分數，不是進場準備度</small></h3>${legacyChange(stock, esc, number)}${legacy}</section>
-    ${trackingHtml}<p class="helper-text entry-disclaimer">進場研究依固定規則計算，明日進場候選不代表保證可以買進；分數不代表上漲機率、預期報酬率或買賣指令，參數為暫定、尚未經歷史回測驗證。<br>模型版本：${esc(research.modelVersion)}（進場研究）、${esc(score.modelVersion)}（株研評分）</p></div>`;
+    <p class="helper-text entry-disclaimer">進場研究依固定規則計算，明日進場候選不代表保證可以買進；分數不代表上漲機率、預期報酬率或買賣指令，參數為暫定、尚未經歷史回測驗證。<br>模型版本：${esc(research.modelVersion)}（進場研究）、${esc(score.modelVersion)}（株研評分）</p></div>`;
 }

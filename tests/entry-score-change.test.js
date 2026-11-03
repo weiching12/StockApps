@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { entryScoreDayChange } from "../shared/entry-score.js";
 import { entryScoreChangePresentation } from "../src/ui/market.js";
 import { compareResearchSnapshots } from "../shared/research-tracking.js";
-import { researchDetailMarkup } from "../src/ui/research.js";
 
 const number = (value, digits) => value.toFixed(digits);
 const current = { asOf: "2026-10-27", finalScore: 82.25, missingData: [] };
@@ -19,9 +18,6 @@ test("2031 market comparison remains available when saved research snapshots are
   assert.deepEqual(presentation(current), { label: "較前期 -7.00",
     title: "2026-10-27 與 2026-10-22 的株研評分差額" });
   assert.equal(presentation(previous, { finalScore: 87.75 }, "2026-10-21").label, "較前期 +1.50");
-  const markup = researchDetailMarkup({ symbol: "2031", row: { comparison: savedComparison },
-    store: { periods: [{ symbol: "2031", removedAt: null }] }, esc: String });
-  assert.match(markup, /缺少 2026-10-21 保存的評分快照/);
 });
 
 test("unavailable comparisons identify the date and actual missing inputs", () => {

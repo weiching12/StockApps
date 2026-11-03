@@ -93,24 +93,3 @@ test('phone sector content supports pull-down while scrolled content stays reada
   await page.mouse.up();
   await expect(dialog).toBeVisible();
 });
-
-test('a three-day research price chart has an unfilled price line and unbroken legend labels', async ({ page }) => {
-  await page.goto('/');
-  await page.evaluate(async () => {
-    const { researchPriceChart } = await import('/src/ui/research-review.js');
-    const dates = ['2026-10-22', '2026-10-27', '2026-10-28'];
-    const element = document.createElement('div'); element.id = 'chart-preview';
-    element.style.width = '280px';
-    element.innerHTML = researchPriceChart({ symbol: '2031', baseline: { asOf: dates[0], close: 48.2, priceBasis: 'unadjusted' } },
-      { review: { dates, bars: dates.map((date, index) => ({ date, close: [48.2, 48.8, 47.5][index] })), priceBasis: 'unadjusted',
-        corporateActions: { coveredDates: dates.slice(1), events: [], revisionId: 'verified' } }, history: [] }, String);
-    document.body.append(element);
-  });
-  await expect(page.locator('#chart-preview .price-line')).toHaveCSS('fill', 'none');
-  await expect(page.locator('#chart-preview .price-line')).toHaveCSS('stroke', 'rgb(225, 153, 113)');
-  expect(await page.locator('#chart-preview .research-chart-plot').getAttribute('aria-valuetext')).not.toContain('公司行動待查核');
-  const wraps = await page.locator('#chart-preview .research-series-key').evaluateAll(elements => elements.map(element => {
-    const range = document.createRange(); range.selectNodeContents(element); return new Set([...range.getClientRects()].map(rect => rect.top)).size;
-  }));
-  expect(wraps.every(lines => lines <= 2)).toBe(true);
-});
