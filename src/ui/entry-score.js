@@ -20,7 +20,7 @@ const chartReadout = (point, number) =>
   `${point.date} · ${Number.isFinite(point.close) ? `收盤 ${number(point.close, 2)}` : "無收盤價"}`;
 
 function priceChartMarkup(stock, esc, number, series, marks = null) {
-  const heading = '<h3>近 30 個交易日收盤價走勢</h3>';
+  const heading = '<h3>30 個交易日走勢圖</h3>';
   if (!series.length) return `<section class="entry-price-chart">${heading}<p>走勢資料載入中…</p></section>`;
   const valid = series.filter(({ close }) => Number.isFinite(close) && close > 0);
   if (!valid.length) return `<section class="entry-price-chart">${heading}<p>近 30 個交易日沒有可用的收盤價。</p></section>`;
