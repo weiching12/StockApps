@@ -3154,6 +3154,15 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
   #stock-rows .research-score-button { min-height: 44px; width: auto; align-items: flex-end; }
   #stock-rows .research-next { overflow-wrap: anywhere; }
   .table-scroll .stock-name { flex-direction: row; align-items: baseline; gap: 6px; }
+  /* Card head: code and name share one style; price and change share one line. */
+  #stock-rows .stock-name > span { color: var(--ink); font-size: inherit; font-weight: 600; letter-spacing: 0; line-height: inherit; }
+  #stock-rows .stock-price-line { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
+  #stock-rows .stock-close { font-weight: 600; font-variant-numeric: tabular-nums; }
+  #stock-rows > tr { align-items: start; }
+  #stock-rows > tr > :is(td:first-child, th, .price-cell) { align-self: center; }
+  #stock-rows > tr > td:first-child .favorite-button { margin-block: -10px; }
+  #stock-rows > tr > .research-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  #stock-rows .research-score-button { justify-content: flex-start; }
   .search-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
