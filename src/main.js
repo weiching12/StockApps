@@ -874,7 +874,8 @@ function bindEvents() {
   backtest.bind();
   bindNavMenu();
   document.addEventListener("click", (event) => {
-    document.querySelectorAll(".research-chart-info[open]").forEach((hint) => {
+    // Info messages close when the reader taps anywhere else.
+    document.querySelectorAll(".research-chart-info[open], .research-plan-help[open]").forEach((hint) => {
       if (!hint.contains(event.target)) hint.open = false;
     });
   });

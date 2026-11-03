@@ -76,3 +76,15 @@ test("signal analysis explains how signals are judged and lists both patterns wi
   await expect(setups.first().locator("h4")).toHaveText(["形成條件", "觸發條件"]);
   await expect(setups.first().locator(".research-checks li small").first()).not.toBeEmpty();
 });
+
+test("the next-day explanation opens as a message from the info icon and closes on an outside tap", async ({ page }) => {
+  await openStock(page, "2330");
+  const card = page.locator("#info-dialog .research-plan-card");
+  const message = card.locator(".research-plan-help p");
+  await expect(message).toBeHidden();
+  await card.locator(".research-plan-help summary").click();
+  await expect(message).toBeVisible();
+  await expect(message).not.toBeEmpty();
+  await page.locator("#info-dialog .research-gates h3").click();
+  await expect(message).toBeHidden();
+});

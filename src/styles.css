@@ -3151,6 +3151,16 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 .research-plan-card.warning { border-left-color: #d97706; background: #fffbeb; }
 .research-plan-card.negative { border-left-color: #b54750; background: #fff5f5; }
 .research-plan-card h3 { margin: 2px 0 6px; font-size: var(--text-title); }
+/* The status explanation opens as a message from the info icon beside the title. */
+.research-plan-card { position: relative; }
+.research-plan-head { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.research-plan-head h3 { margin: 2px 0 0; }
+.research-plan-help > summary { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: var(--muted); cursor: pointer; list-style: none; }
+.research-plan-help > summary::-webkit-details-marker { display: none; }
+.research-plan-help > summary:hover, .research-plan-help[open] > summary { color: var(--accent); background: rgba(37, 99, 235, .08); }
+.research-plan-help > summary svg { width: 18px; height: 18px; }
+.research-plan-help > p { position: absolute; z-index: 2; left: 12px; right: 12px; margin: 6px 0 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--ink); font-size: var(--text-secondary); line-height: 1.65; box-shadow: 0 8px 24px rgba(15, 23, 42, .12); }
+[data-theme="dark"] .research-plan-help > p { background: #111b2b; }
 .research-plan-card > p { margin: 0 0 10px; font-size: var(--text-secondary); line-height: 1.65; }
 .research-eyebrow { margin: 0; color: var(--muted); font-size: var(--text-meta) !important; }
 .research-plan-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 10px; }
