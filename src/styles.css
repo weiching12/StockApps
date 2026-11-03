@@ -3193,17 +3193,19 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 .entry-legacy > h3 { margin: 0 0 10px; font-size: var(--text-body); }
 .entry-legacy > .entry-score-change { margin: -4px 0 10px; color: var(--muted); font-size: var(--text-meta); }
 .entry-legacy > h3 small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--text-meta); font-weight: 400; }
-.entry-chart-plan { stroke-width: 1.4; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
-.entry-chart-plan.entry { stroke: var(--accent); }
-.entry-chart-plan.upper { stroke: #d97706; }
-.entry-chart-plan.invalidation { stroke: #b54750; }
-.entry-chart-signal { stroke: #7c3aed; stroke-width: 1.2; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+/* Plan levels: one neutral tone, told apart by dash pattern and an on-chart label. */
+.entry-price-chart svg .entry-chart-plan, .entry-chart-plan-swatch .entry-chart-plan { stroke: #475569; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.entry-price-chart svg .entry-chart-plan.entry, .entry-chart-plan-swatch .entry { stroke-dasharray: 6 3; }
+.entry-price-chart svg .entry-chart-plan.upper, .entry-chart-plan-swatch .upper { stroke-dasharray: 1.5 3; stroke-width: 1.8; }
+.entry-price-chart svg .entry-chart-plan.invalidation, .entry-chart-plan-swatch .invalidation { stroke-dasharray: 10 3 2 3; }
+.entry-price-chart svg .entry-chart-signal, .entry-chart-plan-swatch .signal { stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 1 3; vector-effect: non-scaling-stroke; }
+.entry-chart-plot { position: relative; }
+.entry-chart-plan-labels { position: absolute; inset: 0; pointer-events: none; }
+.entry-chart-plan-labels span { position: absolute; left: 2px; transform: translateY(-50%); padding: 0 4px; border-radius: 3px; background: rgba(255, 255, 255, .88); color: #475569; font-size: 10px; line-height: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+[data-theme="dark"] .entry-chart-plan-labels span { background: rgba(17, 27, 43, .88); color: #cbd5e1; }
+[data-theme="dark"] :is(.entry-price-chart svg, .entry-chart-plan-swatch) .entry-chart-plan:not(.signal) { stroke: #cbd5e1; }
 .entry-chart-plan-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0 0; padding: 0; list-style: none; font-size: var(--text-meta); color: var(--muted); font-variant-numeric: tabular-nums; }
-.entry-chart-plan-legend span { display: inline-block; width: 14px; height: 0; margin-right: 6px; vertical-align: middle; border-top: 2px dashed currentColor; }
-.entry-chart-plan-legend .entry span { color: var(--accent); }
-.entry-chart-plan-legend .upper span { color: #d97706; }
-.entry-chart-plan-legend .invalidation span { color: #b54750; }
-.entry-chart-plan-legend .signal span { color: #7c3aed; border-top-style: dotted; }
+.entry-price-chart svg.entry-chart-plan-swatch { display: inline-block; width: 16px; height: 4px; margin-right: 6px; vertical-align: middle; overflow: visible; }
 [data-theme="dark"] .research-plan-card { background: #0d1726; }
 [data-theme="dark"] :is(.research-plan-card h3, .research-plan-card > p, .research-plan-facts dd, .research-readiness-score strong,
   .research-component strong, .research-gate-head strong) { color: var(--ink); }
