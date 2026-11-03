@@ -3163,7 +3163,8 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 [data-theme="dark"] .research-plan-help > p { background: #111b2b; }
 .research-plan-card > p { margin: 0 0 10px; font-size: var(--text-secondary); line-height: 1.65; }
 .research-eyebrow { margin: 0; color: var(--muted); font-size: var(--text-meta) !important; }
-.research-plan-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 10px; }
+/* All facts share one row, however many the card has. */
+.research-plan-facts { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin: 0 0 10px; }
 .research-plan-facts div { display: grid; gap: 2px; }
 .research-plan-facts dt { color: var(--muted); font-size: var(--text-meta); }
 .research-plan-facts dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -3233,7 +3234,6 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 [data-theme="dark"] .research-component progress { background: #26364d; }
 [data-theme="dark"] .research-component progress::-webkit-progress-bar { background: #26364d; }
 @media (max-width: 520px) {
-  .research-plan-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .research-readiness-body { grid-template-columns: 1fr; gap: 12px; }
   .research-strengths, .research-gate-item dl, .research-signal-facts, .research-plan-table { grid-template-columns: 1fr; }
   .research-plan-card, .research-readiness, .research-gates, .research-signal, .research-price-plan { padding: 12px; }
