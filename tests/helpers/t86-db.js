@@ -20,7 +20,9 @@ export function testDatabase() {
     },
     async batch(statements) {
       sqlite.exec("BEGIN");
-      try { const results = []; for (const s of statements) results.push(await s.run()); sqlite.exec("COMMIT"); return results; }
+      // Like D1, a batched SELECT returns its rows.
+      try { const results = []; for (const s of statements) results.push(/^\s*select/i.test(s.sql) ? await s.all() : await s.run());
+        sqlite.exec("COMMIT"); return results; }
       catch (error) { sqlite.exec("ROLLBACK"); throw error; }
     },
   };

@@ -82,14 +82,9 @@ export class EntryResearchRepository {
   }
 
   /** Filtered sample list with outcomes, newest first. */
-  async samples({ modelVersion, from, to, symbol, gateStatus, entryStatus, setupType, nextDayStatus, minScore, maxScore, source,
-    limit, offset }) {
-    const where = ["s.ModelVersion=?"], values = [modelVersion];
-    const add = (sql, value) => { if (value !== undefined && value !== null) { where.push(sql); values.push(value); } };
-    add("s.TradeDate>=?", from); add("s.TradeDate<=?", to); add("s.Symbol=?", symbol); add("s.GateStatus=?", gateStatus);
-    add("s.EntryStatus=?", entryStatus); add("s.SetupType=?", setupType); add("s.NextDayStatus=?", nextDayStatus);
-    add("s.ReadinessScore>=?", minScore); add("s.ReadinessScore<=?", maxScore); add("s.Source=?", source);
-    const clause = where.join(" AND ");
+  async samples(filters) {
+    const { limit, offset } = filters;
+    const { clause, values } = sampleFilter(filters);
     const total = await this.db.prepare(`SELECT COUNT(*) AS Count FROM entry_research_samples s WHERE ${clause}`)
       .bind(...values).first();
     const rows = await this.db.prepare(`SELECT s.*,o.Status AS OutcomeStatus,o.Return1,o.Return5,o.Return10,o.Return20,
@@ -101,4 +96,57 @@ export class EntryResearchRepository {
       .bind(...values, limit, offset).all();
     return { total: total?.Count ?? 0, rows: rows.results ?? [] };
   }
+
+  /**
+   * Aggregates for the backtest page, computed in SQL over the filtered samples. `horizon` is
+   * one of 5/10/20 (validated upstream) and selects the trade and forward-return columns.
+   * Trade returns are net simulated fills; forward returns are close-to-close from the sample day.
+   */
+  async backtest(filters) {
+    const { clause, values } = sampleFilter(filters);
+    const trade = `o.TradeReturn${filters.horizon}`, forward = `o.Return${filters.horizon}`;
+    const from = `FROM entry_research_samples s LEFT JOIN entry_research_outcomes o
+      ON o.Symbol=s.Symbol AND o.TradeDate=s.TradeDate AND o.ModelVersion=s.ModelVersion WHERE ${clause}`;
+    const stats = (column, prefix) => `COUNT(${column}) AS ${prefix}Count, SUM(${column}>0) AS ${prefix}Wins,
+      AVG(${column}) AS ${prefix}Average, AVG(CASE WHEN ${column}>0 THEN ${column} END) AS ${prefix}AverageWin,
+      AVG(CASE WHEN ${column}<=0 THEN ${column} END) AS ${prefix}AverageLoss`;
+    const bucket = `CASE WHEN s.ReadinessScore IS NULL THEN NULL WHEN s.ReadinessScore<40 THEN 0
+      WHEN s.ReadinessScore<60 THEN 40 WHEN s.ReadinessScore<70 THEN 60 WHEN s.ReadinessScore<80 THEN 70
+      WHEN s.ReadinessScore<90 THEN 80 ELSE 90 END`;
+    const statements = [
+      `SELECT COUNT(*) AS Samples, SUM(s.GateStatus='PASS') AS GatePass, SUM(s.EntryStatus='TRIGGERED') AS Triggered,
+        SUM(s.NextDayStatus='NEXT_DAY_CANDIDATE') AS Candidates, SUM(o.TradeStatus='FILLED') AS Filled,
+        SUM(o.TradeStatus='FILLED' AND ${trade} IS NULL) AS TradePending, SUM(o.Status='COMPLETE') AS OutcomesComplete,
+        MIN(s.TradeDate) AS FirstDate, MAX(s.TradeDate) AS LastDate, COUNT(DISTINCT s.TradeDate) AS Sessions,
+        ${stats(trade, "Trade")}, ${stats(forward, "Forward")}, AVG(o.Mfe20) AS AverageMfe, AVG(o.Mae20) AS AverageMae,
+        COUNT(o.Mfe20) AS ExcursionCount ${from}`,
+      `SELECT ${bucket} AS Bucket, COUNT(*) AS Samples, ${stats(trade, "Trade")}, ${stats(forward, "Forward")}
+        ${from} AND s.ReadinessScore IS NOT NULL GROUP BY Bucket ORDER BY Bucket`,
+      `SELECT s.SetupType AS SetupType, COUNT(*) AS Samples, SUM(s.NextDayStatus='NEXT_DAY_CANDIDATE') AS Candidates,
+        ${stats(trade, "Trade")}, ${stats(forward, "Forward")} ${from} AND s.SetupType IS NOT NULL
+        GROUP BY s.SetupType ORDER BY s.SetupType`,
+      `SELECT ${[5, 10, 20].map((days) => `${stats(`o.TradeReturn${days}`, `Trade${days}`)}, ${stats(`o.Return${days}`, `Forward${days}`)}`).join(",")}
+        ${from}`,
+      `SELECT s.TradeDate AS TradeDate, COUNT(*) AS Samples, SUM(s.GateStatus='PASS') AS GatePass,
+        SUM(s.NextDayStatus='NEXT_DAY_CANDIDATE') AS Candidates, COUNT(${trade}) AS Trades, AVG(${trade}) AS TradeAverage
+        ${from} GROUP BY s.TradeDate ORDER BY s.TradeDate`,
+      // Two-point bins clamped to ±20%; returns are above -100%, so the shifted cast is a floor.
+      `SELECT MIN(MAX(CAST((${trade}+100)/2 AS INTEGER)-50,-10),10) AS Bin, COUNT(*) AS Count
+        ${from} AND ${trade} IS NOT NULL GROUP BY Bin ORDER BY Bin`,
+    ];
+    const [totals, buckets, setups, horizons, daily, distribution] = await this.db.batch(
+      statements.map((sql) => this.db.prepare(sql).bind(...values)));
+    return { totals: totals.results?.[0] ?? {}, buckets: buckets.results ?? [], setups: setups.results ?? [],
+      horizons: horizons.results?.[0] ?? {}, daily: daily.results ?? [], distribution: distribution.results ?? [] };
+  }
+}
+
+function sampleFilter({ modelVersion, from, to, symbol, gateStatus, entryStatus, setupType, nextDayStatus, minScore, maxScore,
+  source }) {
+  const where = ["s.ModelVersion=?"], values = [modelVersion];
+  const add = (sql, value) => { if (value !== undefined && value !== null) { where.push(sql); values.push(value); } };
+  add("s.TradeDate>=?", from); add("s.TradeDate<=?", to); add("s.Symbol=?", symbol); add("s.GateStatus=?", gateStatus);
+  add("s.EntryStatus=?", entryStatus); add("s.SetupType=?", setupType); add("s.NextDayStatus=?", nextDayStatus);
+  add("s.ReadinessScore>=?", minScore); add("s.ReadinessScore<=?", maxScore); add("s.Source=?", source);
+  return { clause: where.join(" AND "), values };
 }

@@ -1,5 +1,5 @@
 const KEY = "stock-insight-current-page";
-const PAGES = new Set(["market", "favorites", "sectors"]);
+const PAGES = new Set(["market", "favorites", "sectors", "backtest"]);
 
 export function restorePage(state, storage) {
   try {

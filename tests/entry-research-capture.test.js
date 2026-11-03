@@ -179,3 +179,62 @@ test("the research model keeps its provisional parameters in one versioned place
   assert.deepEqual(ENTRY_RESEARCH_MODEL.outcomeHorizons, [1, 5, 10, 20]);
   assert.throws(() => { ENTRY_RESEARCH_MODEL.plan.maxRiskPercent = 50; });
 });
+
+test("backtest API aggregates filtered samples in SQL and flags small groups", async () => {
+  const db = database();
+  const insert = db.sqlite.prepare(`INSERT INTO entry_research_samples(Symbol,TradeDate,ModelVersion,Source,RevisionId,Close,
+    GateStatus,GatePassed,Trend,Momentum,PriceVolume,Institutional,EntryRisk,ReadinessScore,EntryStatus,SetupType,NextDayStatus,
+    DataQuality,CapturedAt,DetailJson) VALUES(?,?,?,'daily','r',100,?,?,'PASS','PASS','PASS','PASS','PASS',?,?,?,?,'OK','t','{}')`);
+  const outcome = db.sqlite.prepare(`INSERT INTO entry_research_outcomes(Symbol,TradeDate,ModelVersion,Status,Return5,Return10,
+    Return20,Mfe20,Mae20,TradeStatus,TradeReturn5,TradeReturn10,TradeReturn20,DetailJson,UpdatedAt)
+    VALUES(?,?,'entry-research-v1','COMPLETE',?,?,?,?,?,?,?,?,?,'{}','t')`);
+  // Two dates: a breakout winning 10% and a pullback losing 5% on day one, a pullback winning 4% on day two.
+  insert.run("1101", "2026-09-01", "entry-research-v1", "PASS", 5, 85, "TRIGGERED", "RANGE_BREAKOUT", "NEXT_DAY_CANDIDATE");
+  outcome.run("1101", "2026-09-01", 6, 10, 12, 15, -3, "FILLED", 5, 10, 11);
+  insert.run("1102", "2026-09-01", "entry-research-v1", "PASS", 5, 72, "TRIGGERED", "PULLBACK_RECOVERY", "NEXT_DAY_CANDIDATE");
+  outcome.run("1102", "2026-09-01", -4, -5, -6, 2, -8, "FILLED", -4, -5, -7);
+  insert.run("1103", "2026-09-02", "entry-research-v1", "PASS", 5, 75, "TRIGGERED", "PULLBACK_RECOVERY", "NEXT_DAY_CANDIDATE");
+  outcome.run("1103", "2026-09-02", 3, 4, 2, 6, -1, "FILLED", 3, 4, null);
+  insert.run("1104", "2026-09-02", "entry-research-v1", "FAIL", 3, null, "NOT_ELIGIBLE", null, "NOT_ELIGIBLE");
+  outcome.run("1104", "2026-09-02", -50, -50, -50, 1, -60, "NOT_APPLICABLE", null, null, null);
+  insert.run("1105", "2026-09-02", "entry-research-v0", "PASS", 5, 90, "TRIGGERED", "RANGE_BREAKOUT", "NEXT_DAY_CANDIDATE");
+  const services = { market: {}, entryResearch: new EntryResearchService(new EntryResearchRepository(db)) };
+  const get = async (query) => {
+    const response = await routeApi(new Request(`https://example.test/api/v1/research/backtest${query}`), { T86_DB: db }, services);
+    return { status: response.status, body: await response.json() };
+  };
+  const { status, body } = await get("");
+  assert.equal(status, 200);
+  const { data, meta } = body;
+  assert.equal(meta.horizon, 10);
+  assert.equal(meta.minimumSamples, 30);
+  assert.deepEqual([data.totals.samples, data.totals.gatePass, data.totals.candidates, data.totals.filled, data.totals.sessions],
+    [4, 3, 3, 3, 2], "other model versions are excluded");
+  assert.equal(data.trades.count, 3);
+  assert.equal(data.trades.winRate, 66.7);
+  assert.equal(data.trades.averageReturn, 3);
+  assert.equal(data.trades.averageWin, 7);
+  assert.equal(data.trades.averageLoss, -5);
+  assert.equal(data.trades.insufficient, true);
+  assert.equal(data.forward.count, 4, "forward returns include failed-gate samples");
+  // Day one averages 2.5%, day two 4%: 1.025 × 1.04 − 1 = 6.6%; no drawdown.
+  assert.deepEqual(data.equity.map(({ date, cumulativeReturn }) => [date, cumulativeReturn]), [["2026-09-01", 2.5], ["2026-09-02", 6.6]]);
+  assert.equal(data.trades.maxDrawdown, 0);
+  assert.deepEqual(data.readinessBuckets.map(({ min, samples }) => [min, samples]), [[0, 0], [40, 0], [60, 0], [70, 2], [80, 1], [90, 0]]);
+  const pullback = data.setups.find((row) => row.setupType === "PULLBACK_RECOVERY");
+  assert.deepEqual([pullback.samples, pullback.trades.count, pullback.trades.averageReturn], [2, 2, -0.5]);
+  assert.deepEqual(data.horizons.map(({ days, trades }) => [days, trades.count]), [[5, 3], [10, 3], [20, 2]]);
+  assert.equal(data.totals.tradePending, 0);
+  assert.deepEqual(data.distribution.map(({ from, count }) => [from, count]), [[-6, 1], [4, 1], [10, 1]]);
+  assert.deepEqual(data.daily.map(({ date, samples }) => [date, samples]), [["2026-09-01", 2], ["2026-09-02", 2]]);
+  const longer = await get("?horizon=20&setup=PULLBACK_RECOVERY");
+  assert.equal(longer.body.data.trades.count, 1);
+  assert.equal(longer.body.data.totals.tradePending, 1, "a fill without a 20-session exit is pending, not zero");
+  const empty = await get("?from=2027-01-01");
+  assert.equal(empty.body.data.totals.samples, 0);
+  assert.equal(empty.body.data.trades.averageReturn, null);
+  assert.deepEqual(empty.body.data.equity, []);
+  for (const bad of ["?horizon=7", "?gate=MAYBE", "?from=2026-09-05&to=2026-09-01"])
+    assert.equal((await get(bad)).status, 400, bad);
+  db.sqlite.close();
+});

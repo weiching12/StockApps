@@ -43,43 +43,6 @@ async function setup(page, intercept = async () => false) {
   await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "false");
 }
 
-test("market labels distinguish current missing data from a valid change without saved snapshots", async ({ page }) => {
-  await setup(page, async (route, url) => {
-    if (url.pathname === "/api/v1/favorites/research") {
-      await route.fulfill({ json: { data: [], meta: { asOf: manifest.asOf } } });
-      return true;
-    }
-    if (url.pathname !== "/api/v1/market/summary") return false;
-    const result = await summary.summary(manifest.asOf, { period: 9, kSmooth: 3, dSmooth: 3 });
-    result.data.stocks[0].entryScore = { asOf: manifest.asOf, finalScore: null, missingData: ["RVOL20 資料不足"] };
-    result.data.stocks[0].entryScoreChange = { previousDate: demo.dates.at(-2), delta: null,
-      status: "missing-current", missingData: ["RVOL20 資料不足"] };
-    result.data.stocks[1].entryScore = { asOf: manifest.asOf, finalScore: 82.25 };
-    result.data.stocks[1].entryScoreChange = { previousDate: demo.dates.at(-2), delta: -7, status: "comparable" };
-    await route.fulfill({ json: result }); return true;
-  });
-  const unavailable = page.locator(`#stock-rows [data-symbol="${stocks[0].symbol}"] .entry-score-change`);
-  await expect(unavailable).toHaveText("當日資料不足");
-  await expect(unavailable).toHaveAttribute("title", /RVOL20 資料不足/);
-  const comparable = page.locator(`#stock-rows [data-symbol="${stocks[1].symbol}"] .entry-score-change`);
-  await expect(comparable).toHaveText("較前期 -7.00");
-  await expect(comparable).toHaveAttribute("title", new RegExp(demo.dates.at(-2)));
-});
-
-test("market previous-data label includes the prior date and its own missing reason", async ({ page }) => {
-  await setup(page, async (route, url) => {
-    if (url.pathname !== "/api/v1/market/summary") return false;
-    const result = await summary.summary(manifest.asOf, { period: 9, kSmooth: 3, dSmooth: 3 });
-    result.data.stocks[0].entryScore = { asOf: manifest.asOf, finalScore: 89.25 };
-    result.data.stocks[0].entryScoreChange = { previousDate: demo.dates.at(-2), delta: null,
-      status: "missing-previous", missingData: ["近五日法人資料不完整"] };
-    await route.fulfill({ json: result }); return true;
-  });
-  const change = page.locator(`#stock-rows [data-symbol="${stocks[0].symbol}"] .entry-score-change`);
-  await expect(change).toHaveText("前期資料不足");
-  await expect(change).toHaveAttribute("title", new RegExp(`${demo.dates.at(-2)}.*近五日法人資料不完整`));
-});
-
 test("cached date selection clears loading and ignores a late failure", async ({ page }) => {
   const waiting = defer(), entered = defer(), oldDate = demo.dates.at(-2);
   await setup(page, async (route, url) => {

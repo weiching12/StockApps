@@ -6,6 +6,7 @@ import { dailyCloseSeries } from "../../shared/price-history.js";
 import { institutionalScoreBreakdown } from "../../shared/entry-score.js";
 import { isEtf } from "../../shared/market-codec.js";
 import { researchChartMarks, researchDialogSections } from "./entry-research.js";
+import { entryScoreChangePresentation } from "./market.js";
 
 export function priceTrend(series) {
   const valid = series.filter(({ close }) => Number.isFinite(close) && close > 0);
@@ -149,6 +150,13 @@ const CORE_DATA_LABELS = { close: "收盤價", ma20: "月線", ma60: "季線", p
 const coreData = (data, esc, number) => Object.entries(data ?? {}).map(([key, value]) =>
   `<span><dt>${esc(CORE_DATA_LABELS[key] ?? key.replace(/([a-z])([A-Z])/g, "$1 $2"))}</dt><dd>${Number.isFinite(value) ? number(value, 2) : esc(value ?? "—")}</dd></span>`).join("");
 
+/** The V1.2 day-over-day label that the market list showed before entry research led it. */
+function legacyChange(stock, esc, number) {
+  if (!stock.entryScore) return "";
+  const { label, title } = entryScoreChangePresentation(stock, number);
+  return `<p class="entry-score-change" title="${esc(title)}">${esc(label)}</p>`;
+}
+
 export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = false, icon = () => "", trackingHtml = "") {
   const score = stock.entryScore;
   const heading = `<div class="entry-dialog-title"><p class="entry-dialog-sector">${esc(stock.sector ?? "產業未分類")}</p><button type="button" class="icon-button favorite-button ${favorite ? "is-favorite" : ""}" data-favorite="${esc(stock.symbol)}" aria-label="${favorite ? "移除" : "加入"}${esc(stock.name)}自選" aria-pressed="${favorite}">${icon("star")}</button><h2 id="dialog-heading">${esc(stock.symbol)} ${esc(stock.name)}</h2></div>`;
@@ -195,6 +203,6 @@ export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = f
     ${trackingHtml}<p class="helper-text entry-disclaimer">此分數僅表示固定研究策略的條件符合程度，不代表上漲機率、預期報酬率或買賣指令。法人完整明細請至法人買賣頁面查看。<br>模型版本：${esc(score.modelVersion)}</p></div>`;
   const sections = researchDialogSections(research, stock, { esc, number, percent });
   return `<div class="entry-dialog has-research">${header}${sections.basic}${sections.card}${sections.readiness}${sections.gates}${sections.signal}${sections.plan}
-    ${chart}<section class="entry-legacy" aria-labelledby="entry-legacy-title"><h3 id="entry-legacy-title">舊版株研評分 V1.2 <small>綜合研究分數，不是進場準備度</small></h3>${legacy}</section>
+    ${chart}<section class="entry-legacy" aria-labelledby="entry-legacy-title"><h3 id="entry-legacy-title">舊版株研評分 V1.2 <small>綜合研究分數，不是進場準備度</small></h3>${legacyChange(stock, esc, number)}${legacy}</section>
     ${trackingHtml}<p class="helper-text entry-disclaimer">進場研究依固定規則計算，明日進場候選不代表保證可以買進；分數不代表上漲機率、預期報酬率或買賣指令，參數為暫定、尚未經歷史回測驗證。<br>模型版本：${esc(research.modelVersion)}（進場研究）、${esc(score.modelVersion)}（株研評分）</p></div>`;
 }

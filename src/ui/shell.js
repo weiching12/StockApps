@@ -1,5 +1,6 @@
 import appPackage from "../../package.json" with { type: "json" };
 import { RESEARCH_FILTERS } from "./entry-research.js";
+import { backtestPanelMarkup } from "./backtest.js";
 
 const appVersion = `v${appPackage.version}`;
 
@@ -12,6 +13,7 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
         <button class="nav-item active" data-page="market" aria-label="市場觀察清單">${icon("grid")}<span class="nav-label">市場觀察清單</span><span class="nav-label-mobile" aria-hidden="true">市場</span><span class="nav-dot"></span></button>
         <button class="nav-item" data-page="favorites" aria-label="株研追蹤">${icon("star")}<span class="nav-label">株研追蹤</span><span class="nav-label-mobile" aria-hidden="true">株研追蹤</span><span id="favorite-count" class="count-pill"></span></button>
         <button class="nav-item" data-page="sectors" aria-label="法人買株">${icon("chart")}<span class="nav-label">法人買株</span><span class="nav-label-mobile" aria-hidden="true">法人</span><span class="nav-dot"></span></button>
+        <button class="nav-item" data-page="backtest" aria-label="策略回測">${icon("trend")}<span class="nav-label">策略回測</span><span class="nav-label-mobile" aria-hidden="true">回測</span><span class="nav-dot"></span></button>
         <button class="nav-item" data-dialog="methodology" aria-label="指標小百科">${icon("book")}<span>指標說明</span>${icon("chevron", "nav-chevron")}</button>
         <button class="nav-item" data-dialog="source" aria-label="資料說明">${icon("info")}<span>資料說明</span>${icon("chevron", "nav-chevron")}</button>
       </nav>
@@ -79,6 +81,7 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
           <div id="sector-grid" class="sector-grid sector-ranking"></div>
           <p class="sector-note">金額以億元顯示，張數為輔。金額依各股每日法人淨買賣股數 × 當日收盤價累計，非實際成交金額。TOP1 百分比為該個股的區間漲跌幅；點選產業可同時查看當日、5 日、20 日買賣超。僅統計目前研究標的。</p>
         </section>
+        ${backtestPanelMarkup()}
         <footer class="page-footer"><span class="footer-brand">株研 <span>STOCK RESEARCH</span></span><span>技術提示僅供研究參考。</span><button data-dialog="source">關於株研 ${icon("arrow")}</button></footer>
       </main>
     </div>

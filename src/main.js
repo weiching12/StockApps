@@ -37,6 +37,7 @@ import { dailyCloseSeries } from "../shared/price-history.js";
 import { priceBaseline } from "../shared/research-review.js";
 import { entryScoreDialogMarkup, selectEntryChartPoint, restoreEntryChartTitle } from "./ui/entry-score.js";
 import { renderSentiment, sentimentDialogMarkup } from "./ui/sentiment.js";
+import { createBacktestController } from "./ui/backtest.js";
 import {
   DEFAULT_SETTINGS,
   getSnapshot,
@@ -61,6 +62,7 @@ const icons = {
     '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
+  trend: '<path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
 };
 const icon = (name, cls = "") =>
   `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] ?? icons.chart}</svg>`;
@@ -118,6 +120,7 @@ let dataset, snapshots, latestSnapshots, currentSentiment;
 const apiMode = import.meta.env.VITE_DATA_MODE === "api";
 const nativeMode = import.meta.env.VITE_APP_TARGET === "native";
 const marketClient = new MarketApiClient();
+const backtest = createBacktestController({ client: marketClient, apiMode, esc, loadingIcon, openSample: openBacktestSample });
 const summaryCache = new RequestCache(), sectorDetailCache = new RequestCache(), stockDetailCache = new RequestCache();
 let researchStore, researchRows = new Map(), researchRequest = 0;
 const researchReviewCache = new RequestCache();
@@ -577,6 +580,7 @@ async function refreshWithVersionCheck() {
 
 function renderPage() {
   renderPageView({ state, dataset, renderLoadState, updateSegmentedControls });
+  if (state.page === "backtest") backtest.show();
   rememberPage(state.page, nativeMode ? nativeStorage : undefined);
 }
 
@@ -697,6 +701,8 @@ function openDialog(type, focusClose = true, showResearch = false) {
     content.innerHTML = stock ? entryScoreDialogMarkup(detail ? { ...stock, ...detail } : stock, esc, number, percent,
       state.favorites.includes(symbol), icon, showResearch ? researchDetailMarkup({ symbol, row: researchRows.get(symbol), store: researchStore, esc }) : "") :
       `<h2 id="dialog-heading">個股進場評估</h2><p>找不到這檔股票。</p>`;
+  } else if (type === "backtest-sample") {
+    content.innerHTML = `<h2 id="dialog-heading">研究樣本說明</h2><div class="backtest-loading">${loadingIcon("樣本說明載入中")}<span>樣本說明載入中</span></div>`;
   } else if (type === "sentiment") {
     content.innerHTML = sentimentDialogMarkup(currentSentiment);
   } else if (type === "signals") {
@@ -727,6 +733,15 @@ function openDialog(type, focusClose = true, showResearch = false) {
     ? ".info-dialog-handle" : "#close-dialog");
   if (focusClose) close.focus({ preventScroll: true });
   else if (dialog.contains(document.activeElement)) document.activeElement.blur();
+}
+
+/** Shows a backtest sample's saved explanation once its request resolves. */
+function openBacktestSample(pending) {
+  const dialog = document.querySelector("#info-dialog");
+  openDialog("backtest-sample", !touchInteraction);
+  const request = dialog.dataset.request;
+  pending.then((markup) => markup, (error) => `<h2 id="dialog-heading">研究樣本說明</h2><p role="alert">${esc(error.message || "樣本說明載入失敗")}</p>`)
+    .then((markup) => { if (dialog.open && dialog.dataset.request === request) document.querySelector("#dialog-content").innerHTML = markup; });
 }
 
 function closeEntryDrawer() {
@@ -831,6 +846,7 @@ function selectResearchReviewPoint(plot, index) {
 }
 
 function bindEvents() {
+  backtest.bind();
   document.addEventListener("click", (event) => {
     document.querySelectorAll(".research-chart-info[open]").forEach((hint) => {
       if (!hint.contains(event.target)) hint.open = false;

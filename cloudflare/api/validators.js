@@ -57,6 +57,12 @@ export function researchSampleOptions(params) {
     includeDetail: ["1", "true"].includes(params.get("detail") ?? "") };
 }
 
+/** The sample filters without paging, plus the holding horizon (5, 10 or 20 sessions). */
+export function researchBacktestOptions(params) {
+  const { limit, offset, includeDetail, ...filters } = researchSampleOptions(params);
+  return { ...filters, horizon: Number(oneOf(params, "horizon", ["5", "10", "20"]) ?? 10) };
+}
+
 export function analysisOptions(params) {
   const settings = { ...DEFAULT_SETTINGS };
   for (const name of Object.keys(settings)) {

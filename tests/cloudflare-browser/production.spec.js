@@ -16,10 +16,15 @@ test("2031 comparison follows the selected market date", async ({ page, request 
     expect(Number.isFinite(stock.entryScore.finalScore)).toBe(true);
     expect(Number.isFinite(stock.entryScoreChange.delta)).toBe(true);
     await page.locator("#trade-date").selectOption(date);
-    await expect(row.locator(".entry-score-button strong")).toHaveText(stock.entryScore.finalScore.toFixed(2));
-    await expect(row.locator(".entry-score-change")).toHaveText(
-      `較前期 ${stock.entryScoreChange.delta > 0 ? "+" : ""}${stock.entryScoreChange.delta.toFixed(2)}`);
-    await expect(row.locator(".entry-score-change")).toHaveAttribute("title", new RegExp(stock.entryScoreChange.previousDate));
+    // The list leads with entry research; the V1.2 score and its change follow in the dialog.
+    const readiness = stock.entryResearch.score;
+    await expect(row.locator(".entry-score-button strong")).toHaveText(Number.isFinite(readiness) ? String(Math.round(readiness)) : "—");
+    await expect(row.locator(".research-gate")).toContainText(`門檻 ${stock.entryResearch.gatePassed}/5`);
+    await row.locator(".entry-score-button").click();
+    const change = page.locator("#info-dialog .entry-legacy .entry-score-change");
+    await expect(change).toHaveText(`較前期 ${stock.entryScoreChange.delta > 0 ? "+" : ""}${stock.entryScoreChange.delta.toFixed(2)}`);
+    await expect(change).toHaveAttribute("title", new RegExp(stock.entryScoreChange.previousDate));
+    await page.locator("#close-dialog").click();
   }
   // Research navigation intentionally returns to the latest session.
   const research = await (await request.get(`/api/v1/favorites/research?symbols=2031&asOf=${manifest.asOf}&${settings}`)).json();
