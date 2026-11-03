@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_SETTINGS } from "../shared/indicators.js";
 import { entryResearchGates, evaluateEntryResearch } from "../shared/entry-research.js";
-import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V1, ENTRY_RESEARCH_MODEL_V2 } from "../shared/entry-research-model.js";
+import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V1, ENTRY_RESEARCH_MODEL_V2, ENTRY_RESEARCH_MODEL_V3 } from "../shared/entry-research-model.js";
 
 const KEYS = ["trend", "momentum", "priceVolume", "institutional", "entryRisk"];
 const dates = Array.from({ length: 100 }, (_, index) => new Date(Date.UTC(2026, 0, 1 + index)).toISOString().slice(0, 10));
@@ -118,7 +118,9 @@ test("v2 structure averages only the V1.2 trend and institutional scores", () =>
   const v1 = evaluateEntryResearch(input(baseline(), { score, model: ENTRY_RESEARCH_MODEL_V1 }));
   assert.equal(v1.entryResearch.componentScores.structure, 32, "v1 keeps the five-category mean");
   assert.equal(v2.modelVersion, "entry-research-v2");
-  assert.equal(ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V2, "v2 is the live model");
+  assert.equal(ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V3, "v3 (v2 gates, one-session signal) is the live model");
+  assert.equal(ENTRY_RESEARCH_MODEL_V3.signal.validSessions, 1);
+  assert.deepEqual(ENTRY_RESEARCH_MODEL_V3.gates, ENTRY_RESEARCH_MODEL_V2.gates);
 });
 
 test("a stock without a bar on the evaluated session is pending, never an error", () => {

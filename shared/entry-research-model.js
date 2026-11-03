@@ -78,8 +78,18 @@ export const ENTRY_RESEARCH_MODEL_V2 = Object.freeze({
   }),
 });
 
+// v3: v2 with a one-session signal window. A signal yields a next-day candidate only on its trigger
+// day; from the next session it is expired. Measured on 2026-10-01～11-03 history, candidates on the
+// trigger day returned +0.68% over 5 sessions while those on days 2–3 lost 0.7–1.2%
+// (docs/entry-research-signal-study.md). With one session, a veto during the window cannot occur.
+export const ENTRY_RESEARCH_MODEL_V3 = Object.freeze({
+  ...ENTRY_RESEARCH_MODEL_V2,
+  version: "entry-research-v3",
+  signal: Object.freeze({ ...ENTRY_RESEARCH_MODEL_V2.signal, validSessions: 1 }),
+});
+
 // The live model: the API, the daily sample capture and demo mode all use it.
-export const ENTRY_RESEARCH_MODEL = ENTRY_RESEARCH_MODEL_V2;
+export const ENTRY_RESEARCH_MODEL = ENTRY_RESEARCH_MODEL_V3;
 export const ENTRY_RESEARCH_MODEL_VERSION = ENTRY_RESEARCH_MODEL.version;
 
 export const ENTRY_RESEARCH_STATUS_LABELS = Object.freeze({

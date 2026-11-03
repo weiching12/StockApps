@@ -187,15 +187,15 @@ test("backtest API aggregates filtered samples in SQL and flags small groups", a
     DataQuality,CapturedAt,DetailJson) VALUES(?,?,?,'daily','r',100,?,?,'PASS','PASS','PASS','PASS','PASS',?,?,?,?,'OK','t','{}')`);
   const outcome = db.sqlite.prepare(`INSERT INTO entry_research_outcomes(Symbol,TradeDate,ModelVersion,Status,Return5,Return10,
     Return20,Mfe20,Mae20,TradeStatus,TradeReturn5,TradeReturn10,TradeReturn20,DetailJson,UpdatedAt)
-    VALUES(?,?,'entry-research-v2','COMPLETE',?,?,?,?,?,?,?,?,?,'{}','t')`);
+    VALUES(?,?,'entry-research-v3','COMPLETE',?,?,?,?,?,?,?,?,?,'{}','t')`);
   // Two dates: a breakout winning 10% and a pullback losing 5% on day one, a pullback winning 4% on day two.
-  insert.run("1101", "2026-09-01", "entry-research-v2", "PASS", 5, 85, "TRIGGERED", "RANGE_BREAKOUT", "NEXT_DAY_CANDIDATE");
+  insert.run("1101", "2026-09-01", "entry-research-v3", "PASS", 5, 85, "TRIGGERED", "RANGE_BREAKOUT", "NEXT_DAY_CANDIDATE");
   outcome.run("1101", "2026-09-01", 6, 10, 12, 15, -3, "FILLED", 5, 10, 11);
-  insert.run("1102", "2026-09-01", "entry-research-v2", "PASS", 5, 72, "TRIGGERED", "PULLBACK_RECOVERY", "NEXT_DAY_CANDIDATE");
+  insert.run("1102", "2026-09-01", "entry-research-v3", "PASS", 5, 72, "TRIGGERED", "PULLBACK_RECOVERY", "NEXT_DAY_CANDIDATE");
   outcome.run("1102", "2026-09-01", -4, -5, -6, 2, -8, "FILLED", -4, -5, -7);
-  insert.run("1103", "2026-09-02", "entry-research-v2", "PASS", 5, 75, "TRIGGERED", "PULLBACK_RECOVERY", "NEXT_DAY_CANDIDATE");
+  insert.run("1103", "2026-09-02", "entry-research-v3", "PASS", 5, 75, "TRIGGERED", "PULLBACK_RECOVERY", "NEXT_DAY_CANDIDATE");
   outcome.run("1103", "2026-09-02", 3, 4, 2, 6, -1, "FILLED", 3, 4, null);
-  insert.run("1104", "2026-09-02", "entry-research-v2", "FAIL", 3, null, "NOT_ELIGIBLE", null, "NOT_ELIGIBLE");
+  insert.run("1104", "2026-09-02", "entry-research-v3", "FAIL", 3, null, "NOT_ELIGIBLE", null, "NOT_ELIGIBLE");
   outcome.run("1104", "2026-09-02", -50, -50, -50, 1, -60, "NOT_APPLICABLE", null, null, null);
   insert.run("1105", "2026-09-02", "entry-research-v0", "PASS", 5, 90, "TRIGGERED", "RANGE_BREAKOUT", "NEXT_DAY_CANDIDATE");
   const services = { market: {}, entryResearch: new EntryResearchService(new EntryResearchRepository(db)) };

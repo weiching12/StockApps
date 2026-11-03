@@ -65,7 +65,7 @@ test("signal analysis explains how signals are judged and lists both patterns wi
   await openStock(page, "2330");
   const section = page.locator("#info-dialog .research-signal");
   await expect(section.locator(".research-signal-how")).toContainText("形成條件");
-  await expect(section.locator(".research-signal-how")).toContainText("3 個交易日內有效");
+  await expect(section.locator(".research-signal-how")).toContainText("只在訊號日當天有效");
   const setups = section.locator(".research-setup");
   await expect(setups.locator("summary strong")).toHaveText(["順勢回踩恢復", "整理區間向上突破"]);
   // An earlier signal is shown as judged on its signal day; the other pattern on today's close.

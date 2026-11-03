@@ -146,7 +146,7 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
   const signalSection = `<section class="research-signal" aria-labelledby="research-signal-title"><h3 id="research-signal-title">進場訊號分析</h3>${signal
     ? `<p><span class="research-chip ${STATUS_TONE[signal.status]}">${esc(ENTRY_RESEARCH_STATUS_LABELS[signal.status])}</span> ${esc(signal.setupLabel)} · ${esc(signal.date)}${signal.invalidatedOn ? ` · ${esc(signal.invalidatedOn)} 收盤跌破失效價` : ""}</p><dl class="research-signal-facts">${[["觸發價格", price(signal.triggerPrice, number)], ...evidence,
       ["KD 確認", signal.kdConfirmed ? "已確認" : "未完全確認"], ["量能確認", signal.volumeConfirmed === null ? "資料不足" : signal.volumeConfirmed ? `已確認（RVOL20 ${price(signal.rvol20, number)}）` : `未達標準（RVOL20 ${price(signal.rvol20, number)}）`],
-      ["有效期間", `觸發日起 ${signal.validSessions} 個交易日`]].map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>`
+      ["有效期間", validityText(signal.validSessions)]].map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>`
     : `<p><span class="research-chip ${STATUS_TONE[research.status] ?? "muted"}">${esc(research.label ?? "—")}</span></p>`}${signalRules(research, signal, esc)}</section>`;
 
   const row = (label, value, note = "") => `<div><dt>${label}</dt><dd>${value}${note ? `<small>${note}</small>` : ""}</dd></div>`;
@@ -160,14 +160,17 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
   return { basic, card, readiness, gates, signal: signalSection, plan: planSection, evaluated, notice };
 }
 
-const signalValidity = ENTRY_RESEARCH_MODEL.signal.validSessions;
+const validityText = (sessions) => sessions === 1 ? "僅訊號日當天" : `觸發日起 ${sessions} 個交易日`;
 
 /**
  * How the system judges a signal, then both patterns with every condition and today's result.
  * The pattern behind an existing signal is shown as judged on its signal day.
  */
 function signalRules(research, signal, esc) {
-  const how = `<p class="research-signal-how">判定方式：系統每個交易日收盤後檢查下列兩種型態。「形成條件」全部成立代表型態已出現；之後「觸發條件」也全部成立的那一天就是訊號日（進場訊號已觸發）。訊號自訊號日起 ${signalValidity} 個交易日內有效，超過為「訊號已過期」；有效期間內收盤跌破策略失效價則為「訊號失效」。</p>`;
+  const validity = signal?.validSessions ?? ENTRY_RESEARCH_MODEL.signal.validSessions;
+  const how = `<p class="research-signal-how">判定方式：系統每個交易日收盤後檢查下列兩種型態。「形成條件」全部成立代表型態已出現；之後「觸發條件」也全部成立的那一天就是訊號日（進場訊號已觸發）。${validity === 1
+    ? "訊號只在訊號日當天有效：當晚依收盤產生明日進場候選，下一個交易日起為「訊號已過期」，需等待新的訊號；之後收盤跌破策略失效價則標示為「訊號失效」。"
+    : `訊號自訊號日起 ${validity} 個交易日內有效，超過為「訊號已過期」；有效期間內收盤跌破策略失效價則為「訊號失效」。`}</p>`;
   const setups = (research.setups ?? []).map((today) => {
     const fromSignal = signal?.setupType === today.setupType;
     const checks = fromSignal ? signal.checks : today.checks;
