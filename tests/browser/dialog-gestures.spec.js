@@ -26,17 +26,16 @@ test('phone entry pulls down to a next-day assessment preview, expands upward an
   await swipe(page, page.locator('.entry-dialog-meta'));
   await expect(dialog).toHaveAttribute('data-mobile-sheet', 'preview');
   await expect(dialog).toBeVisible();
-  // The preview keeps the stock identity, price and next-day assessment; detail waits for expansion.
-  await expect(page.locator('.research-plan-card')).toBeVisible();
-  await expect(page.locator('.research-basic')).toBeVisible();
-  await expect(page.locator('.entry-price-chart')).toBeHidden();
+  // The preview keeps the stock identity and its price chart; research detail waits for expansion.
+  await expect(page.locator('.entry-price-chart')).toBeVisible();
+  await expect(page.locator('.research-plan-card')).toBeHidden();
   await expect(page.locator('.entry-summary')).toBeHidden();
   await expect.poll(async () => {
     const bounds = await dialog.boundingBox();
     return Math.round(bounds.y + bounds.height);
   }).toBe(956);
   const previewBounds = await dialog.boundingBox();
-  const cardBounds = await page.locator('.research-plan-card').boundingBox();
+  const cardBounds = await page.locator('.entry-price-chart').boundingBox();
   expect(cardBounds.y + cardBounds.height).toBeLessThanOrEqual(previewBounds.y + previewBounds.height);
   await swipe(page, page.locator('.entry-dialog-meta'), -120);
   await expect(dialog).not.toHaveAttribute('data-mobile-sheet', 'preview');

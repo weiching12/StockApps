@@ -11,7 +11,7 @@ test("a vetoed stock shows the gates right after the next-day card and opens its
   await openStock(page, "2317");
   const dialog = page.locator("#info-dialog");
   const order = await dialog.locator(".entry-dialog > section, .entry-dialog > p").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0]));
-  expect(order.slice(0, 4)).toEqual(["research-basic", "research-plan-card", "research-gates", "research-not-evaluated"]);
+  expect(order.slice(0, 5)).toEqual(["entry-price-chart", "research-basic", "research-plan-card", "research-gates", "research-not-evaluated"]);
   await expect(dialog.locator(".research-readiness, .research-signal, .research-price-plan")).toHaveCount(0);
   const tiles = dialog.locator(".research-gate-tile");
   await expect(tiles).toHaveCount(5);
@@ -21,9 +21,12 @@ test("a vetoed stock shows the gates right after the next-day card and opens its
   const panel = dialog.locator(`.research-gate-panel[data-gate="${opened}"]`);
   await expect(panel).toBeVisible();
   await expect(panel).toContainText("計算方式");
+  // References are extra detail: collapsed until asked for.
+  await expect(panel.locator(".research-references")).toBeHidden();
+  await panel.locator(".research-reference-details summary").click();
   await expect(panel.locator(".research-references a").first()).toHaveAttribute("target", "_blank");
+  await expect(panel.locator(".research-gate-note")).toContainText("尚未以歷史資料驗證");
   await expect(dialog.locator(".research-gate-panel:visible")).toHaveCount(1);
-  await expect(dialog.locator(".research-gate-note")).toContainText("尚未以歷史資料驗證");
   expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
 

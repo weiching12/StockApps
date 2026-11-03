@@ -164,7 +164,7 @@ function gateSummary(gate, version) {
 }
 
 const dataValue = (value, number) => typeof value === "number"
-  ? (Number.isInteger(value) && Math.abs(value) >= 1000 ? value.toLocaleString("zh-TW") : number(value, 2)) : String(value);
+  ? (Number.isInteger(value) ? value.toLocaleString("zh-TW") : number(value, 2)) : String(value);
 
 /**
  * Stage 1 as icons side by side. Each icon is a radio label; its calculation and references
@@ -187,12 +187,12 @@ function gatesSection(result, { esc, number }) {
     const data = Object.entries(item.data ?? {}).filter(([, value]) => value !== null && value !== undefined)
       .map(([field, value]) => `<div><dt>${esc(DATA_LABELS[field] ?? field)}</dt><dd>${esc(dataValue(value, number))}</dd></div>`).join("");
     const references = (item.references ?? []).map((ref) => `<li><span class="research-reference-kind">${esc(ref.kind)}</span><a href="${esc(ref.url)}" target="_blank" rel="noopener noreferrer">${esc(ref.title)}</a></li>`).join("");
-    return `<div class="research-gate-panel" data-gate="${key}"><div class="research-gate-head"><strong>${esc(item.label ?? key)}</strong><span class="research-gate-status ${tone}">${label}</span></div><p>${esc(item.reason)}</p><p class="research-rule">計算方式：${esc(item.rule)}</p>${data ? `<dl>${data}</dl>` : ""}${references ? `<h4>參考依據</h4><ul class="research-references">${references}</ul>` : ""}</div>`;
+    return `<div class="research-gate-panel" data-gate="${key}"><div class="research-gate-head"><strong>${esc(item.label ?? key)}</strong><span class="research-gate-status ${tone}">${label}</span></div><p>${esc(item.reason)}</p><p class="research-rule">計算方式：${esc(item.rule)}</p>${data ? `<dl>${data}</dl>` : ""}${references ? `<details class="research-reference-details"><summary>參考依據</summary><ul class="research-references">${references}</ul><p class="research-gate-note">${REFERENCE_NOTE}</p></details>` : ""}</div>`;
   }).join("");
   const fired = entries.filter(([, item]) => item.status === "FAIL").length;
   const heading = v1 ? "五大核心門檻" : "初步門檻（否決條件）";
   const badge = v1 ? `${gate.passedCount} / 5` : gate.status === "PASS" ? "皆未觸發" : fired ? `觸發 ${fired} 項` : "待確認";
-  return `<section class="research-gates" aria-labelledby="research-gates-title"><h3 id="research-gates-title">${heading} <small class="${gate.status === "FAIL" ? "fail" : ""}">${badge}</small></h3>${inputs}<div class="research-gate-tiles">${tiles}</div><div class="research-gate-panels">${panels}</div>${gate.status === "PASS" ? '<p class="research-gate-hint">點選圖示查看計算方式與參考依據。</p>' : ""}${v1 ? "" : `<p class="research-gate-note">${REFERENCE_NOTE}</p>`}</section>`;
+  return `<section class="research-gates" aria-labelledby="research-gates-title"><h3 id="research-gates-title">${heading} <small class="${gate.status === "FAIL" ? "fail" : ""}">${badge}</small></h3>${inputs}<div class="research-gate-tiles">${tiles}</div><div class="research-gate-panels">${panels}</div>${gate.status === "PASS" ? '<p class="research-gate-hint">點選圖示查看計算方式。</p>' : ""}</section>`;
 }
 
 /** Prices and the signal date to mark on the price chart, when a plan exists. */

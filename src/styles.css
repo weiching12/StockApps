@@ -3050,7 +3050,7 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
   .info-dialog-handle::before { content: ""; width: 40px; height: 5px; border-radius: 999px; background: #cbd5e1; }
   #info-dialog { transform: translateY(var(--mobile-drag-y, 0px)); transition: transform 180ms ease-out; }
   #info-dialog.is-dragging { transition: none; user-select: none; }
-  #info-dialog[data-mobile-sheet="preview"] .entry-dialog:not(.has-research) > :not(.entry-dialog-header):not(.entry-price-chart) { display: none; }
+  #info-dialog[data-mobile-sheet="preview"] .entry-dialog > :not(.entry-dialog-header):not(.entry-price-chart) { display: none; }
   #info-dialog .entry-dialog-header { --entry-header-inset: 16px; padding-right: 16px; }
   #info-dialog .entry-dialog-title { grid-template-columns: minmax(0, 1fr) 44px; }
   #info-dialog .entry-dialog-sector, #info-dialog .entry-dialog h2 { grid-column: 1; }
@@ -3229,7 +3229,6 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
   .research-strengths, .research-gate-item dl, .research-signal-facts, .research-plan-table { grid-template-columns: 1fr; }
   .research-plan-card, .research-readiness, .research-gates, .research-signal, .research-price-plan { padding: 12px; }
   /* Half-open sheet: identity, price and the next-day card come first. */
-  #info-dialog[data-mobile-sheet="preview"] .entry-dialog.has-research > :not(.entry-dialog-header):not(.research-basic):not(.research-plan-card) { display: none; }
 }
 
 /* Strategy backtest page. Returns use the market convention (red up, green down); sign is
@@ -3337,7 +3336,9 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 .research-gate-panel dl div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--border); padding-bottom: 4px; }
 .research-gate-panel dt { color: var(--muted); }
 .research-gate-panel dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-.research-gate-panel h4 { margin: 12px 0 4px; font-size: var(--text-meta); color: var(--muted); }
+.research-reference-details { margin-top: 10px; }
+.research-reference-details summary { cursor: pointer; font-size: var(--text-meta); color: var(--accent); }
+.research-reference-details[open] summary { margin-bottom: 6px; }
 .research-references { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: var(--text-secondary); }
 .research-references a { color: var(--accent); }
 .research-reference-kind { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-size: var(--text-meta); }
