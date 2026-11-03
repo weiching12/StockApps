@@ -121,6 +121,17 @@ test("v2 structure averages only the V1.2 trend and institutional scores", () =>
   assert.equal(ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V2, "v2 is the live model");
 });
 
+test("a stock without a bar on the evaluated session is pending, never an error", () => {
+  const suspended = baseline().slice(0, -1);
+  Object.assign(suspended[last - 3], { changePercent: -2, volume: 3_000_000 }); // an earlier heavy-selling day
+  const result = gates(suspended);
+  assert.equal(result.status, "UNKNOWN");
+  assert.ok(Object.values(result.conditions).every((status) => status !== "PASS"), JSON.stringify(result.conditions));
+  const research = evaluateEntryResearch(input(suspended));
+  assert.equal(research.entryResearch.status, "DATA_INSUFFICIENT");
+  assert.equal(research.nextDayPlan.status, "DATA_INSUFFICIENT");
+});
+
 test("v2 gates never read sessions after the evaluated date", () => {
   const bars = baseline(), asOfEarlier = dates[last - 5];
   const before = entryResearchGates({ ...input(bars), asOf: asOfEarlier });

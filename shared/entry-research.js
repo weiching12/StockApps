@@ -72,8 +72,9 @@ function vetoChecks(reader, g) {
           : veto("PASS", "MA20 不低於 MA60，季線未下彎", data);
   }
   {
-    let failure = null, missing = false;
-    for (let age = 0; age < g.distributionSessions && !failure; age++) {
+    // Without today's close (e.g. a suspended stock) recovery cannot be judged.
+    let failure = null, missing = !validBar(today);
+    for (let age = 0; age < g.distributionSessions && !failure && !missing; age++) {
       const bar = reader.bar(at - age), rvol20 = validBar(bar) ? reader.rvol(at - age) : null;
       if (!validBar(bar) || !Number.isFinite(bar.changePercent) || !Number.isFinite(rvol20)) { missing = true; continue; }
       if (bar.changePercent < g.heavySellChange && rvol20 >= g.heavySellRvol && !(today.close > bar.high))
