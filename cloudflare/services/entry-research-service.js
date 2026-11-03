@@ -1,5 +1,9 @@
 import { DomainError } from "../../shared/domain-error.js";
 import { ENTRY_RESEARCH_MODEL } from "../../shared/entry-research-model.js";
+import { gateKeysForModel } from "../../shared/entry-research.js";
+
+// The five gate columns keep their v1 names; each model stores its own gates in this order.
+const GATE_COLUMNS = ["Trend", "Momentum", "PriceVolume", "Institutional", "EntryRisk"];
 
 const parse = (json) => { try { return json ? JSON.parse(json) : null; } catch { return null; } };
 
@@ -8,8 +12,8 @@ function sampleRepresentation(row, includeDetail) {
   return {
     symbol: row.Symbol, name: row.Name, tradeDate: row.TradeDate, modelVersion: row.ModelVersion, source: row.Source,
     close: row.Close,
-    gate: { status: row.GateStatus, passed: row.GatePassed, total: 5, conditions: { trend: row.Trend,
-      momentum: row.Momentum, priceVolume: row.PriceVolume, institutional: row.Institutional, entryRisk: row.EntryRisk } },
+    gate: { status: row.GateStatus, passed: row.GatePassed, total: 5, conditions: Object.fromEntries(
+      gateKeysForModel(row.ModelVersion).map((key, index) => [key, row[GATE_COLUMNS[index]]])) },
     readiness: { score: row.ReadinessScore, structure: row.StructureScore, signal: row.SignalScore, timing: row.TimingScore },
     entryStatus: row.EntryStatus, setupType: row.SetupType, signalDate: row.SignalDate,
     nextDay: { status: row.NextDayStatus, entryReferencePrice: row.EntryReferencePrice, entryPriceUpper: row.EntryPriceUpper,
@@ -43,13 +47,14 @@ function returnStats(row, prefix) {
 }
 
 /**
- * Equal-weight curve by sample date: each date's filled trades are averaged and compounded in
- * date order. Overlapping holding periods and capital limits are ignored (a research view).
+ * Staggered capital by sample date: the account is split into `horizon` parts and each date
+ * commits one part, equal-weighted across that date's filled trades. Compounding whole-account
+ * returns of overlapping holding windows would overstate gains and losses about `horizon`-fold.
  */
-function equityCurve(daily) {
+function equityCurve(daily, horizon) {
   let equity = 1, peak = 1, maxDrawdown = 0;
   const points = daily.filter((row) => row.Trades > 0).map((row) => {
-    equity *= 1 + row.TradeAverage / 100;
+    equity *= 1 + row.TradeAverage / 100 / horizon;
     peak = Math.max(peak, equity);
     const drawdown = (equity / peak - 1) * 100;
     maxDrawdown = Math.min(maxDrawdown, drawdown);
@@ -75,7 +80,7 @@ export class EntryResearchService {
     if (!this.repository) throw new DomainError("DATA_UNAVAILABLE", "進場研究樣本資料庫尚未啟用");
     const { totals, buckets, setups, horizons, daily, distribution } = await this.repository.backtest(filters);
     const byBucket = new Map(buckets.map((row) => [row.Bucket, row]));
-    const curve = equityCurve(daily);
+    const curve = equityCurve(daily, filters.horizon);
     const trades = returnStats(totals, "Trade");
     return { data: {
       totals: { samples: totals.Samples ?? 0, sessions: totals.Sessions ?? 0, firstDate: totals.FirstDate ?? null,

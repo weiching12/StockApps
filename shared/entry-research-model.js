@@ -2,10 +2,9 @@
 // none has been validated by a historical backtest yet. Change them only here, and bump
 // ENTRY_RESEARCH_MODEL_VERSION whenever a change alters any result so saved samples of
 // different versions stay comparable. There is deliberately no user-facing override.
-export const ENTRY_RESEARCH_MODEL_VERSION = "entry-research-v1";
-
-export const ENTRY_RESEARCH_MODEL = Object.freeze({
-  version: ENTRY_RESEARCH_MODEL_VERSION,
+// v1: stage 1 reuses the V1.2 core conditions. Kept for comparisons and for reading v1 samples.
+export const ENTRY_RESEARCH_MODEL_V1 = Object.freeze({
+  version: "entry-research-v1",
   provisional: true,
   // Readiness score = weighted mean of three 0-100 components.
   weights: Object.freeze({ structure: 50, signal: 30, timing: 20 }),
@@ -36,9 +35,56 @@ export const ENTRY_RESEARCH_MODEL = Object.freeze({
   outcomeHorizons: Object.freeze([1, 5, 10, 20]),
 });
 
+// v2 (docs/entry-research-gates-v2.md): the first stage only vetoes situations that break the
+// swing-trend premise; strength is left to readiness. Signal, plan and cost settings are unchanged.
+const reference = (title, kind, url) => Object.freeze({ title, kind, url });
+export const ENTRY_RESEARCH_MODEL_V2 = Object.freeze({
+  ...ENTRY_RESEARCH_MODEL_V1,
+  version: "entry-research-v2",
+  gates: Object.freeze({
+    kind: "veto",
+    trendSlopeSessions: 20,          // G1: MA60 below its value this many sessions earlier = falling
+    distributionSessions: 10,        // G2: look-back for an unrecovered heavy-selling day
+    heavySellChange: -0.5,           // G2: close change below this percent ...
+    heavySellRvol: 2,                // G2: ... on at least this RVOL20
+    maxExtensionAtr: 3,              // G3: (close − MA20) ÷ ATR14 above this = overextended
+    institutionSessions: 3,          // G4: foreign + investment-trust net over these sessions ...
+    institutionNetSellPercent: 5,    // G4: ... selling at least this percent of their volume
+    liquiditySessions: 20,           // G5: average traded value (close × shares) over these sessions ...
+    minTradingValue: 10_000_000,     // G5: ... below NT$10 million
+  }),
+  // Readiness structure: V1.2 trend and institutional scores only. KD and volume are scored once,
+  // in signal quality; MA20 distance once, in timing; extension is a G3 veto.
+  readiness: Object.freeze({ structureCategories: Object.freeze(["trend", "institutional"]) }),
+  references: Object.freeze({
+    trend: Object.freeze([
+      reference("Mark Minervini《Trade Like a Stock Market Wizard》趨勢樣板", "實務規則", "https://therighttrader.com/learn/trading-strategies/minervini-trend-template"),
+      reference("Zakamulin 均線策略研究摘要", "學術研究", "https://www.cxoadvisory.com/technical-trading/challenging-sma-effectiveness-for-stocks"),
+    ]),
+    distribution: Object.freeze([
+      reference("William O'Neil《How to Make Money in Stocks》出貨日", "實務規則", "https://discussion.fool.com/t/peak-signals-spotting-a-stocks-direction-with-this-key-market-signal/104495/3"),
+    ]),
+    extension: Object.freeze([
+      reference("Does ATR Extension Predict a Reversal?（納斯達克 100 回測）", "個人回測", "https://backtest.substack.com/p/does-atr-extension-predict-a-reversal"),
+    ]),
+    institutional: Object.freeze([
+      reference("臺灣大學碩士論文：外資買賣超與超額報酬（2021）", "學位論文", "https://tdr.lib.ntu.edu.tw/handle/123456789/74582"),
+      reference("中央大學碩士論文：投信與外資買賣超組合報酬（2021）", "學位論文", "https://ir.lib.ncu.edu.tw/bitstream/987654321/85011/1/index.html"),
+    ]),
+    liquidity: Object.freeze([
+      reference("流動性篩選：日均成交金額", "實務文章", "https://ctyeh.com/stock/knowledge/12972"),
+      reference("台灣股市流動性溢酬研究", "學術研究", "https://ideas.repec.org/a/asi/aeafrj/v9y2019i7p778-788id1837.html"),
+    ]),
+  }),
+});
+
+// The live model: the API, the daily sample capture and demo mode all use it.
+export const ENTRY_RESEARCH_MODEL = ENTRY_RESEARCH_MODEL_V2;
+export const ENTRY_RESEARCH_MODEL_VERSION = ENTRY_RESEARCH_MODEL.version;
+
 export const ENTRY_RESEARCH_STATUS_LABELS = Object.freeze({
   WAIT_TRIGGER: "等待進場訊號", TRIGGERED: "進場訊號已觸發", SIGNAL_EXPIRED: "訊號已過期",
-  SIGNAL_INVALIDATED: "訊號失效", DATA_INSUFFICIENT: "資料不足", NOT_ELIGIBLE: "未通過五大門檻",
+  SIGNAL_INVALIDATED: "訊號失效", DATA_INSUFFICIENT: "資料不足", NOT_ELIGIBLE: "未通過初步門檻",
 });
 export const NEXT_DAY_STATUS_LABELS = Object.freeze({
   NEXT_DAY_CANDIDATE: "明日進場候選", WAIT_TRIGGER: "等待進場訊號", PRICE_TOO_HIGH: "價格超出容許範圍",

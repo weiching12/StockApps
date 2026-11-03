@@ -4,7 +4,7 @@ test("phone research cards keep readiness, gates and status inside each card in 
   await page.goto("/");
   await expect(page.locator("#stock-rows .entry-score-button").first()).toBeVisible();
   // Longest labels the cells can show.
-  const statuses = ["進場訊號已觸發", "未通過五大門檻", "訊號失效", "資料不足"];
+  const statuses = ["進場訊號已觸發", "未通過初步門檻", "訊號失效", "資料不足"];
   const nextDays = ["明日進場候選 · 整理區間向上突破", "明日：價格超出容許範圍 · 順勢回踩恢復", "明日：尚無進場計畫"];
   for (const theme of ["light", "dark"]) {
     await page.evaluate((theme) => { document.documentElement.dataset.theme = theme; }, theme);
@@ -21,7 +21,7 @@ test("phone research cards keep readiness, gates and status inside each card in 
           const card = row.getBoundingClientRect();
           const button = row.querySelector(".research-score-button"), chip = row.querySelector(".research-chip"), next = row.querySelector(".research-next");
           button.querySelector("strong").textContent = "100";
-          button.querySelector(".research-gate").textContent = "門檻 4/5 待確認";
+          button.querySelector(".research-gate").textContent = "近期放量下跌 等 2 項";
           chip.textContent = statuses[index % statuses.length];
           if (next) next.textContent = nextDays[index % nextDays.length];
           const target = button.getBoundingClientRect();

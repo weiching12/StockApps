@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { demoProvider } from "../src/data.js";
 import { analyzeHistory, DEFAULT_SETTINGS, getSnapshot } from "../shared/indicators.js";
 import { checkNextDayPlan, entryResearchSummary, evaluateEntryResearch, evaluateGates } from "../shared/entry-research.js";
-import { ENTRY_RESEARCH_MODEL } from "../shared/entry-research-model.js";
+import { ENTRY_RESEARCH_MODEL_V1 as ENTRY_RESEARCH_MODEL } from "../shared/entry-research-model.js";
 
 const KEYS = ["trend", "momentum", "priceVolume", "institutional", "entryRisk"];
 const dates = Array.from({ length: 90 }, (_, index) => new Date(Date.UTC(2026, 0, 1 + index)).toISOString().slice(0, 10));
@@ -25,7 +25,8 @@ function baseline() {
       ma20: close - 3, ma60: close - 6, k: 60, d: 50, changePercent: 0.2 };
   });
 }
-const run = (bars, score = stubScore(), extra = {}) => evaluateEntryResearch({ stock: { symbol: "9999", history: bars },
+// These stage tests exercise v1 (V1.2 core conditions as gates); v2 vetoes are in entry-research-v2.test.js.
+const run = (bars, score = stubScore(), extra = {}) => evaluateEntryResearch({ model: ENTRY_RESEARCH_MODEL, stock: { symbol: "9999", history: bars },
   tradingDates: dates, asOf, score, settings: DEFAULT_SETTINGS, ...extra });
 
 /** Pullback recovery triggered on session `at`. */
@@ -217,7 +218,8 @@ test("demo market: invariants hold and results never use bars after the evaluate
       const strip = (value) => ({ ...value, nextDayPlan: { ...value.nextDayPlan, planExpiresAt: null } });
       assert.deepEqual(strip(withFuture), strip(result), `${stock.symbol} ${asOfDate}`);
       const { gateResult: gate, entryResearch: research, nextDayPlan: plan } = result;
-      assert.equal(gate.status === "PASS", KEYS.every((key) => gate.conditions[key] === "PASS") && !result.dataQuality.missing.length);
+      // The live model (v2 vetoes) is evaluated here.
+      assert.equal(gate.status === "PASS", Object.values(gate.conditions).every((status) => status === "PASS") && !result.dataQuality.missing.length);
       if (gate.status !== "PASS") assert.equal(research.score, null);
       if (plan.status === "NEXT_DAY_CANDIDATE") {
         triggered++;

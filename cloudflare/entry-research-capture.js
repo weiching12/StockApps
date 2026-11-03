@@ -1,7 +1,7 @@
 import { createApplicationServices } from "./composition.js";
 import { EntryResearchRepository } from "./repositories/entry-research-repository.js";
 import { DEFAULT_SETTINGS } from "../shared/indicators.js";
-import { evaluateEntryResearch } from "../shared/entry-research.js";
+import { evaluateEntryResearch, gateKeysForModel } from "../shared/entry-research.js";
 import { ENTRY_RESEARCH_MODEL } from "../shared/entry-research-model.js";
 import { evaluateResearchOutcome } from "../shared/entry-research-outcome.js";
 
@@ -33,12 +33,14 @@ function sampleDetail(result) {
   nextDayPlan, dataQuality, provisional: result.provisional };
 }
 
+const GATE_COLUMNS = ["Trend", "Momentum", "PriceVolume", "Institutional", "EntryRisk"];
+
 export function sampleRow(result, { stock, revisionId, capturedAt, source }) {
   const { gateResult: gate, entryResearch: research, nextDayPlan: plan } = result;
   return { Symbol: result.stockCode, TradeDate: result.asOf, ModelVersion: result.modelVersion, Name: stock.name ?? null,
     Source: source, RevisionId: revisionId, Close: plan.referenceClose, GateStatus: gate.status, GatePassed: gate.passedCount,
-    Trend: gate.conditions.trend, Momentum: gate.conditions.momentum, PriceVolume: gate.conditions.priceVolume,
-    Institutional: gate.conditions.institutional, EntryRisk: gate.conditions.entryRisk,
+    // The five gate columns keep their v1 names; each model stores its own gates in order.
+    ...Object.fromEntries(GATE_COLUMNS.map((column, index) => [column, gate.conditions[gateKeysForModel(result.modelVersion)[index]]])),
     ReadinessScore: research.score, StructureScore: research.componentScores?.structure ?? null,
     SignalScore: research.componentScores?.signal ?? null, TimingScore: research.componentScores?.timing ?? null,
     EntryStatus: research.status, SetupType: research.setupType, SignalDate: research.signal?.date ?? null,

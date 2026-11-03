@@ -7,6 +7,7 @@ import { demoProvider } from "../src/data.js";
 import { DEFAULT_SETTINGS, getSnapshot } from "../shared/indicators.js";
 import { captureEntryResearch } from "../cloudflare/entry-research-capture.js";
 import { EntryResearchRepository } from "../cloudflare/repositories/entry-research-repository.js";
+import { ENTRY_RESEARCH_MODEL_VERSION } from "../shared/entry-research-model.js";
 
 const proxy = await wrangler.getPlatformProxy({ persist: false, remoteBindings: false });
 try {
@@ -38,7 +39,7 @@ try {
   const complete = await db.prepare("SELECT COUNT(*) AS n FROM entry_research_outcomes WHERE TradeDate=? AND Status='COMPLETE'")
     .bind(dataset.dates[120]).first();
   assert.equal(complete.n, market.length);
-  const page = await new EntryResearchRepository(db).samples({ modelVersion: "entry-research-v1", gateStatus: "PASS", limit: 20, offset: 0 });
+  const page = await new EntryResearchRepository(db).samples({ modelVersion: ENTRY_RESEARCH_MODEL_VERSION, gateStatus: "PASS", limit: 20, offset: 0 });
   assert.ok(page.total > 0 && page.rows.every((row) => row.GateStatus === "PASS"));
   const size = await db.prepare("SELECT SUM(length(DetailJson)) AS bytes, COUNT(*) AS n FROM entry_research_samples").first();
   console.log(`PASS workerd/D1 entry research: ${market.length} stocks per session, insert-only re-capture, outcomes completed, filtered paging; ` +

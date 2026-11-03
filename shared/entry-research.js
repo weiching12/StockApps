@@ -1,4 +1,4 @@
-import { getPriceVolumeSignal } from "./indicators.js";
+import { getInstitutionNet, getPriceVolumeSignal } from "./indicators.js";
 import { CORE_THRESHOLDS, getAtr14, getEntryScore, researchPriceHistory } from "./entry-score.js";
 import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_STATUS_LABELS, NEXT_DAY_STATUS_LABELS, SETUP_LABELS } from "./entry-research-model.js";
 
@@ -40,6 +40,96 @@ export function evaluateGates(score) {
     ...missingData,
   ];
   return { status, passedCount, totalCount: GATE_KEYS.length, conditions, details, reasons };
+}
+
+// --- v2 veto gates (docs/entry-research-gates-v2.md) ---
+const VETO_KEYS = ["trend", "distribution", "extension", "institutional", "liquidity"];
+/** Stage 1 keys in display and storage order for a model version. */
+export const gateKeysForModel = (version) => version === "entry-research-v1" ? [...GATE_KEYS] : [...VETO_KEYS];
+const VETO_LABELS = Object.freeze({ trend: "趨勢遭破壞", distribution: "近期放量下跌", extension: "過度延伸",
+  institutional: "法人明顯賣壓", liquidity: "流動性不足" });
+const vetoRules = (g) => ({
+  trend: `MA20 低於 MA60，或 MA60 低於 ${g.trendSlopeSessions} 個交易日前即否決`,
+  distribution: `近 ${g.distributionSessions} 個交易日內出現跌幅超過 ${Math.abs(g.heavySellChange).toFixed(2)}% 且 RVOL20 ≥ ${g.heavySellRvol}，且收盤尚未站回該日最高價即否決`,
+  extension: `(收盤 − MA20) ÷ ATR14 大於 ${g.maxExtensionAtr} 即否決`,
+  institutional: `近 ${g.institutionSessions} 個交易日外資與投信合計淨賣超達成交量 ${g.institutionNetSellPercent}% 即否決`,
+  liquidity: `近 ${g.liquiditySessions} 個交易日平均成交金額低於 ${(g.minTradingValue / 10_000).toLocaleString("zh-TW")} 萬元即否決`,
+});
+const shortDate = (date) => date.slice(5).replace("-", "/");
+const veto = (status, reason, data) => ({ status, reason, data });
+
+/** One veto gate per key; each reads only sessions on or before the evaluated one. */
+function vetoChecks(reader, g) {
+  const at = reader.index, today = reader.bar(at);
+  const checks = {};
+  {
+    const back = reader.bar(at - g.trendSlopeSessions);
+    const data = { ma20: today?.ma20 ?? null, ma60: today?.ma60 ?? null, slopeSessions: g.trendSlopeSessions, earlierMa60: back?.ma60 ?? null };
+    checks.trend = ![data.ma20, data.ma60, data.earlierMa60].every(validPrice)
+      ? veto("UNKNOWN", `MA60 或 ${g.trendSlopeSessions} 個交易日前的 MA60 資料不足`, data)
+      : data.ma20 < data.ma60 ? veto("FAIL", "MA20 低於 MA60，均線呈空頭排列", data)
+        : data.ma60 < data.earlierMa60 ? veto("FAIL", `MA60 低於 ${g.trendSlopeSessions} 個交易日前，季線下彎`, data)
+          : veto("PASS", "MA20 不低於 MA60，季線未下彎", data);
+  }
+  {
+    let failure = null, missing = false;
+    for (let age = 0; age < g.distributionSessions && !failure; age++) {
+      const bar = reader.bar(at - age), rvol20 = validBar(bar) ? reader.rvol(at - age) : null;
+      if (!validBar(bar) || !Number.isFinite(bar.changePercent) || !Number.isFinite(rvol20)) { missing = true; continue; }
+      if (bar.changePercent < g.heavySellChange && rvol20 >= g.heavySellRvol && !(today.close > bar.high))
+        failure = { date: bar.date, changePercent: round2(bar.changePercent), rvol20: round2(rvol20), high: bar.high };
+    }
+    checks.distribution = failure
+      ? veto("FAIL", `${shortDate(failure.date)} 跌 ${Math.abs(failure.changePercent)}% 且量達 ${failure.rvol20} 倍均量，收盤尚未站回當日高點 ${failure.high}`, failure)
+      : missing ? veto("UNKNOWN", `近 ${g.distributionSessions} 個交易日漲跌幅或 RVOL20 資料不足`, {})
+        : veto("PASS", `近 ${g.distributionSessions} 個交易日沒有未收復的放量下跌`, {});
+  }
+  {
+    const atr14 = validBar(today) ? reader.atr(at) : null;
+    const extension = validPrice(today?.ma20) && Number.isFinite(atr14) && atr14 > 0 ? (today.close - today.ma20) / atr14 : null;
+    const data = { close: today?.close ?? null, ma20: today?.ma20 ?? null, atr14: round2(atr14), extensionAtr: round2(extension) };
+    checks.extension = !Number.isFinite(extension) ? veto("UNKNOWN", "MA20 或 ATR14 資料不足", data)
+      : extension > g.maxExtensionAtr ? veto("FAIL", `收盤高於 MA20 達 ${round2(extension)} 倍 ATR14`, data)
+        : veto("PASS", `收盤距 MA20 為 ${round2(extension)} 倍 ATR14`, data);
+  }
+  {
+    let net = 0, volume = 0, complete = true;
+    for (let age = 0; age < g.institutionSessions; age++) {
+      const bar = reader.bar(at - age);
+      const flows = ["外資", "投信"].map((name) => getInstitutionNet(bar?.institutions, name));
+      if (!validBar(bar) || !Number.isFinite(bar.volume) || bar.volume < 0 || !flows.every(Number.isFinite)) { complete = false; break; }
+      net += flows[0] + flows[1]; volume += bar.volume;
+    }
+    const percent = complete && volume > 0 ? net / volume * 100 : null;
+    const data = { netShares: complete ? net : null, volumeShares: complete ? volume : null, netPercent: round2(percent) };
+    checks.institutional = !Number.isFinite(percent) ? veto("UNKNOWN", `近 ${g.institutionSessions} 個交易日法人或成交量資料不足`, data)
+      : percent <= -g.institutionNetSellPercent ? veto("FAIL", `近 ${g.institutionSessions} 日外資與投信合計淨賣超占成交量 ${round2(-percent)}%`, data)
+        : veto("PASS", `近 ${g.institutionSessions} 日外資與投信合計淨額占成交量 ${round2(percent)}%`, data);
+  }
+  {
+    const bars = reader.window(at - g.liquiditySessions + 1, at);
+    const average = bars?.every((bar) => Number.isFinite(bar.volume) && bar.volume >= 0)
+      ? bars.reduce((sum, bar) => sum + bar.close * bar.volume, 0) / bars.length : null;
+    const data = { averageTradingValue: Number.isFinite(average) ? Math.round(average) : null };
+    const wan = (value) => Math.round(value / 10_000).toLocaleString("zh-TW");
+    checks.liquidity = !Number.isFinite(average) ? veto("UNKNOWN", `近 ${g.liquiditySessions} 個交易日成交資料不足`, data)
+      : average < g.minTradingValue ? veto("FAIL", `近 ${g.liquiditySessions} 日平均成交金額 ${wan(average)} 萬元`, data)
+        : veto("PASS", `近 ${g.liquiditySessions} 日平均成交金額 ${wan(average)} 萬元`, data);
+  }
+  return checks;
+}
+
+/** Stage 1 (v2): any veto FAILs the stock; no FAIL but an UNKNOWN is UNKNOWN; all PASS is PASS. */
+function evaluateVetoGates(reader, model) {
+  const g = model.gates, checks = vetoChecks(reader, g), rules = vetoRules(g);
+  const conditions = Object.fromEntries(VETO_KEYS.map((key) => [key, checks[key].status]));
+  const passedCount = VETO_KEYS.filter((key) => conditions[key] === "PASS").length;
+  const status = VETO_KEYS.some((key) => conditions[key] === "FAIL") ? "FAIL"
+    : passedCount === VETO_KEYS.length ? "PASS" : "UNKNOWN";
+  const details = Object.fromEntries(VETO_KEYS.map((key) => [key, { label: VETO_LABELS[key], rule: rules[key],
+    status: conditions[key], reason: checks[key].reason, data: checks[key].data, references: model.references?.[key] ?? [] }]));
+  const reasons = VETO_KEYS.filter((key) => conditions[key] !== "PASS").map((key) => `${VETO_LABELS[key]}：${details[key].reason}`);
+  return { status, passedCount, totalCount: VETO_KEYS.length, conditions, details, reasons };
 }
 
 function sessionReader(history, tradingDates, asOf) {
@@ -177,20 +267,38 @@ function nextDayPlan(status, signal, today, reader, tradingDates, model, base) {
   return done("NEXT_DAY_CANDIDATE", "今日盤後符合策略條件，明日仍須確認實際價格");
 }
 
-/** Single entry point. `score` may be supplied when the caller already computed V1.2. */
-export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActions = null, settings, score,
+/** Stage 1 only, for the model's gate kind. */
+export function entryResearchGates({ stock, tradingDates, asOf, corporateActions = null, settings, score,
   model = ENTRY_RESEARCH_MODEL }) {
+  if (model.gates?.kind !== "veto")
+    return evaluateGates(score ?? getEntryScore(stock, tradingDates, asOf, { priceBasis: "unadjusted", corporateActions, settings }));
+  const priced = researchPriceHistory(stock, tradingDates, asOf, { corporateActions, settings, priceBasis: "unadjusted" });
+  return evaluateVetoGates(sessionReader(priced.stock.history, tradingDates, asOf), model);
+}
+
+/**
+ * Single entry point. `score` may be supplied when the caller already computed V1.2.
+ * `researchAllStocks` runs stages 2 and 3 even when stage 1 does not PASS; it exists only for
+ * offline gate comparisons and is never set by the API or the daily capture.
+ */
+export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActions = null, settings, score,
+  model = ENTRY_RESEARCH_MODEL, researchAllStocks = false }) {
   const result = score ?? getEntryScore(stock, tradingDates, asOf, { priceBasis: "unadjusted", corporateActions, settings });
-  const gate = evaluateGates(result);
   // The same (possibly dividend-adjusted) prices V1.2 scored, so gates and setups agree.
   const priced = researchPriceHistory(stock, tradingDates, asOf, { corporateActions, settings, priceBasis: "unadjusted" });
   const reader = sessionReader(priced.stock.history, tradingDates, asOf);
+  const vetoModel = model.gates?.kind === "veto";
+  const gate = vetoModel ? evaluateVetoGates(reader, model) : evaluateGates(result);
+  const structureKeys = model.readiness?.structureCategories ?? GATE_KEYS;
   const today = reader.bar(reader.index);
   const base = { stockCode: stock.symbol, asOf, modelVersion: model.version, provisional: model.provisional };
   // Only notes about the price data itself count here; V1.2's analytical cautions are not data problems.
   const warnings = (result.conflictingEvidence ?? []).filter((note) => /公司行動|還原|除息/.test(note));
+  const missing = vetoModel
+    ? VETO_KEYS.filter((key) => gate.conditions[key] === "UNKNOWN").map((key) => `${VETO_LABELS[key]}：${gate.details[key].reason}`)
+    : [...(result.missingData ?? [])];
   const dataQuality = { status: gate.status === "UNKNOWN" ? "INSUFFICIENT" : warnings.length ? "WARNING" : "VALID",
-    priceBasis: result.priceBasis, warnings, missing: [...(result.missingData ?? [])] };
+    priceBasis: result.priceBasis, warnings, missing };
   const research = { score: null, status: null, label: null, setupType: null, setupLabel: null, componentScores: null,
     weights: { ...model.weights }, signal: null, triggeredConditions: [], pendingConditions: [], strengths: [], weaknesses: [],
     riskWarnings: [...dataQuality.warnings] };
@@ -199,13 +307,14 @@ export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActi
     return { ...base, gateResult: gate, entryResearch: research,
       nextDayPlan: nextDayPlan(status, research.signal, today, reader, tradingDates, model, base), dataQuality };
   };
-  if (gate.status === "FAIL") return finish("NOT_ELIGIBLE");
-  if (gate.status !== "PASS" || !validBar(today) || !Number.isFinite(reader.atr(reader.index))) return finish("DATA_INSUFFICIENT");
+  if (gate.status === "FAIL" && !researchAllStocks) return finish("NOT_ELIGIBLE");
+  if ((gate.status !== "PASS" && !researchAllStocks) || !validBar(today) || !Number.isFinite(reader.atr(reader.index)))
+    return finish("DATA_INSUFFICIENT");
 
   const signal = findSignal(reader, model);
   const status = signal?.status ?? "WAIT_TRIGGER";
-  // Structure: equal-weighted mean of the five V1.2 component scores (not its weighted final score).
-  const categories = GATE_KEYS.map((key) => result.categories?.[key]?.score);
+  // Structure: equal-weighted mean of the model's V1.2 component scores (not V1.2's weighted final score).
+  const categories = structureKeys.map((key) => result.categories?.[key]?.score);
   if (!categories.every(Number.isFinite)) return finish("DATA_INSUFFICIENT");
   const structure = categories.reduce((sum, value) => sum + value, 0) / categories.length;
   let signalScore;
@@ -229,7 +338,7 @@ export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActi
   const componentScores = { structure: round2(structure), signal: round2(signalScore), timing: round2(timing) };
   research.componentScores = componentScores;
   research.score = round2(weighted(componentScores, model.weights));
-  for (const key of GATE_KEYS) {
+  for (const key of structureKeys) {
     const value = result.categories[key].score;
     if (value >= 70) research.strengths.push(`${GATE_LABELS[key]} ${round2(value)} 分`);
     else if (value < 50) research.weaknesses.push(`${GATE_LABELS[key]} ${round2(value)} 分`);

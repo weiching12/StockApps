@@ -20,7 +20,8 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   expect(await rows.first().locator(".entry-score-button strong").evaluate((element) => getComputedStyle(element).color))
     .toBe(scoreColor);
   await expect(rows.first().locator(".entry-score-button strong")).toHaveText(/^(\d+|—)$/);
-  await expect(rows.first().locator(".research-gate")).toContainText(/門檻 \d\/5/);
+  // Default order leads with stocks that passed the veto gates.
+  await expect(rows.first().locator(".research-gate")).toHaveText("初步門檻通過");
   const firstListScore = await rows.first().locator(".entry-score-button strong").textContent();
   const firstSymbol = await rows.first().getAttribute("data-symbol");
   await rows.first().locator(".entry-score-button").click();

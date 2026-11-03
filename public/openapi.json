@@ -46,7 +46,7 @@
     "/api/v1/research/backtest": {
       "get": {
         "operationId": "getEntryResearchBacktest",
-        "description": "Aggregates over saved entry research samples matching the filters: totals, simulated next-open trades (net of costs) and close-to-close forward returns for the chosen horizon, readiness buckets, setup comparison, 5/10/20-session comparison, an equal-weight equity curve by sample date (overlap and capital limits ignored), daily sample counts and a trade return histogram. Groups below meta.minimumSamples are flagged insufficient. Parameters are provisional and unvalidated.",
+        "description": "Aggregates over saved entry research samples matching the filters: totals, simulated next-open trades (net of costs) and close-to-close forward returns for the chosen horizon, readiness buckets, setup comparison, 5/10/20-session comparison, a staggered equity curve by sample date (the account split into horizon parts, one committed per date), daily sample counts and a trade return histogram. Groups below meta.minimumSamples are flagged insufficient. Parameters are provisional and unvalidated.",
         "parameters": [
           { "name": "model", "in": "query", "schema": { "type": "string", "default": "entry-research-v1" } },
           { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },

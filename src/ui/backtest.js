@@ -4,8 +4,12 @@ import { ENTRY_RESEARCH_STATUS_LABELS, NEXT_DAY_STATUS_LABELS, SETUP_LABELS } fr
 // from the backtest/samples APIs; nothing here recomputes research rules. Demo mode has no saved
 // samples and shows an explicit empty state instead of simulated results.
 
-const GATE_LABELS = { trend: "趨勢結構", momentum: "KD 動能", priceVolume: "量價表現", institutional: "法人籌碼", entryRisk: "基礎價格風險" };
-const GATE_STATUS = { PASS: "通過", FAIL: "未通過", UNKNOWN: "待確認" };
+// v1 samples used the V1.2 core conditions; v2 samples store veto conditions (觸發 = vetoed).
+const GATE_LABELS = {
+  v1: { trend: "趨勢結構", momentum: "KD 動能", priceVolume: "量價表現", institutional: "法人籌碼", entryRisk: "基礎價格風險" },
+  v2: { trend: "趨勢遭破壞", distribution: "近期放量下跌", extension: "過度延伸", institutional: "法人明顯賣壓", liquidity: "流動性不足" },
+};
+const GATE_STATUS = { v1: { PASS: "通過", FAIL: "未通過", UNKNOWN: "待確認" }, v2: { PASS: "未觸發", FAIL: "觸發", UNKNOWN: "待確認" } };
 const TRADE_STATUS = { FILLED: "已模擬成交", NOT_APPLICABLE: "非明日候選", PENDING: "等待隔日行情", UNAVAILABLE: "行情不可比較",
   OPEN_ABOVE_UPPER: "開盤高於上限，不成交", OPEN_BELOW_INVALIDATION: "開盤低於失效價，不成交" };
 const SAMPLE_PAGE = 50;
@@ -32,7 +36,7 @@ export function backtestPanelMarkup() {
       <label>起始日<input type="date" name="from"></label>
       <label>結束日<input type="date" name="to"></label>
       <label>策略<select name="setup">${options([["", "全部策略"], ["PULLBACK_RECOVERY", SETUP_LABELS.PULLBACK_RECOVERY], ["RANGE_BREAKOUT", SETUP_LABELS.RANGE_BREAKOUT]])}</select></label>
-      <label>五大門檻<select name="gate">${options([["", "全部"], ["PASS", "全部通過"], ["FAIL", "未通過"], ["UNKNOWN", "待確認"]])}</select></label>
+      <label>初步門檻<select name="gate">${options([["", "全部"], ["PASS", "通過"], ["FAIL", "未通過"], ["UNKNOWN", "待確認"]])}</select></label>
       <label>明日狀態<select name="nextDay">${options([["", "全部"], ...Object.entries(NEXT_DAY_STATUS_LABELS)])}</select></label>
       <label>準備度<select name="minScore">${options([["", "不限"], ["40", "40 分以上"], ["60", "60 分以上"], ["70", "70 分以上"], ["80", "80 分以上"], ["90", "90 分以上"]])}</select></label>
       <label>股票代號<input name="symbol" inputmode="text" autocomplete="off" placeholder="例如 2330" maxlength="12"></label>
@@ -62,7 +66,7 @@ function tilesMarkup({ totals, trades, forward }, meta) {
   const thin = trades.insufficient ? `<em class="backtest-thin">樣本不足（少於 ${meta.minimumSamples} 筆）</em>` : "";
   return `<section class="backtest-section" aria-labelledby="backtest-totals-title"><h2 id="backtest-totals-title">樣本概況</h2><div class="backtest-tiles">
     ${tile("研究樣本", count(totals.samples), "全市場每日收盤後保存，含未通過門檻的股票")}
-    ${tile("五大門檻通過", count(totals.gatePass), totals.samples ? `占 ${plain(totals.gatePass / totals.samples * 100)}` : "")}
+    ${tile("初步門檻通過", count(totals.gatePass), totals.samples ? `占 ${plain(totals.gatePass / totals.samples * 100)}` : "")}
     ${tile("進場訊號觸發", count(totals.triggered))}
     ${tile("明日進場候選", count(totals.candidates))}
     ${tile("模擬成交", count(totals.filled), totals.tradePending ? `${count(totals.tradePending)} 筆尚未滿 ${meta.horizon} 日` : "隔日開盤價在計畫範圍內才成交")}
@@ -151,9 +155,9 @@ function chartsMarkup({ data, meta }, width) {
   const buckets = data.readinessBuckets.map((row) => ({ ...row, label: `${row.min}–${row.max}` }));
   const setups = data.setups.map((row) => ({ ...row, label: SETUP_LABELS[row.setupType] }));
   const horizons = data.horizons.map((row) => ({ ...row, label: `持有 ${row.days} 日`, samples: row.forward.count }));
-  return `<section class="backtest-section" aria-labelledby="backtest-equity-title"><h2 id="backtest-equity-title">累積報酬與回撤 <small>每個樣本日的模擬交易等權平均後依日期連乘；未考慮持有期間重疊與資金上限</small></h2>${equityChart(data.equity, width)}
+  return `<section class="backtest-section" aria-labelledby="backtest-equity-title"><h2 id="backtest-equity-title">累積報酬與回撤 <small>資金分成持有天數等份，每個樣本日投入一份、平均分配給當日成交的候選；不考慮單日資金上限</small></h2>${equityChart(data.equity, width)}
     ${data.equity.length ? `<details class="backtest-data"><summary>曲線資料表</summary><div class="backtest-table-wrap"><table class="backtest-table"><thead><tr><th scope="col">樣本日</th><th scope="col">交易筆數</th><th scope="col">當日平均</th><th scope="col">累積</th><th scope="col">回撤</th></tr></thead><tbody>${data.equity.map((point) => `<tr><th scope="row">${point.date}</th><td>${point.trades}</td><td>${signed(point.averageReturn)}</td><td>${signed(point.cumulativeReturn)}</td><td>${signed(point.drawdown)}</td></tr>`).join("")}</tbody></table></div></details>` : ""}</section>
-  <section class="backtest-section" aria-labelledby="backtest-buckets-title"><h2 id="backtest-buckets-title">準備度分組表現</h2>${barTable("依進場準備度分組（只有通過五大門檻的樣本才有分數）", buckets, horizon)}</section>
+  <section class="backtest-section" aria-labelledby="backtest-buckets-title"><h2 id="backtest-buckets-title">準備度分組表現</h2>${barTable("依進場準備度分組（只有通過初步門檻的樣本才有分數）", buckets, horizon)}</section>
   <section class="backtest-section" aria-labelledby="backtest-setups-title"><h2 id="backtest-setups-title">策略比較</h2>${barTable("順勢回踩恢復與整理區間突破", setups, horizon)}</section>
   <section class="backtest-section" aria-labelledby="backtest-horizons-title"><h2 id="backtest-horizons-title">持有 5／10／20 日比較</h2>${barTable("同一批樣本在不同持有天數的表現", horizons, null)}</section>
   <section class="backtest-section" aria-labelledby="backtest-distribution-title"><h2 id="backtest-distribution-title">報酬分布 <small>持有 ${horizon} 日的模擬交易淨報酬，每 2% 一組</small></h2>${columnChart(continuousBins(data.distribution), { width,
@@ -185,8 +189,11 @@ export function backtestSampleMarkup(sample, esc) {
   const detail = sample.detail ?? {}, research = detail.research ?? {}, plan = detail.nextDayPlan ?? {};
   const list = (items) => items?.length ? `<ul>${items.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>` : "";
   const price = (value) => Number.isFinite(value) ? value.toFixed(2) : "—";
+  const version = sample.modelVersion === "entry-research-v1" ? "v1" : "v2";
   const gates = Object.entries(detail.gate?.conditions ?? {}).map(([key, item]) =>
-    `<li class="research-gate-item ${item.status === "PASS" ? "pass" : item.status === "FAIL" ? "fail" : "unknown"}"><div class="research-gate-head"><strong>${GATE_LABELS[key] ?? esc(key)}</strong><span class="research-gate-status">${GATE_STATUS[item.status] ?? esc(item.status)}</span></div><p>${esc(item.reason ?? "")}</p></li>`).join("");
+    `<li class="research-gate-item ${item.status === "PASS" ? "pass" : item.status === "FAIL" ? "fail" : "unknown"}"><div class="research-gate-head"><strong>${GATE_LABELS[version][key] ?? esc(key)}</strong><span class="research-gate-status">${GATE_STATUS[version][item.status] ?? esc(item.status)}</span></div><p>${esc(item.reason ?? "")}</p></li>`).join("");
+  const gateHeading = version === "v1" ? `五大核心門檻 <small>${sample.gate.passed} / 5</small>` : "初步門檻（否決條件）";
+  const gateFact = version === "v1" ? `${sample.gate.passed} / 5` : sample.gate.status === "PASS" ? "通過" : sample.gate.status === "FAIL" ? `觸發 ${Object.values(sample.gate.conditions ?? {}).filter((status) => status === "FAIL").length} 項` : "待確認";
   const outcome = sample.outcome ?? {}, trade = outcome.trade ?? {};
   const outcomeRows = outcome.status === "PENDING" && !outcome.returns ? "<p>後續交易日尚未完整，結果待更新。</p>"
     : `<dl class="research-plan-table">${[1, 5, 10, 20].map((days) => `<div><dt>收盤後 ${days} 日</dt><dd class="${tone(outcome.returns?.[days])}">${signed(outcome.returns?.[days])}</dd></div>`).join("")}
@@ -196,10 +203,10 @@ export function backtestSampleMarkup(sample, esc) {
   return `<h2 id="dialog-heading">${esc(sample.symbol)} ${esc(sample.name ?? "")}<small class="backtest-dialog-date">${esc(sample.tradeDate)} 收盤後保存</small></h2>
     <p class="dialog-intro">以下為當日保存的研究結果，不會依之後的資料重新計算。模型 ${esc(sample.modelVersion)}${detail.provisional ? "，參數暫定" : ""}。</p>
     <section class="research-plan-card" aria-labelledby="backtest-sample-plan"><p class="research-eyebrow">明日進場評估</p><h3 id="backtest-sample-plan">${esc(NEXT_DAY_STATUS_LABELS[sample.nextDay.status] ?? sample.nextDay.status)}</h3>
-      <dl class="research-plan-facts"><div><dt>進場準備度</dt><dd>${Number.isFinite(sample.readiness.score) ? `${Math.round(sample.readiness.score)} / 100` : "—"}</dd></div><div><dt>五大門檻</dt><dd>${sample.gate.passed} / 5</dd></div><div><dt>研究狀態</dt><dd>${esc(ENTRY_RESEARCH_STATUS_LABELS[sample.entryStatus] ?? sample.entryStatus)}</dd></div><div><dt>進場策略</dt><dd>${esc(SETUP_LABELS[sample.setupType] ?? "—")}</dd></div></dl>
+      <dl class="research-plan-facts"><div><dt>進場準備度</dt><dd>${Number.isFinite(sample.readiness.score) ? `${Math.round(sample.readiness.score)} / 100` : "—"}</dd></div><div><dt>初步門檻</dt><dd>${gateFact}</dd></div><div><dt>研究狀態</dt><dd>${esc(ENTRY_RESEARCH_STATUS_LABELS[sample.entryStatus] ?? sample.entryStatus)}</dd></div><div><dt>進場策略</dt><dd>${esc(SETUP_LABELS[sample.setupType] ?? "—")}</dd></div></dl>
       ${list(research.status === "TRIGGERED" ? research.triggeredConditions : research.pendingConditions ?? detail.gate?.reasons)}</section>
     ${Number.isFinite(plan.entryReferencePrice) ? `<section class="research-price-plan"><h3>當日價格計畫</h3><dl class="research-plan-table"><div><dt>參考收盤價</dt><dd>${price(plan.referenceClose)}</dd></div><div><dt>進場參考價格</dt><dd>${price(plan.entryReferencePrice)}</dd></div><div><dt>可接受價格上限</dt><dd>${price(plan.entryPriceUpper)}</dd></div><div><dt>策略失效價格</dt><dd>${price(plan.invalidationPrice)}</dd></div><div><dt>預估風險距離</dt><dd>${Number.isFinite(plan.riskPercent) ? `${plan.riskPercent.toFixed(2)}%` : "—"}</dd></div></dl></section>` : ""}
-    <section class="research-gates"><h3>五大核心門檻 <small>${sample.gate.passed} / 5</small></h3><ol>${gates}</ol></section>
+    <section class="research-gates"><h3>${gateHeading}</h3><ol>${gates}</ol></section>
     <section class="research-price-plan"><h3>後續表現</h3>${outcomeRows}<p class="helper-text">報酬以未還原價格計算；期間有除權息、停牌或缺少行情時不比較，也不以 0 補值。</p></section>`;
 }
 

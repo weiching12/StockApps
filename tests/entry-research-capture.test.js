@@ -187,15 +187,15 @@ test("backtest API aggregates filtered samples in SQL and flags small groups", a
     DataQuality,CapturedAt,DetailJson) VALUES(?,?,?,'daily','r',100,?,?,'PASS','PASS','PASS','PASS','PASS',?,?,?,?,'OK','t','{}')`);
   const outcome = db.sqlite.prepare(`INSERT INTO entry_research_outcomes(Symbol,TradeDate,ModelVersion,Status,Return5,Return10,
     Return20,Mfe20,Mae20,TradeStatus,TradeReturn5,TradeReturn10,TradeReturn20,DetailJson,UpdatedAt)
-    VALUES(?,?,'entry-research-v1','COMPLETE',?,?,?,?,?,?,?,?,?,'{}','t')`);
+    VALUES(?,?,'entry-research-v2','COMPLETE',?,?,?,?,?,?,?,?,?,'{}','t')`);
   // Two dates: a breakout winning 10% and a pullback losing 5% on day one, a pullback winning 4% on day two.
-  insert.run("1101", "2026-09-01", "entry-research-v1", "PASS", 5, 85, "TRIGGERED", "RANGE_BREAKOUT", "NEXT_DAY_CANDIDATE");
+  insert.run("1101", "2026-09-01", "entry-research-v2", "PASS", 5, 85, "TRIGGERED", "RANGE_BREAKOUT", "NEXT_DAY_CANDIDATE");
   outcome.run("1101", "2026-09-01", 6, 10, 12, 15, -3, "FILLED", 5, 10, 11);
-  insert.run("1102", "2026-09-01", "entry-research-v1", "PASS", 5, 72, "TRIGGERED", "PULLBACK_RECOVERY", "NEXT_DAY_CANDIDATE");
+  insert.run("1102", "2026-09-01", "entry-research-v2", "PASS", 5, 72, "TRIGGERED", "PULLBACK_RECOVERY", "NEXT_DAY_CANDIDATE");
   outcome.run("1102", "2026-09-01", -4, -5, -6, 2, -8, "FILLED", -4, -5, -7);
-  insert.run("1103", "2026-09-02", "entry-research-v1", "PASS", 5, 75, "TRIGGERED", "PULLBACK_RECOVERY", "NEXT_DAY_CANDIDATE");
+  insert.run("1103", "2026-09-02", "entry-research-v2", "PASS", 5, 75, "TRIGGERED", "PULLBACK_RECOVERY", "NEXT_DAY_CANDIDATE");
   outcome.run("1103", "2026-09-02", 3, 4, 2, 6, -1, "FILLED", 3, 4, null);
-  insert.run("1104", "2026-09-02", "entry-research-v1", "FAIL", 3, null, "NOT_ELIGIBLE", null, "NOT_ELIGIBLE");
+  insert.run("1104", "2026-09-02", "entry-research-v2", "FAIL", 3, null, "NOT_ELIGIBLE", null, "NOT_ELIGIBLE");
   outcome.run("1104", "2026-09-02", -50, -50, -50, 1, -60, "NOT_APPLICABLE", null, null, null);
   insert.run("1105", "2026-09-02", "entry-research-v0", "PASS", 5, 90, "TRIGGERED", "RANGE_BREAKOUT", "NEXT_DAY_CANDIDATE");
   const services = { market: {}, entryResearch: new EntryResearchService(new EntryResearchRepository(db)) };
@@ -217,8 +217,9 @@ test("backtest API aggregates filtered samples in SQL and flags small groups", a
   assert.equal(data.trades.averageLoss, -5);
   assert.equal(data.trades.insufficient, true);
   assert.equal(data.forward.count, 4, "forward returns include failed-gate samples");
-  // Day one averages 2.5%, day two 4%: 1.025 × 1.04 − 1 = 6.6%; no drawdown.
-  assert.deepEqual(data.equity.map(({ date, cumulativeReturn }) => [date, cumulativeReturn]), [["2026-09-01", 2.5], ["2026-09-02", 6.6]]);
+  // Day one averages 2.5%, day two 4%, each on a tenth of the account (10-session holds):
+  // 1.0025 × 1.004 − 1 = 0.65%; no drawdown.
+  assert.deepEqual(data.equity.map(({ date, cumulativeReturn }) => [date, cumulativeReturn]), [["2026-09-01", 0.25], ["2026-09-02", 0.65]]);
   assert.equal(data.trades.maxDrawdown, 0);
   assert.deepEqual(data.readinessBuckets.map(({ min, samples }) => [min, samples]), [[0, 0], [40, 0], [60, 0], [70, 2], [80, 1], [90, 0]]);
   const pullback = data.setups.find((row) => row.setupType === "PULLBACK_RECOVERY");
