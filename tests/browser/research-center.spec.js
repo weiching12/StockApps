@@ -4,28 +4,32 @@ test("research center preserves favorites and opens existing score detail", asyn
   await page.goto("/");
   await page.getByRole("button", { name: "株研追蹤" }).first().click();
   await expect(page.locator("#page-title")).toContainText("株研追蹤");
-  await expect(page.locator("#page-description")).toContainText("收藏後分數變化與必要條件異動");
+  await expect(page.locator("#page-description")).toContainText("進場研究");
   await expect(page.locator(".date-control")).toBeHidden();
   await expect(page.locator("#watchlist h2")).toHaveCount(0);
   await expect(page.locator("#legacy-watchlist")).toBeHidden();
   await expect(page.locator("#research-stats")).toContainText("追蹤股票");
-  await expect(page.locator("#research-stats .research-stat-label")).toHaveText(["追蹤股票", "分數提高", "重要異動"]);
+  await expect(page.locator("#research-stats .research-stat-label")).toHaveText(["追蹤股票", "明日進場候選", "初步門檻通過"]);
   await expect(page.locator("#research-stats .research-stat strong").first()).toContainText("檔");
   await expect(page.locator("#research-list table")).toBeVisible();
-  await expect(page.locator("#research-list thead")).toContainText("最新異動");
-  await expect(page.locator("#research-list thead")).toContainText("分數");
-  await expect(page.locator("#research-list thead th").nth(2)).toHaveText("股價");
-  await expect(page.locator("#research-list thead")).not.toContainText("最終分數");
+  // The list shows entry research, not the V1.2 score, and leads with readiness.
+  await expect(page.locator("#research-list thead th")).toHaveText(["股票", "準備度", "股價", "進場研究"]);
+  await expect(page.locator("#research-sort")).toHaveValue("readiness");
+  const scores = await page.locator(".research-card .research-score-button strong").allTextContents();
+  const numeric = scores.map(Number).filter(Number.isFinite);
+  expect(numeric).toEqual([...numeric].sort((a, b) => b - a));
+  expect(scores.slice(numeric.length).every((value) => value === "—")).toBe(true);
   const card = page.locator(".research-card").first();
   await expect(card).toBeVisible();
-  await expect(card.locator(".research-score-change")).toBeVisible();
+  await expect(card.locator(".research-gate")).toBeVisible();
+  // The research status sits in its own column on desktop and under the name on phones.
+  await expect(card.locator(".research-chip >> visible=true").first()).toBeVisible();
   await expect(card.locator(".research-price strong")).toHaveText(/^\d+\.\d{2}$/);
   await expect(card.locator(".research-sector-badge")).not.toBeEmpty();
   await expect(card.locator(".research-sparkline")).toHaveCount(0);
   await expect(card.locator(".research-card-more")).toHaveCount(0);
   await expect(card.locator(".research-card-review")).toHaveCount(0);
   await expect(card.locator(".research-stock")).not.toContainText("評分交易日");
-  await expect(card.locator(".research-stock")).toContainText("模擬重算");
   await card.locator(".research-card-main").click();
   await expect(page.locator(".research-edit")).toHaveCount(0);
   await expect(page.locator(".research-detail")).toContainText("追蹤價格與評分");
@@ -52,7 +56,7 @@ test("research center preserves favorites and opens existing score detail", asyn
 test("research table rows open score details across the row", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "株研追蹤" }).first().click();
-  await page.locator(".research-card .research-score").first().click();
+  await page.locator(".research-card .research-price").first().click();
   await expect(page.locator("#info-dialog")).toBeVisible();
   await expect(page.locator(".research-detail")).toContainText("研究追蹤");
 });
@@ -121,8 +125,8 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
       const table = row.closest('table');
       const textRight = node => { const range = document.createRange(); range.selectNodeContents(node); return range.getBoundingClientRect().right; };
       return { header: textRight(table.querySelector('thead th:nth-child(2)')),
-        score: textRight(row.querySelector('.research-score strong')),
-        scoreTop: row.querySelector('.research-score strong').getBoundingClientRect().top,
+        score: textRight(row.querySelector('.research-score-button strong')),
+        scoreTop: row.querySelector('.research-score-button strong').getBoundingClientRect().top,
         deltaTop: row.querySelector('.research-price strong').getBoundingClientRect().top };
     });
     expect(Math.abs(scoreAlignment.header - scoreAlignment.score)).toBeLessThanOrEqual(1);
@@ -136,7 +140,7 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
     expect(badgeLayout.badgesTop).toBeGreaterThan(badgeLayout.headingBottom);
     expect(badgeLayout.badgesRight).toBeLessThanOrEqual(badgeLayout.cellRight);
   }
-  await page.locator("#research-filter").selectOption("important");
+  await page.locator("#research-filter").selectOption("gatePass");
   await page.locator("#research-filter").selectOption("all");
   await page.locator("#research-list .research-card-main").first().click();
   await expect(page.locator("#info-dialog")).toBeVisible();

@@ -126,7 +126,7 @@ const summaryCache = new RequestCache(), sectorDetailCache = new RequestCache(),
 let researchStore, researchRows = new Map(), researchRequest = 0;
 const researchReviewCache = new RequestCache();
 let researchMeta = null;
-let researchSort = "score", researchFilter = "all";
+let researchSort = "readiness", researchFilter = "all";
 let researchLoadKey = "";
 let selectedSummary, latestSummary, summaryRequest = 0;
 const latestCache = new Map(), historicalCache = new Map();

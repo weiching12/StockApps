@@ -2879,7 +2879,12 @@ dialog.sector-dialog {
 .research-table thead th { color: var(--muted); font-size: .76rem; font-weight: 500; text-align: left; white-space: nowrap; }
 .research-table thead th:nth-child(2), .research-table thead th:nth-child(3) { text-align: right; }
 .research-card > th, .research-card > td { vertical-align: top; }
-.research-table th:nth-child(1) { width: 23%; }.research-table th:nth-child(2) { width: 16%; }.research-table th:nth-child(3) { width: 18%; }.research-table th:nth-child(4) { width: 21%; }.research-table th:nth-child(5) { width: 22%; }
+.research-table th:nth-child(1) { width: 30%; }.research-table th:nth-child(2) { width: 18%; }.research-table th:nth-child(3) { width: 16%; }.research-table th:nth-child(4) { width: 36%; }
+/* Tracking list: readiness and research cells reuse the market list's markup. */
+.research-table td.research-readiness-cell { text-align: right; }
+.research-table thead th:nth-child(2) { text-align: right; }
+.research-tracking .research-score-button { margin-left: auto; padding-right: 0; }
+.research-tracking .research-cell .research-next, .research-stock-badges .research-next { display: block; margin-top: 4px; font-size: var(--text-meta); }
 .research-card { cursor: pointer; }
 @media (hover: hover) and (pointer: fine) { .research-card:hover { background: color-mix(in srgb, currentColor 5%, transparent); } }
 .research-card-main { display: block; width: 100%; padding: 0; color: inherit; background: transparent; border: 0; text-align: left; cursor: pointer; }

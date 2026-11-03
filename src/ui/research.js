@@ -2,12 +2,12 @@ import { activeResearchPeriod } from "./research-store.js";
 import { reviewInitialScore, reviewTrackingTimeline } from "../../shared/research-review.js";
 import { researchPriceChart } from "./research-review.js";
 import { researchComparisonMarkup } from "./research-comparison.js";
+import { compareResearchStocks, matchesResearchFilter, researchListCells, researchSummaryOf } from "./entry-research.js";
 
 const fmt = (value) => Number.isFinite(value) ? value.toFixed(2) : "—";
 const delta = (value) => Number.isFinite(value) ? `${value > 0 ? "+" : ""}${fmt(value)}` : "—";
 const tone = (value) => value > 0 ? "up" : value < 0 ? "down" : "neutral";
 const dateTime = (value) => value ? new Date(value).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }) : "原始加入時間未知";
-const important = (row) => (row?.comparison?.events ?? []).some((event) => event.type !== "base-score-change");
 const categoryLabels = { trend: "趨勢", momentum: "KD", priceVolume: "量價", institutional: "法人", entryRisk: "進場風險" };
 
 function directionalChanges(initial, latest, change) {
@@ -98,42 +98,43 @@ export function selectResearchScorePoint(plot, index) {
     `${point.date} · ${fmt(point.finalScore)} 分${point.cap?.enabled ? ` · 上限 ${fmt(point.cap.value)}` : ""}${point.source === "historical-recalculation" ? " · 歷史重算" : ""}`;
 }
 
+/** Order of the tracking list: readiness high to low (stocks without a score last), or next-day
+ * assessment first with the market list's grouping, or price change since joining. */
+export const RESEARCH_TRACKING_SORTS = [["readiness", "準備度"], ["nextDay", "明日評估優先"], ["price", "收藏後股價變化"]];
+export const RESEARCH_TRACKING_FILTERS = [["all", "全部追蹤"], ["candidate", "明日進場候選"], ["gatePass", "初步門檻通過"],
+  ["triggered", "進場訊號已觸發"], ["waiting", "等待進場訊號"]];
+const number = (value, digits = 2) => Number.isFinite(value)
+  ? value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
+
 export function renderResearchCenter({ favorites, stocks, rows, store, date, sort, filter, esc }) {
   const bySymbol = new Map(stocks.map((stock) => [stock.symbol, stock]));
-  const values = favorites.map((symbol) => ({ symbol, stock: bySymbol.get(symbol), row: rows.get(symbol),
-    trend: researchCardTrend(activeResearchPeriod(store, symbol), rows.get(symbol)) }));
-  const comparable = values.filter(({ trend }) => trend.status === "comparable" && trend.initial.asOf !== trend.latest.asOf);
-  const increased = comparable.filter(({ trend }) => trend.delta > 0).length;
-  const changed = new Set(values.filter(({ row }) => important(row)).map(({ symbol }) => symbol)).size;
-  const filtered = values.filter(({ row }) => filter === "all" || filter === "important" && important(row) ||
-    filter === "improved" && row?.comparison?.conditionsImproved || filter === "lost" && row?.comparison?.conditionsLost);
-  filtered.sort((a, b) => {
-    const av = sort === "change" ? a.trend.status === "comparable" && a.trend.initial.asOf !== a.trend.latest.asOf ? a.trend.delta : null : a.row?.latest?.valid ? a.row.latest.finalScore : null;
-    const bv = sort === "change" ? b.trend.status === "comparable" && b.trend.initial.asOf !== b.trend.latest.asOf ? b.trend.delta : null : b.row?.latest?.valid ? b.row.latest.finalScore : null;
-    return av === null && bv === null ? a.symbol.localeCompare(b.symbol) : av === null ? 1 : bv === null ? -1 : bv - av || a.symbol.localeCompare(b.symbol);
+  const values = favorites.map((symbol) => {
+    const stock = bySymbol.get(symbol);
+    return { symbol, stock: stock ?? { symbol }, summary: researchSummaryOf(stock),
+      price: researchCardPrice(activeResearchPeriod(store, symbol), rows.get(symbol), stock, date) };
   });
-  const entries = filtered.map(({ symbol, stock, row, trend }) => {
-    const snap = row?.latest;
-    const label = stock?.name ?? symbol;
-    const condition = snap?.valid ? `${snap.passedCount}/${snap.totalConditions} 必要條件通過` : "必要資料不足";
-    const comparableTrend = trend.status === "comparable" && trend.initial.asOf !== trend.latest.asOf;
-    const changeValue = comparableTrend ? delta(trend.delta) : "—";
-    const baseline = trend.initial ? `${trend.initial.asOf} ${fmt(trend.initial.finalScore)} 分` : "尚無收藏基準";
-    const changeDetail = `${trend.label}：${baseline} → ${snap?.asOf ?? "—"} ${fmt(snap?.finalScore)} 分；${trend.reason ?? ""}`;
-    const price = researchCardPrice(activeResearchPeriod(store, symbol), row, stock, date);
+  const filtered = values.filter(({ stock }) => matchesResearchFilter(stock, filter));
+  const readiness = ({ summary }) => Number.isFinite(summary?.score) ? summary.score : null;
+  const byValue = (value) => (a, b) => {
+    const av = value(a), bv = value(b);
+    return av === null && bv === null ? a.symbol.localeCompare(b.symbol) : av === null ? 1 : bv === null ? -1 : bv - av || a.symbol.localeCompare(b.symbol);
+  };
+  filtered.sort(sort === "nextDay" ? (a, b) => compareResearchStocks(a.stock, b.stock)
+    : sort === "price" ? byValue(({ price }) => Number.isFinite(price.delta) ? price.delta : null) : byValue(readiness));
+  const entries = filtered.map(({ symbol, stock, price }) => {
+    const label = stock.name ?? symbol;
+    const cells = researchListCells(stock, esc, number);
     const priceDetail = price.baseline ? `收藏基準 ${price.baseline.asOf} ${fmt(price.baseline.close)} → ${price.asOf} ${fmt(price.close)}；未還原收盤價差，未計股息，不代表投資損益` : price.reason;
-    const sectorBadge = stock?.sector ? `<span class="research-sector-badge" title="${esc(stock.sector)}">${esc(stock.sector)}</span>` : "";
-    const reason = row?.loading ? "讀取研究快照中" : trend.reason ?? "缺少當日評分快照";
-    const badges = row?.loading ? [{ label: reason, tone: "neutral" }] : trend.badges ?? [{ label: reason, tone: "neutral" }];
-    const badgesMarkup = `<span class="research-change-badges">${badges.map(badge => `<span class="research-change-badge ${badge.tone}">${esc(badge.label)}</span>`).join("")}</span>`;
-    const conditionText = `${condition}${snap?.cap?.enabled ? ` · 上限 ${fmt(snap.cap.value)}` : ""}`;
-    return `<tr class="research-card" data-research-symbol="${esc(symbol)}" data-entry-score="${esc(symbol)}"><th scope="row"><button type="button" class="research-card-main" data-entry-score="${esc(symbol)}" aria-label="查看 ${esc(symbol)} ${esc(label)} 株研評分"><span class="research-stock"><span class="research-stock-head"><span class="research-code">${esc(symbol)}</span><strong>${esc(label)}</strong>${sectorBadge}</span>${row?.source === "historical-recalculation" ? "<small>模擬重算</small>" : ""}</span></button><span class="research-stock-badges">${badgesMarkup}</span></th><td class="research-score"><strong>${fmt(snap?.finalScore)}</strong><small class="research-score-change ${tone(comparableTrend ? trend.delta : null)}" title="${esc(changeDetail)}" aria-label="${esc(trend.label)}評分變化 ${esc(changeValue)}">${changeValue}</small></td><td class="research-price"><strong aria-label="${esc(price.asOf ?? "")} 收盤價 ${fmt(price.close)}">${fmt(price.close)}</strong><small class="research-price-change ${tone(price.delta)}" title="${esc(priceDetail)}" aria-label="自收藏後股價差異 ${delta(price.delta)}">${delta(price.delta)}</small></td><td class="research-condition ${snap?.valid ? "" : "insufficient"}">${esc(conditionText)}</td><td class="research-summary">${badgesMarkup}</td></tr>`;
+    const sectorBadge = stock.sector ? `<span class="research-sector-badge" title="${esc(stock.sector)}">${esc(stock.sector)}</span>` : "";
+    return `<tr class="research-card" data-research-symbol="${esc(symbol)}" data-entry-score="${esc(symbol)}"><th scope="row"><button type="button" class="research-card-main" data-entry-score="${esc(symbol)}" aria-label="查看 ${esc(symbol)} ${esc(label)} 進場研究"><span class="research-stock"><span class="research-stock-head"><span class="research-code">${esc(symbol)}</span><strong>${esc(label)}</strong>${sectorBadge}</span></span></button><span class="research-stock-badges">${cells.research}</span></th><td class="research-readiness-cell">${cells.readiness}</td><td class="research-price"><strong aria-label="${esc(price.asOf ?? "")} 收盤價 ${fmt(price.close)}">${fmt(price.close)}</strong><small class="research-price-change ${tone(price.delta)}" title="${esc(priceDetail)}" aria-label="自收藏後股價差異 ${delta(price.delta)}">${delta(price.delta)}</small></td><td class="research-cell">${cells.research}</td></tr>`;
   }).join("");
+  const count = (test) => values.filter(({ summary }) => summary && test(summary)).length;
   const stat = (label, value, note, tone = "") => `<div class="research-stat"><span class="research-stat-label">${label}</span><strong class="${tone}">${value}<small>檔</small></strong><span class="research-stat-note">${note}</span></div>`;
-  return { stats: stat("追蹤股票", favorites.length, `${comparable.length} 檔可比較`) +
-      stat("分數提高", increased, comparable.length ? "較收藏時" : "尚無可比較", increased ? "up" : "") +
-      stat("重要異動", changed, `共 ${favorites.length} 檔追蹤`),
-    cards: entries ? `<table class="research-table"><thead><tr><th scope="col">股票</th><th scope="col">分數</th><th scope="col">股價</th><th scope="col">必要條件</th><th scope="col">最新異動</th></tr></thead><tbody>${entries}</tbody></table>`
+  const candidates = count((summary) => summary.nextDayStatus === "NEXT_DAY_CANDIDATE");
+  return { stats: stat("追蹤股票", favorites.length, `資料日 ${date || "—"}`) +
+      stat("明日進場候選", candidates, "訊號觸發且價格在計畫內", candidates ? "up" : "") +
+      stat("初步門檻通過", count((summary) => summary.gateStatus === "PASS"), `共 ${favorites.length} 檔追蹤`),
+    cards: entries ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col">準備度</th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${entries}</tbody></table>`
       : `<p class="research-muted">${favorites.length ? "此篩選目前沒有股票。" : "尚無追蹤股票。"}</p>` };
 }
 
