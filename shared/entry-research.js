@@ -163,12 +163,19 @@ function pullbackAt(reader, at, model) {
   const touches = window.filter((bar) => bar.low <= bar.ma20 + rules.touchAtrBand * atr);
   const held = window.every((bar) => bar.close >= bar.ma60);
   const rvol20 = reader.rvol(at);
+  // The closest approach to MA20 explains an untouched band; the first close under MA60 a broken hold.
+  const nearest = window.reduce((best, bar) => bar.low - bar.ma20 < best.low - best.ma20 ? bar : best);
+  const broken = window.find((bar) => bar.close < bar.ma60);
+  // stage: "setup" conditions form the pattern; "trigger" conditions fire it on the evaluated day.
   const checks = [
-    { met: touches.length > 0, text: `近 ${rules.lookbackSessions} 個交易日最低價曾回到 MA20 + ${rules.touchAtrBand} × ATR14 以內` },
-    { met: held, text: "回踩期間收盤未跌破 MA60" },
-    { met: today.close > today.ma20, text: "收盤重新站上 MA20" },
-    { met: today.close > previous.high, text: "收盤高於前一交易日最高價" },
-    { met: today.k > previous.k, text: "K 值較前一交易日上升" },
+    { stage: "setup", met: touches.length > 0, text: `近 ${rules.lookbackSessions} 個交易日最低價曾回到 MA20 + ${rules.touchAtrBand} × ATR14 以內`,
+      detail: touches.length ? `回踩日 ${touches.map((bar) => shortDate(bar.date)).join("、")}`
+        : `最接近 ${shortDate(nearest.date)}：最低價 ${round2(nearest.low)}，需 ≤ ${round2(nearest.ma20 + rules.touchAtrBand * atr)}` },
+    { stage: "setup", met: held, text: "回踩期間收盤未跌破 MA60",
+      detail: broken ? `${shortDate(broken.date)} 收盤 ${round2(broken.close)} 低於 MA60 ${round2(broken.ma60)}` : `期間收盤皆不低於 MA60` },
+    { stage: "trigger", met: today.close > today.ma20, text: "收盤重新站上 MA20", detail: `收盤 ${round2(today.close)}／MA20 ${round2(today.ma20)}` },
+    { stage: "trigger", met: today.close > previous.high, text: "收盤高於前一交易日最高價", detail: `收盤 ${round2(today.close)}／前日最高 ${round2(previous.high)}` },
+    { stage: "trigger", met: today.k > previous.k, text: "K 值較前一交易日上升", detail: `K ${round2(today.k)}／前日 K ${round2(previous.k)}` },
   ];
   const low = Math.min(...window.map((bar) => bar.low), today.low);
   return {
@@ -193,10 +200,13 @@ function breakoutAt(reader, at, model) {
   const rangeHigh = Math.max(...range.map((bar) => bar.high)), rangeLow = Math.min(...range.map((bar) => bar.low));
   const rvol20 = reader.rvol(at);
   const checks = [
-    { met: rangeHigh - rangeLow <= rules.maxRangeAtr * atr, text: `前 ${rules.rangeSessions} 個交易日區間振幅不超過 ${rules.maxRangeAtr} × ATR14` },
-    { met: today.close > rangeHigh && previous.close <= rangeHigh, text: "收盤首次突破整理區間上緣" },
-    { met: Number.isFinite(rvol20) && rvol20 >= rules.minRvol, text: `RVOL20 ≥ ${rules.minRvol}` },
-    { met: today.k > today.d, text: "K 值高於 D 值" },
+    { stage: "setup", met: rangeHigh - rangeLow <= rules.maxRangeAtr * atr, text: `前 ${rules.rangeSessions} 個交易日區間振幅不超過 ${rules.maxRangeAtr} × ATR14`,
+      detail: `區間 ${round2(rangeLow)} ～ ${round2(rangeHigh)}，振幅 ${round2(rangeHigh - rangeLow)}，上限 ${round2(rules.maxRangeAtr * atr)}` },
+    { stage: "trigger", met: today.close > rangeHigh && previous.close <= rangeHigh, text: "收盤首次突破整理區間上緣",
+      detail: `收盤 ${round2(today.close)}／區間上緣 ${round2(rangeHigh)}；前日收盤 ${round2(previous.close)}` },
+    { stage: "trigger", met: Number.isFinite(rvol20) && rvol20 >= rules.minRvol, text: `RVOL20 ≥ ${rules.minRvol}`,
+      detail: Number.isFinite(rvol20) ? `RVOL20 ${round2(rvol20)}` : "RVOL20 資料不足" },
+    { stage: "trigger", met: today.k > today.d, text: "K 值高於 D 值", detail: `K ${round2(today.k)}／D ${round2(today.d)}` },
   ];
   return {
     setupType: "RANGE_BREAKOUT", date: today.date, formed: checks[0].met,
@@ -314,6 +324,12 @@ export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActi
 
   const signal = findSignal(reader, model);
   const status = signal?.status ?? "WAIT_TRIGGER";
+  // Both patterns as judged on the evaluated session, so the dialog can show every condition.
+  research.setups = [[pullbackAt, "PULLBACK_RECOVERY"], [breakoutAt, "RANGE_BREAKOUT"]].map(([check, setupType]) => {
+    const setup = check(reader, reader.index, model);
+    return setup ? { setupType, date: setup.date, formed: setup.formed, triggered: setup.triggered, checks: setup.checks }
+      : { setupType, date: asOf, unavailable: true, checks: [] };
+  });
   // Structure: equal-weighted mean of the model's V1.2 component scores (not V1.2's weighted final score).
   const categories = structureKeys.map((key) => result.categories?.[key]?.score);
   if (!categories.every(Number.isFinite)) return finish("DATA_INSUFFICIENT");

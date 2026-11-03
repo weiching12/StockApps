@@ -1,5 +1,5 @@
 import { entryResearchSummary } from "../../shared/entry-research.js";
-import { ENTRY_RESEARCH_STATUS_LABELS, NEXT_DAY_STATUS_LABELS, SETUP_LABELS } from "../../shared/entry-research-model.js";
+import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_STATUS_LABELS, NEXT_DAY_STATUS_LABELS, SETUP_LABELS } from "../../shared/entry-research-model.js";
 
 // Presentation of entry research results. Every value comes from shared/entry-research.js
 // (server summary/analysis, or the same module in demo mode); nothing is recomputed here.
@@ -146,8 +146,8 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
   const signalSection = `<section class="research-signal" aria-labelledby="research-signal-title"><h3 id="research-signal-title">進場訊號分析</h3>${signal
     ? `<p><span class="research-chip ${STATUS_TONE[signal.status]}">${esc(ENTRY_RESEARCH_STATUS_LABELS[signal.status])}</span> ${esc(signal.setupLabel)} · ${esc(signal.date)}${signal.invalidatedOn ? ` · ${esc(signal.invalidatedOn)} 收盤跌破失效價` : ""}</p><dl class="research-signal-facts">${[["觸發價格", price(signal.triggerPrice, number)], ...evidence,
       ["KD 確認", signal.kdConfirmed ? "已確認" : "未完全確認"], ["量能確認", signal.volumeConfirmed === null ? "資料不足" : signal.volumeConfirmed ? `已確認（RVOL20 ${price(signal.rvol20, number)}）` : `未達標準（RVOL20 ${price(signal.rvol20, number)}）`],
-      ["有效期間", `觸發日起 ${signal.validSessions} 個交易日`]].map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>${items(signal.checks.map((check) => `${check.met ? "✓" : "✗"} ${check.text}`), esc, "")}`
-    : `<p><span class="research-chip ${STATUS_TONE[research.status] ?? "muted"}">${esc(research.label ?? "—")}</span></p>${research.status === "WAIT_TRIGGER" ? `<h4>還需要成立的條件</h4>${items(research.pendingConditions, esc, "等待回踩 MA20 或整理區間形成。")}` : ""}`}</section>`;
+      ["有效期間", `觸發日起 ${signal.validSessions} 個交易日`]].map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>`
+    : `<p><span class="research-chip ${STATUS_TONE[research.status] ?? "muted"}">${esc(research.label ?? "—")}</span></p>`}${signalRules(research, signal, esc)}</section>`;
 
   const row = (label, value, note = "") => `<div><dt>${label}</dt><dd>${value}${note ? `<small>${note}</small>` : ""}</dd></div>`;
   const planSection = `<section class="research-price-plan" aria-labelledby="research-price-plan-title"><h3 id="research-price-plan-title">明日價格計畫</h3>${Number.isFinite(plan.entryReferencePrice)
@@ -159,6 +159,34 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
   const notice = evaluated ? "" : `<p class="research-not-evaluated">${gate.status === "FAIL" ? "未通過初步門檻，不評估進場準備度、訊號與價格計畫。" : "初步門檻資料待確認，暫不評估進場準備度、訊號與價格計畫。"}</p>`;
   return { basic, card, readiness, gates, signal: signalSection, plan: planSection, evaluated, notice };
 }
+
+const signalValidity = ENTRY_RESEARCH_MODEL.signal.validSessions;
+
+/**
+ * How the system judges a signal, then both patterns with every condition and today's result.
+ * The pattern behind an existing signal is shown as judged on its signal day.
+ */
+function signalRules(research, signal, esc) {
+  const how = `<p class="research-signal-how">判定方式：系統每個交易日收盤後檢查下列兩種型態。「形成條件」全部成立代表型態已出現；之後「觸發條件」也全部成立的那一天就是訊號日（進場訊號已觸發）。訊號自訊號日起 ${signalValidity} 個交易日內有效，超過為「訊號已過期」；有效期間內收盤跌破策略失效價則為「訊號失效」。</p>`;
+  const setups = (research.setups ?? []).map((today) => {
+    const fromSignal = signal?.setupType === today.setupType;
+    const checks = fromSignal ? signal.checks : today.checks;
+    const basis = fromSignal ? signal.date : today.date;
+    const missing = checks.filter((check) => !check.met);
+    const state = !fromSignal && today.unavailable ? "資料不足，無法判斷"
+      : fromSignal ? `${shortDate(signal.date)} 觸發`
+        : today.triggered ? "今日觸發" : today.formed ? `已形成，還差 ${missing.length} 項` : "未形成";
+    const tone = fromSignal || today.triggered ? "positive" : today.formed ? "neutral" : "muted";
+    const list = (stage) => checks.filter((check) => check.stage === stage).map((check) =>
+      `<li class="${check.met ? "met" : "unmet"}"><span aria-hidden="true">${check.met ? "✓" : "✗"}</span><div>${esc(check.text)}<span class="research-sr">${check.met ? "，已成立" : "，未成立"}</span>${check.detail ? `<small>${esc(check.detail)}</small>` : ""}</div></li>`).join("");
+    const body = today.unavailable && !fromSignal ? '<p class="research-empty">必要的均線、KD 或 ATR 資料不足。</p>'
+      : `<p class="research-setup-basis">依 ${esc(shortDate(basis))} 收盤判定</p><h4>形成條件</h4><ul class="research-checks">${list("setup")}</ul><h4>觸發條件</h4><ul class="research-checks">${list("trigger")}</ul>`;
+    return `<details class="research-setup"${fromSignal || today.formed || today.triggered ? " open" : ""}><summary><strong>${esc(SETUP_LABELS[today.setupType])}</strong><span class="research-setup-state ${tone}">${state}</span></summary>${body}</details>`;
+  }).join("");
+  return `${how}${setups ? `<div class="research-setups">${setups}</div>` : ""}`;
+}
+
+const shortDate = (date) => String(date).slice(5).replace("-", "/");
 
 function gateSummary(gate, version) {
   if (isV1(version)) return `${gate.passedCount} / 5${gate.status === "UNKNOWN" ? "（待確認）" : ""}`;

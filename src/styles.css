@@ -3365,3 +3365,27 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
   .research-gate-tiles { gap: 4px; }
   .research-gate-tile { padding-inline: 2px; }
 }
+
+/* Signal analysis: how signals are judged, then both patterns with every condition. */
+.research-signal-how { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--surface); color: var(--muted); font-size: var(--text-meta); line-height: 1.7; }
+.research-setups { display: grid; gap: 8px; margin-top: 10px; }
+.research-setup { border: 1px solid var(--border); border-radius: 10px; }
+.research-setup > summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; padding: 10px 12px; cursor: pointer; }
+.research-setup > summary strong { font-size: var(--text-secondary); }
+.research-setup-state { font-size: var(--text-meta); color: var(--muted); }
+.research-setup-state.positive { color: var(--accent); font-weight: 600; }
+.research-setup-state.neutral { color: #a16207; }
+.research-setup > :not(summary) { margin-inline: 12px; }
+.research-setup-basis { margin: 0 0 4px; font-size: var(--text-meta); color: var(--muted); }
+.research-setup h4 { margin: 8px 12px 4px; font-size: var(--text-meta); color: var(--muted); }
+.research-checks { display: grid; gap: 6px; margin: 0 12px 10px; padding: 0; list-style: none; font-size: var(--text-secondary); }
+.research-checks li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 6px; }
+.research-checks li > span { font-weight: 700; }
+.research-checks li.met > span { color: #0f766e; }
+.research-checks li.unmet > span { color: #b54750; }
+.research-checks small { display: block; color: var(--muted); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
+.research-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[data-theme="dark"] .research-checks li.met > span { color: #5eead4; }
+[data-theme="dark"] .research-checks li.unmet > span { color: #f3a6ad; }
+[data-theme="dark"] .research-setup-state.neutral { color: #f5c66b; }
+[data-theme="dark"] .research-signal-how { background: #0d1726; }

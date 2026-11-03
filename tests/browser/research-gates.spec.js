@@ -55,3 +55,19 @@ test("the market list names the first triggered veto", async ({ page }) => {
   await expect(page.locator('#stock-rows tr[data-symbol="2317"] .research-gate')).toHaveText("過度延伸 等 2 項");
   await expect(page.locator('#stock-rows tr[data-symbol="2330"] .research-gate')).toHaveText("初步門檻通過");
 });
+
+test("signal analysis explains how signals are judged and lists both patterns with every condition", async ({ page }) => {
+  await openStock(page, "2330");
+  const section = page.locator("#info-dialog .research-signal");
+  await expect(section.locator(".research-signal-how")).toContainText("形成條件");
+  await expect(section.locator(".research-signal-how")).toContainText("3 個交易日內有效");
+  const setups = section.locator(".research-setup");
+  await expect(setups.locator("summary strong")).toHaveText(["順勢回踩恢復", "整理區間向上突破"]);
+  // An earlier signal is shown as judged on its signal day; the other pattern on today's close.
+  await expect(setups.first().locator(".research-setup-state")).toContainText("觸發");
+  await expect(setups.first().locator(".research-setup-basis")).toHaveText("依 10/09 收盤判定");
+  await expect(setups.first().locator(".research-checks li")).toHaveCount(5);
+  await expect(setups.nth(1).locator(".research-checks li")).toHaveCount(4);
+  await expect(setups.first().locator("h4")).toHaveText(["形成條件", "觸發條件"]);
+  await expect(setups.first().locator(".research-checks li small").first()).not.toBeEmpty();
+});
