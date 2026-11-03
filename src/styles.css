@@ -3116,13 +3116,14 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 [data-theme="dark"] :is(.research-gate.unknown, .research-next.warning) { color: #f5c66b; }
 [data-theme="dark"] .research-next.negative { color: #f3a6ad; }
 
+.mobile-extras { display: none; }
 @media (max-width: 700px) {
   /* Phone list: one card per stock instead of a scrolled table. */
   .table-scroll { overflow-x: visible; }
   .table-scroll table, .table-scroll tbody { display: block; width: 100%; min-width: 0; }
   .table-scroll colgroup, .table-scroll thead { display: none; }
   #stock-rows > tr { display: grid; grid-template-columns: var(--table-favorite-width) minmax(0, 1fr) auto;
-    grid-template-areas: "favorite stock price" ". research readiness"; align-items: center; column-gap: 8px; row-gap: 6px;
+    grid-template-areas: "favorite stock price" ". research readiness" ". extras extras"; align-items: center; column-gap: 8px; row-gap: 6px;
     padding: 10px 12px 10px 4px; border-bottom: 1px solid var(--border); }
   #stock-rows > tr > :is(td, th) { position: static; height: auto; min-height: 0; padding: 0; border: 0;
     background: transparent; box-shadow: none; }
@@ -3134,6 +3135,16 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
   #stock-rows > tr > .research-cell { grid-area: research; }
   #stock-rows > tr > :nth-child(5) { grid-area: price; text-align: right; }
   #stock-rows > tr > :nth-child(n+6) { display: none; }
+  /* Indicator chips: one row that scrolls sideways inside the card. */
+  #stock-rows > tr > td.mobile-extras { display: block; grid-area: extras; min-width: 0; text-align: left; }
+  .mobile-extras-scroll { display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 0 24px 2px 0;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+  .mobile-extras-scroll::-webkit-scrollbar { display: none; }
+  .mobile-chip { flex: none; display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 8px; border-radius: 999px; background: var(--surface); color: var(--ink); font-size: var(--text-meta); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .mobile-chip small { color: var(--muted); font-size: var(--text-meta); }
+  .mobile-chip.up { color: var(--up); }
+  .mobile-chip.down { color: var(--down); }
+  [data-theme="dark"] .mobile-chip { background: #0d1726; }
   #stock-rows > tr.initial-field-row { display: flex; gap: 12px; }
   #stock-rows .research-score-button { min-height: 44px; width: auto; align-items: flex-end; }
   #stock-rows .research-next { overflow-wrap: anywhere; }

@@ -30,6 +30,9 @@ test("phone research cards keep readiness, gates and status inside each card in 
             if (!inside(element, card)) problems.push(`${row.dataset.symbol}: ${element.className} leaves the card`);
           if (chip.getBoundingClientRect().right > target.left + 1) problems.push(`${row.dataset.symbol}: status overlaps readiness`);
           if (getComputedStyle(row.querySelector(".price-volume-cell")).display !== "none") problems.push("indicator columns still shown");
+          const extras = row.querySelector(".mobile-extras-scroll");
+          if (!extras || extras.children.length !== 6) problems.push(`${row.dataset.symbol}: indicator chips missing`);
+          else if (extras.getBoundingClientRect().right > card.right + 1) problems.push(`${row.dataset.symbol}: indicator chips leave the card`);
         });
         if (document.documentElement.scrollWidth > innerWidth) problems.push("page overflows");
         return problems;
