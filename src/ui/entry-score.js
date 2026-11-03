@@ -75,10 +75,11 @@ function priceChartMarkup(stock, esc, number, series, marks = null) {
   placed.forEach((line, index) => { if (index && line.at - placed[index - 1].at < 16) line.at = placed[index - 1].at + 16; });
   const planLabels = placed.length ? `<div class="entry-chart-plan-labels" aria-hidden="true">${placed.map(({ key, short, value, at }) =>
     `<span class="${key}" style="top:${(Math.min(at, 204) / 210 * 100).toFixed(2)}%">${short} ${number(value, 2)}</span>`).join("")}</div>` : "";
+  // The full list of plan prices opens from a button; the chart's own labels stay visible.
   const planLegend = planLines.length || signalIndex >= 0
-    ? `<ul class="entry-chart-plan-legend" aria-label="進場計畫價位">${planLines.map(({ key, label, value }) =>
+    ? `<details class="entry-chart-plan-details"><summary>計畫價位</summary><ul class="entry-chart-plan-legend" aria-label="進場計畫價位">${planLines.map(({ key, label, value }) =>
       `<li class="${key}">${swatch(key)}${label} ${number(value, 2)}</li>`).join("")}${signalIndex >= 0
-      ? `<li class="signal">${swatch("signal")}訊號日 ${esc(marks.signalDate.slice(5).replace("-", "/"))}</li>` : ""}</ul>` : "";
+      ? `<li class="signal">${swatch("signal")}訊號日 ${esc(marks.signalDate.slice(5).replace("-", "/"))}</li>` : ""}</ul></details>` : "";
   return `<section class="entry-price-chart" data-trend="${trend}"><div class="entry-chart-header"><div class="entry-chart-default">${heading}<div class="entry-chart-latest"><strong aria-label="${esc(last.date)} 收盤價 ${esc(Number.isFinite(last.close) ? number(last.close, 2) : "—")}">${Number.isFinite(last.close) ? number(last.close, 2) : "—"}</strong><small class="entry-chart-latest-change ${last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : ""}">${chartChange(last.changePercent)}</small></div></div><div class="entry-chart-readout" aria-label="選定交易日資訊" hidden><div><strong class="entry-chart-selected-date">${esc(last.date.slice(5).replace("-", "/"))}</strong><span class="entry-chart-selected-close">${esc(Number.isFinite(last.close) ? `收盤 ${number(last.close, 2)}` : "無收盤價")}</span><small class="entry-chart-selected-volume">${esc(Number.isFinite(last.volume) ? `量 ${number(last.volume / 1000)} 張` : "成交量不足")}</small></div><strong class="entry-chart-selected-change ${Number.isFinite(last.changePercent) ? last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : "" : ""}">${chartChange(last.changePercent)}</strong></div></div>
     <div class="entry-chart-legend">${[
       ["close", "收盤價"], ["ma20", "月線 MA20"], ["ma60", "季線 MA60"],

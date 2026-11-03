@@ -70,11 +70,15 @@ test("signal analysis explains how signals are judged and lists both patterns wi
   await expect(setups.locator("summary strong")).toHaveText(["順勢回踩恢復", "整理區間向上突破"]);
   // An earlier signal is shown as judged on its signal day; the other pattern on today's close.
   await expect(setups.first().locator(".research-setup-state")).toContainText("觸發");
+  // Both patterns start collapsed.
+  expect(await setups.evaluateAll((nodes) => nodes.map((node) => node.open))).toEqual([false, false]);
+  await setups.first().locator("summary").click();
   await expect(setups.first().locator(".research-setup-basis")).toHaveText("依 10/09 收盤判定");
   await expect(setups.first().locator(".research-checks li")).toHaveCount(5);
   await expect(setups.nth(1).locator(".research-checks li")).toHaveCount(4);
   await expect(setups.first().locator("h4")).toHaveText(["形成條件", "觸發條件"]);
   await expect(setups.first().locator(".research-checks li small").first()).not.toBeEmpty();
+  await setups.nth(1).locator("summary").click();
 });
 
 test("the next-day explanation opens as a message from the info icon and closes on an outside tap", async ({ page }) => {
@@ -87,4 +91,22 @@ test("the next-day explanation opens as a message from the info icon and closes 
   await expect(message).not.toBeEmpty();
   await page.locator("#info-dialog .research-gates h3").click();
   await expect(message).toBeHidden();
+});
+
+test("plan prices under the chart open from a button", async ({ page }) => {
+  await page.goto("/");
+  // Demo mode keeps a candidate only on its trigger day; use any stock whose chart carries a plan.
+  const symbols = await page.locator("#stock-rows tr[data-symbol]").evaluateAll((rows) => rows.map((row) => row.dataset.symbol));
+  for (const symbol of symbols) {
+    await page.locator(`#stock-rows tr[data-symbol="${symbol}"] .entry-score-button`).click();
+    const details = page.locator("#info-dialog .entry-chart-plan-details");
+    if (await details.count()) {
+      await expect(details.locator(".entry-chart-plan-legend")).toBeHidden();
+      await details.locator("summary").click();
+      await expect(details.locator(".entry-chart-plan-legend li").first()).toBeVisible();
+      return;
+    }
+    await page.keyboard.press("Escape");
+  }
+  test.skip(true, "no demo stock has a plan or signal mark on its chart");
 });

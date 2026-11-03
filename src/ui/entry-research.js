@@ -131,7 +131,7 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
 
   const component = (label, value, weight) => `<div class="research-component"><span>${label}<small>權重 ${weight}%</small></span><strong>${Number.isFinite(value) ? number(value, 0) : "—"}</strong><progress value="${Number.isFinite(value) ? value : 0}" max="100" aria-label="${label} ${Number.isFinite(value) ? number(value, 0) : "無資料"} 分"></progress></div>`;
   const readiness = `<section class="research-readiness" aria-labelledby="research-readiness-title"><h3 id="research-readiness-title">進場準備度</h3>${Number.isFinite(research.score)
-    ? `<div class="research-readiness-body"><div class="research-readiness-score"><strong>${number(research.score, 0)}</strong><span>/ 100</span></div><div class="research-components">${component("五大構面強度", research.componentScores.structure, research.weights.structure)}${component("進場訊號品質", research.componentScores.signal, research.weights.signal)}${component("進場位置與時機", research.componentScores.timing, research.weights.timing)}</div></div><div class="research-strengths"><div><h4>表現較好</h4>${items(research.strengths, esc, "沒有特別突出的構面。")}</div><div><h4>仍可改善</h4>${items(research.weaknesses, esc, "沒有明顯偏弱的構面。")}</div></div>`
+    ? `<div class="research-readiness-body"><div class="research-readiness-score"><strong>${number(research.score, 0)}</strong><span>/ 100</span></div><div class="research-components">${component(isV1(result.modelVersion) ? "五大構面強度" : "構面強度（趨勢＋法人）", research.componentScores.structure, research.weights.structure)}${component("進場訊號品質", research.componentScores.signal, research.weights.signal)}${component("進場位置與時機", research.componentScores.timing, research.weights.timing)}</div></div><div class="research-strengths"><div><h4>表現較好</h4>${items(research.strengths, esc, "沒有特別突出的構面。")}</div><div><h4>仍可改善</h4>${items(research.weaknesses, esc, "沒有明顯偏弱的構面。")}</div></div>`
     : `<p class="research-empty">${gate.status === "FAIL" ? "未通過初步門檻，不計算進場準備度。" : "資料不足，無法計算進場準備度。"}</p>`}<p class="helper-text">衡量進場準備程度供股票之間比較，不是獲利機率或買進指令；權重為暫定、尚未經歷史回測驗證。</p></section>`;
 
   const gates = gatesSection(result, { esc, number });
@@ -184,7 +184,7 @@ function signalRules(research, signal, esc) {
       `<li class="${check.met ? "met" : "unmet"}"><span aria-hidden="true">${check.met ? "✓" : "✗"}</span><div>${esc(check.text)}<span class="research-sr">${check.met ? "，已成立" : "，未成立"}</span>${check.detail ? `<small>${esc(check.detail)}</small>` : ""}</div></li>`).join("");
     const body = today.unavailable && !fromSignal ? '<p class="research-empty">必要的均線、KD 或 ATR 資料不足。</p>'
       : `<p class="research-setup-basis">依 ${esc(shortDate(basis))} 收盤判定</p><h4>形成條件</h4><ul class="research-checks">${list("setup")}</ul><h4>觸發條件</h4><ul class="research-checks">${list("trigger")}</ul>`;
-    return `<details class="research-setup"${fromSignal || today.formed || today.triggered ? " open" : ""}><summary><strong>${esc(SETUP_LABELS[today.setupType])}</strong><span class="research-setup-state ${tone}">${state}</span></summary>${body}</details>`;
+    return `<details class="research-setup"><summary><strong>${esc(SETUP_LABELS[today.setupType])}</strong><span class="research-setup-state ${tone}">${state}</span></summary>${body}</details>`;
   }).join("");
   return `${how}${setups ? `<div class="research-setups">${setups}</div>` : ""}`;
 }

@@ -3217,6 +3217,11 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 .entry-chart-plan-labels span { position: absolute; left: 2px; transform: translateY(-50%); padding: 0 4px; border-radius: 3px; background: rgba(255, 255, 255, .88); color: #475569; font-size: 10px; line-height: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 [data-theme="dark"] .entry-chart-plan-labels span { background: rgba(17, 27, 43, .88); color: #cbd5e1; }
 [data-theme="dark"] :is(.entry-price-chart svg, .entry-chart-plan-swatch) .entry-chart-plan:not(.signal) { stroke: #cbd5e1; }
+.entry-chart-plan-details { margin-top: 8px; }
+.entry-chart-plan-details > summary { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--accent); font-size: var(--text-meta); cursor: pointer; list-style: none; }
+.entry-chart-plan-details > summary::-webkit-details-marker { display: none; }
+.entry-chart-plan-details > summary::after { content: "▾"; margin-left: 6px; }
+.entry-chart-plan-details[open] > summary::after { content: "▴"; }
 .entry-chart-plan-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0 0; padding: 0; list-style: none; font-size: var(--text-meta); color: var(--muted); font-variant-numeric: tabular-nums; }
 .entry-price-chart svg.entry-chart-plan-swatch { display: inline-block; width: 16px; height: 4px; margin-right: 6px; vertical-align: middle; overflow: visible; }
 [data-theme="dark"] .research-plan-card { background: #0d1726; }
