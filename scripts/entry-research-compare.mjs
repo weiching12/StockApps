@@ -8,49 +8,17 @@
 //
 // <dir> holds coverage.json ([{ Date, Status }]) and events.json ([{ Date, Symbol, Kind, BeforeClose,
 // ReferencePrice }]) exported read-only from D1 (see the report header for the exact commands).
-import { readFile, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { combineChunks } from "../src/provider.js";
+import { writeFile } from "node:fs/promises";
 import { analyzeHistory, DEFAULT_SETTINGS } from "../shared/indicators.js";
 import { getEntryScore } from "../shared/entry-score.js";
 import { entryResearchGates, evaluateEntryResearch } from "../shared/entry-research.js";
 import { evaluateResearchOutcome } from "../shared/entry-research-outcome.js";
 import { ENTRY_RESEARCH_MODEL_V1, ENTRY_RESEARCH_MODEL_V2 } from "../shared/entry-research-model.js";
+import { cliArgs, DEFAULT_ORIGIN, loadActions, loadDataset } from "./lib/research-history.mjs";
 
-const args = Object.fromEntries(process.argv.slice(2).reduce((pairs, value, index, all) =>
-  value.startsWith("--") ? [...pairs, [value.slice(2), all[index + 1]]] : pairs, []));
-const origin = args.origin ?? "https://stock-insight-tw.stock-insight-tw.workers.dev";
+const args = cliArgs();
+const origin = args.origin ?? DEFAULT_ORIGIN;
 if (!args.actions || !args.out) throw new Error("Usage: --actions <dir> --out <report.md> [--origin URL] [--cache file]");
-
-async function loadDataset() {
-  if (args.cache && existsSync(args.cache)) return JSON.parse(await readFile(args.cache, "utf8"));
-  const get = async (path) => {
-    const response = await fetch(new URL(path, origin));
-    if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
-    return response.json();
-  };
-  const manifest = await get("/api/v1/market");
-  const chunks = new Array(manifest.chunks.length);
-  let next = 0;
-  await Promise.all(Array.from({ length: 4 }, async () => {
-    while (next < manifest.chunks.length) { const index = next++; chunks[index] = await get(manifest.chunks[index]); }
-  }));
-  const dataset = combineChunks(manifest, chunks);
-  const plain = { dates: dataset.dates, info: dataset.info, stocks: dataset.stocks.map(({ tradingDates, ...stock }) => stock) };
-  if (args.cache) await writeFile(args.cache, JSON.stringify(plain));
-  return plain;
-}
-
-async function loadActions(dir) {
-  const read = async (name) => JSON.parse(await readFile(`${dir}/${name}`, "utf8"));
-  const coverage = await read("coverage.json"), events = await read("events.json");
-  const eventsBySymbol = new Map();
-  for (const row of events) {
-    if (!eventsBySymbol.has(row.Symbol)) eventsBySymbol.set(row.Symbol, new Map());
-    eventsBySymbol.get(row.Symbol).set(row.Date, { kind: row.Kind, beforeClose: row.BeforeClose, reference: row.ReferencePrice });
-  }
-  return { coveredDates: new Set(coverage.filter((row) => row.Status === "complete").map((row) => row.Date)), eventsBySymbol };
-}
 
 const variant = (label, gates) => ({ label, model: { ...ENTRY_RESEARCH_MODEL_V2, gates: { ...ENTRY_RESEARCH_MODEL_V2.gates, ...gates } } });
 const VARIANTS = [
@@ -68,7 +36,7 @@ const VARIANTS = [
 ];
 const HORIZONS = [5, 10, 20];
 
-const dataset = await loadDataset();
+const dataset = await loadDataset(origin, args.cache);
 const actions = await loadActions(args.actions);
 const dates = dataset.dates;
 // G1's 20-session MA60 slope needs 80 sessions; every model is compared on the same sessions.
