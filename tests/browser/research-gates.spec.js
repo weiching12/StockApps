@@ -116,3 +116,14 @@ test("plan levels on the chart start hidden and open from a toggle; the signal d
   }
   test.skip(true, "no demo stock has a next-day plan");
 });
+
+test("only the current page's panels are visible", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".stocks-panel")).toBeVisible();
+  for (const target of ["market", "favorites", "sectors", "backtest"]) {
+    await page.locator(`.sidebar [data-page="${target}"]`).evaluate((button) => button.click());
+    const visible = await page.locator("[data-page-panel]").evaluateAll((panels) =>
+      [...new Set(panels.filter((panel) => panel.getBoundingClientRect().height > 0).map((panel) => panel.dataset.pagePanel))]);
+    expect(visible, target).toEqual([target]);
+  }
+});

@@ -3242,6 +3242,8 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 /* Strategy backtest page. Returns use the market convention (red up, green down); sign is
    also carried by position (above/below zero, left/right bins) and by signed labels. */
 .backtest-page { display: grid; gap: 16px; position: relative; }
+/* The display rule above would otherwise override the hidden attribute on other pages. */
+.backtest-page[hidden] { display: none; }
 .backtest-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 16px; padding: 16px; }
 .backtest-filters label, .backtest-horizon { display: grid; gap: 4px; margin: 0; padding: 0; border: 0; color: var(--muted); font-size: var(--text-meta); }
 .backtest-horizon legend { padding: 0; margin-bottom: 4px; }
