@@ -232,8 +232,8 @@ function gatesSection(result, { esc, number }) {
 /** Prices and the signal date to mark on the price chart, when a plan exists. */
 export function researchChartMarks(result) {
   const plan = result?.nextDayPlan, signal = result?.entryResearch?.signal;
-  if (!plan || !Number.isFinite(plan.entryReferencePrice)) return signal ? { signalDate: signal.date, lines: [] } : null;
-  return { signalDate: signal?.date ?? null, lines: [
+  if (!plan || !Number.isFinite(plan.entryReferencePrice)) return null;
+  return { lines: [
     { key: "entry", label: "進場參考", short: "進場", value: plan.entryReferencePrice },
     { key: "upper", label: "價格上限", short: "上限", value: plan.entryPriceUpper },
     { key: "invalidation", label: "失效價", short: "失效", value: plan.invalidationPrice },

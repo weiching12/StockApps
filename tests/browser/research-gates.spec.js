@@ -93,20 +93,26 @@ test("the next-day explanation opens as a message from the info icon and closes 
   await expect(message).toBeHidden();
 });
 
-test("plan prices under the chart open from a button", async ({ page }) => {
+test("plan levels on the chart start hidden and open from a toggle; the signal day is not marked", async ({ page }) => {
   await page.goto("/");
-  // Demo mode keeps a candidate only on its trigger day; use any stock whose chart carries a plan.
+  // Demo data may have no next-day plan today; check whichever stock carries one.
   const symbols = await page.locator("#stock-rows tr[data-symbol]").evaluateAll((rows) => rows.map((row) => row.dataset.symbol));
   for (const symbol of symbols) {
     await page.locator(`#stock-rows tr[data-symbol="${symbol}"] .entry-score-button`).click();
-    const details = page.locator("#info-dialog .entry-chart-plan-details");
-    if (await details.count()) {
-      await expect(details.locator(".entry-chart-plan-legend")).toBeHidden();
-      await details.locator("summary").click();
-      await expect(details.locator(".entry-chart-plan-legend li").first()).toBeVisible();
+    const chart = page.locator("#info-dialog .entry-price-chart");
+    await expect(chart.locator(".entry-chart-signal")).toHaveCount(0);
+    const toggle = chart.locator(".entry-chart-plan-toggle");
+    if (await toggle.count()) {
+      await expect(chart.locator(".entry-chart-plan-labels")).toBeHidden();
+      await expect(toggle).toHaveAttribute("aria-pressed", "false");
+      await toggle.click();
+      await expect(chart.locator(".entry-chart-plan-labels span").first()).toBeVisible();
+      await expect(toggle).toHaveText("隱藏計畫價位");
+      await toggle.click();
+      await expect(chart.locator(".entry-chart-plan-labels")).toBeHidden();
       return;
     }
     await page.keyboard.press("Escape");
   }
-  test.skip(true, "no demo stock has a plan or signal mark on its chart");
+  test.skip(true, "no demo stock has a next-day plan");
 });

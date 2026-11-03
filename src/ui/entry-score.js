@@ -64,23 +64,18 @@ function priceChartMarkup(stock, esc, number, series, marks = null) {
   }).join("");
   const last = series.at(-1);
   const readout = chartReadout(last, number);
-  const signalIndex = marks?.signalDate ? series.findIndex(({ date }) => date === marks.signalDate) : -1;
   const planSvg = planLines.map(({ key, value }) =>
-    `<line class="entry-chart-plan ${key}" x1="8" x2="592" y1="${y(value).toFixed(1)}" y2="${y(value).toFixed(1)}"/>`).join("") +
-    (signalIndex >= 0 ? `<line class="entry-chart-signal" x1="${x(signalIndex).toFixed(1)}" x2="${x(signalIndex).toFixed(1)}" y1="16" y2="140"/>` : "");
+    `<line class="entry-chart-plan ${key}" x1="8" x2="592" y1="${y(value).toFixed(1)}" y2="${y(value).toFixed(1)}"/>`).join("");
   // Plan levels are neutral gray (told apart by dash and a label on the line) so they never
   // read as the colored close, MA20 or MA60 series. Labels near each other are spread apart.
-  const swatch = (key) => `<svg class="entry-chart-plan-swatch" viewBox="0 0 16 4" aria-hidden="true"><line class="entry-chart-plan ${key}" x1="0" x2="16" y1="2" y2="2"/></svg>`;
   const placed = planLines.map((line) => ({ ...line, at: y(line.value) })).sort((a, b) => a.at - b.at);
   placed.forEach((line, index) => { if (index && line.at - placed[index - 1].at < 16) line.at = placed[index - 1].at + 16; });
   const planLabels = placed.length ? `<div class="entry-chart-plan-labels" aria-hidden="true">${placed.map(({ key, short, value, at }) =>
     `<span class="${key}" style="top:${(Math.min(at, 204) / 210 * 100).toFixed(2)}%">${short} ${number(value, 2)}</span>`).join("")}</div>` : "";
-  // The full list of plan prices opens from a button; the chart's own labels stay visible.
-  const planLegend = planLines.length || signalIndex >= 0
-    ? `<details class="entry-chart-plan-details"><summary>計畫價位</summary><ul class="entry-chart-plan-legend" aria-label="進場計畫價位">${planLines.map(({ key, label, value }) =>
-      `<li class="${key}">${swatch(key)}${label} ${number(value, 2)}</li>`).join("")}${signalIndex >= 0
-      ? `<li class="signal">${swatch("signal")}訊號日 ${esc(marks.signalDate.slice(5).replace("-", "/"))}</li>` : ""}</ul></details>` : "";
-  return `<section class="entry-price-chart" data-trend="${trend}"><div class="entry-chart-header"><div class="entry-chart-default">${heading}<div class="entry-chart-latest"><strong aria-label="${esc(last.date)} 收盤價 ${esc(Number.isFinite(last.close) ? number(last.close, 2) : "—")}">${Number.isFinite(last.close) ? number(last.close, 2) : "—"}</strong><small class="entry-chart-latest-change ${last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : ""}">${chartChange(last.changePercent)}</small></div></div><div class="entry-chart-readout" aria-label="選定交易日資訊" hidden><div><strong class="entry-chart-selected-date">${esc(last.date.slice(5).replace("-", "/"))}</strong><span class="entry-chart-selected-close">${esc(Number.isFinite(last.close) ? `收盤 ${number(last.close, 2)}` : "無收盤價")}</span><small class="entry-chart-selected-volume">${esc(Number.isFinite(last.volume) ? `量 ${number(last.volume / 1000)} 張` : "成交量不足")}</small></div><strong class="entry-chart-selected-change ${Number.isFinite(last.changePercent) ? last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : "" : ""}">${chartChange(last.changePercent)}</strong></div></div>
+  // Plan levels start hidden; the shared series toggle shows them on the chart.
+  const planToggle = placed.length
+    ? `<button type="button" class="entry-chart-plan-toggle" data-chart-series="plan" aria-pressed="false" aria-label="在走勢圖顯示計畫價位（${placed.map(({ label, value }) => `${label} ${number(value, 2)}`).join("、")}）"><span class="show">顯示計畫價位</span><span class="hide">隱藏計畫價位</span></button>` : "";
+  return `<section class="entry-price-chart hide-plan" data-trend="${trend}"><div class="entry-chart-header"><div class="entry-chart-default">${heading}<div class="entry-chart-latest"><strong aria-label="${esc(last.date)} 收盤價 ${esc(Number.isFinite(last.close) ? number(last.close, 2) : "—")}">${Number.isFinite(last.close) ? number(last.close, 2) : "—"}</strong><small class="entry-chart-latest-change ${last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : ""}">${chartChange(last.changePercent)}</small></div></div><div class="entry-chart-readout" aria-label="選定交易日資訊" hidden><div><strong class="entry-chart-selected-date">${esc(last.date.slice(5).replace("-", "/"))}</strong><span class="entry-chart-selected-close">${esc(Number.isFinite(last.close) ? `收盤 ${number(last.close, 2)}` : "無收盤價")}</span><small class="entry-chart-selected-volume">${esc(Number.isFinite(last.volume) ? `量 ${number(last.volume / 1000)} 張` : "成交量不足")}</small></div><strong class="entry-chart-selected-change ${Number.isFinite(last.changePercent) ? last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : "" : ""}">${chartChange(last.changePercent)}</strong></div></div>
     <div class="entry-chart-legend">${[
       ["close", "收盤價"], ["ma20", "月線 MA20"], ["ma60", "季線 MA60"],
       ["volume", "成交量"],
@@ -89,7 +84,7 @@ function priceChartMarkup(stock, esc, number, series, marks = null) {
     <div class="entry-chart-plot" role="slider" tabindex="0" aria-label="${esc(stock.symbol)}近 ${series.length} 個交易日收盤價；點選圖表查看，觸控長按後左右滑動，鍵盤可用方向鍵" aria-orientation="horizontal" aria-valuemin="1" aria-valuemax="${series.length}" aria-valuenow="${series.length}" aria-valuetext="${esc(readout)}" data-index="${series.length - 1}" data-points="${esc(JSON.stringify(series))}"><svg viewBox="0 0 600 210" preserveAspectRatio="none" aria-hidden="true">
       <line x1="8" y1="16" x2="592" y2="16"/><line x1="8" y1="78" x2="592" y2="78"/><line x1="8" y1="140" x2="592" y2="140"/><line x1="8" y1="197" x2="592" y2="197"/>
       <path class="entry-chart-close" d="${path.trim()}"/><path class="entry-chart-ma20" d="${ma20Path.trim()}"/><path class="entry-chart-ma" d="${ma60Path.trim()}"/>${planSvg}<g class="entry-chart-bars">${bars}</g><g class="entry-chart-points">${dots}</g><line class="entry-chart-cursor" x1="${x(series.length - 1).toFixed(1)}" x2="${x(series.length - 1).toFixed(1)}" y1="16" y2="197"/></svg>${planLabels}</div></div>
-    <div class="entry-chart-dates"><span>${esc(series[0].date)}</span><span>${esc(last.date)}</span></div>${planLegend}</section>`;
+    <div class="entry-chart-dates"><span>${esc(series[0].date)}</span><span>${esc(last.date)}</span></div>${planToggle}</section>`;
 }
 
 function kdChartMarkup(series, esc, number, metrics) {
