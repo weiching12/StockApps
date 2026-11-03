@@ -39,7 +39,9 @@ test("a passing stock keeps the research order and opens a gate panel when its i
   await expect(dialog.locator(".research-gate-panel:visible")).toHaveCount(0);
   await expect(dialog.locator(".research-readiness")).toBeVisible();
   const order = await dialog.locator(".entry-dialog > section").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0]));
-  expect(order.indexOf("research-gates")).toBe(order.indexOf("research-plan-card") - 1);
+  const at = (name) => order.indexOf(name);
+  expect([at("research-gates"), at("research-signal"), at("research-readiness"), at("research-plan-card"), at("research-price-plan")])
+    .toEqual([...Array(5).keys()].map((step) => at("research-gates") + step));
   await dialog.locator('.research-gate-tile[data-gate="liquidity"]').click();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toBeVisible();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toContainText("平均成交金額");
