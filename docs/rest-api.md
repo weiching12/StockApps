@@ -89,6 +89,9 @@ than forcing every endpoint into one envelope. API version v1 and stored
 - `GET /api/v1/push/config` returns Web Push availability and the public VAPID key.
 - `POST /api/v1/push/subscriptions` validates and stores a same-origin browser subscription.
 - `DELETE /api/v1/push/subscriptions` removes the subscription by endpoint.
+- `POST /api/v1/push/resend` (administrator session, same-origin only) sends the latest
+  published date's update to subscriptions that have neither received nor been refused it
+  that date, the same selection as the scheduled send, and returns the web/native counts.
 
 Subscriptions contain only the push endpoint and browser-generated encryption keys.
 Endpoints must be HTTPS URLs (at most 1,024 characters, default port, no credentials) on a
@@ -104,7 +107,9 @@ service's reason (for example Apple's `{"reason":"BadJwtToken"}`) is logged as
 `push-rejected` with the endpoint host only, the subscription is skipped for the rest of
 that trade date, and after refusals on 3 distinct trade dates it is deleted
 (`push-pruned`); a successful delivery resets the count (migration
-`0009_push_failures.sql`). Push delivery failures never roll back the market publication.
+`0009_push_failures.sql`). Push delivery failures never roll back the market publication. Messages carry no
+`Topic` header: Apple refuses date topics such as `market-2026-11-03` with
+`400 BadWebPushTopic`, and the notification `tag` already replaces an earlier update.
 
 Clients keep the server in step with the browser: whenever the app opens or returns to
 the foreground with an existing browser subscription, it re-sends it (at most every 12

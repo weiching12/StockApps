@@ -61,7 +61,9 @@ export class PushService {
       if (!allowedPushEndpoint(row.endpoint)) { stale.push(row.endpoint); continue; }
       const subscription = { endpoint: row.endpoint, expirationTime: null, keys: { p256dh: row.p256dh, auth: row.auth } };
       try {
-        const payload = await buildPushPayload({ data, options: { ttl: 86400, urgency: "normal", topic: `market-${manifest.asOf}` } }, subscription,
+        // No Topic header: Apple refuses "market-YYYY-MM-DD" as BadWebPushTopic, and the
+        // notification tag already replaces an earlier update on the device.
+        const payload = await buildPushPayload({ data, options: { ttl: 86400, urgency: "normal" } }, subscription,
           { subject: this.env.VAPID_SUBJECT, publicKey: this.env.VAPID_PUBLIC_KEY, privateKey: this.env.VAPID_PRIVATE_KEY });
         const response = await this.fetcher(subscription.endpoint, payload);
         const endpointHost = new URL(row.endpoint).host;

@@ -10,6 +10,7 @@ export function resolveApiRoute(path) {
   if (path === "/api/v1/push/native/config") return route("nativePushConfig");
   if (path === "/api/v1/push/native/subscriptions") return route("nativePushSubscriptions", {}, ["POST", "DELETE"]);
   if (path === "/api/v1/push/subscriptions") return route("pushSubscriptions", {}, ["POST", "DELETE"]);
+  if (path === "/api/v1/push/resend") return route("pushResend", {}, ["POST"]);
   const resource = versioned ? path.slice(7) : path.slice(4);
   if (resource === "/market") return route("market");
   if (versioned && resource === "/market/summary") return route("marketSummary");

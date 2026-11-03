@@ -1512,6 +1512,18 @@
         }
       }
     },
+    "/api/v1/push/resend": {
+      "post": {
+        "operationId": "resendPush",
+        "description": "Administrator-only, same-origin. Sends the latest published date's update to subscriptions that have neither received nor been refused it on that date (the scheduled selection). Requires the session cookie.",
+        "responses": {
+          "200": { "description": "Send counts for web and native subscriptions", "content": { "application/json": { "schema": { "type": "object", "required": ["data"] } } } },
+          "401": { "description": "Not signed in" },
+          "403": { "description": "Cross-origin request, password change required or not an administrator" },
+          "503": { "description": "No published data or account service unavailable" }
+        }
+      }
+    },
     "/api/v1/push/subscriptions": {
       "post": {
         "operationId": "subscribePush",

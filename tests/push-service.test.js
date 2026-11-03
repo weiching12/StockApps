@@ -114,6 +114,7 @@ test("notification dispatch encrypts one payload and marks the trade date", asyn
   assert.ok(requests.every(([endpoint]) => endpoint === row.endpoint), "legacy non-push hosts are never contacted");
   assert.deepEqual(removed, [legacy.endpoint, legacy.endpoint]);
   assert.equal(new Headers(requests[0][1].headers).get("Content-Encoding"), "aes128gcm");
+  assert.equal(new Headers(requests[0][1].headers).get("Topic"), null, "Apple rejects date topics as BadWebPushTopic");
   assert.deepEqual(await service.notifyPublished({ generation: "g1", asOf: "2026-10-21" }),
     { sent: 0, removed: 0, failed: 0, rejected: 0, hasMore: false });
   assert.equal(requests.length, 2);
@@ -192,4 +193,32 @@ test("temporary push-service errors are retried and never count toward pruning",
     assert.deepEqual(logs, [{ event: "push-failed", status: 503, endpointHost: "fcm.googleapis.com", reason: "Service Unavailable try later" }]);
     assert.deepEqual(recorded, []);
   } finally { console.error = originalError; }
+});
+test("only a signed-in administrator can resend the latest update, same-origin only", async () => {
+  const { createHash } = await import("node:crypto");
+  const { authDatabase } = await import("./helpers/auth-db.js");
+  const { routeApi } = await import("../cloudflare/api/router.js");
+  const db = authDatabase();
+  // Session tokens are hex, so each account gets its own hex digit.
+  const token = (id) => (id === "admin" ? "a" : "b").repeat(64);
+  for (const [id, role] of [["admin", "admin"], ["viewer", "user"]]) {
+    db.sqlite.prepare("INSERT INTO app_users(id, username, password_hash, role, disabled, created_at) VALUES (?, ?, 'unused', ?, 0, ?)").run(id, id, role, Date.now());
+    db.sqlite.prepare("INSERT INTO auth_sessions VALUES (?, ?, ?)").run(createHash("sha256").update(token(id)).digest("hex"), id, Date.now() + 3600000);
+  }
+  const sent = [];
+  const services = { market: { market: async () => ({ asOf: "2026-11-03", generation: "g1" }) },
+    push: { notifyPublished: async (published) => { sent.push(published); return { sent: 2, removed: 0, failed: 0, rejected: 0, hasMore: false }; } },
+    nativePush: { config: () => ({ enabled: false }) } };
+  const resend = (headers = {}) => routeApi(new Request("https://app.test/api/v1/push/resend", { method: "POST", headers }), { T86_DB: db }, services);
+  const cookie = (id) => ({ Cookie: `__Host-stock_session=${token(id)}` });
+  assert.equal((await resend()).status, 401);
+  assert.equal((await resend(cookie("viewer"))).status, 403);
+  assert.equal((await resend({ ...cookie("admin"), Origin: "https://evil.test" })).status, 403);
+  assert.equal((await routeApi(new Request("https://app.test/api/v1/push/resend"), { T86_DB: db }, services)).status, 405);
+  assert.deepEqual(sent, []);
+  const response = await resend({ ...cookie("admin"), Origin: "https://app.test" });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await response.json(), { data: { asOf: "2026-11-03", web: { sent: 2, removed: 0, failed: 0, rejected: 0, hasMore: false }, native: null } });
+  assert.deepEqual(sent, [{ generation: "g1", asOf: "2026-11-03" }]);
 });
