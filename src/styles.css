@@ -695,6 +695,8 @@ h1 {
 .entry-condition-data dt { color: var(--muted); font-size: 12px; }
 .entry-condition-data dd { margin: 3px 0 0; font-variant-numeric: tabular-nums; }
 .entry-price-chart { --ma20-tone: #b47b20; margin-top: 24px; padding-top: 18px; box-shadow: inset 0 1px var(--border); }
+/* Directly under the header, the header's own divider is enough: no second line or extra gap. */
+.entry-dialog-header + .entry-price-chart { margin-top: 0; padding-top: 0; box-shadow: none; }
 [data-theme="dark"] .entry-price-chart { --ma20-tone: #f3bc66; }
 .entry-price-chart[data-trend="up"] { --chart-tone: var(--up); }
 .entry-price-chart[data-trend="down"] { --chart-tone: var(--down); }
