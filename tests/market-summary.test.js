@@ -11,9 +11,7 @@ import { MarketSummaryCoordinator } from "../cloudflare/summary-coordinator.js";
 import { MANIFEST_KEY, shardKey } from "../cloudflare/storage/market-keys.js";
 import { testDatabase } from "./helpers/t86-db.js";
 import { CorporateActionRepository } from "../cloudflare/corporate-actions/repository.js";
-import { entryScoreDayChange } from "../shared/entry-score.js";
 import { durableStorage } from "./helpers/durable-storage.js";
-import { ResearchSnapshotRepository } from "../cloudflare/repositories/research-snapshot-repository.js";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/twse-20261016.json", import.meta.url)));
 const catalog = normalizeCatalog(fixture.companies);
@@ -43,10 +41,7 @@ test("market summary matches existing indicators and omits market history", asyn
     assert.deepEqual(row.trend, original.trend);
     assert.equal(row.entryScore.modelVersion, "entry-score-v1.2");
     assert.equal(row.entryScore.totalScore, null);
-    assert.equal(row.entryScoreChange.previousDate, null);
-    assert.equal(row.entryScoreChange.delta, null);
-    assert.equal(row.entryScoreChange.status, "missing-current");
-    assert.deepEqual(row.entryScoreChange.missingData, row.entryScore.missingData);
+    assert.ok(!("entryScoreChange" in row), "the retired V1.2 day-over-day change is not computed");
     assert.ok(row.entryScore.missingData.length > 0);
     assert.ok(!("categories" in row.entryScore));
     assert.deepEqual(row.dominantInstitution, getDominantInstitution(original.latest?.institutions));
@@ -70,18 +65,6 @@ test("market summary matches existing indicators and omits market history", asyn
   assert.equal(sector.data.name, catalog[0].sector);
   assert.ok(sector.data.members.length > 0);
   await assert.rejects(service.summary("2026-10-17", result.meta.settings), { code: "INVALID_QUERY" });
-});
-
-test("score changes compare final scores and preserve missing previous data", () => {
-  const previousDate = "2026-10-15";
-  assert.deepEqual(entryScoreDayChange({ finalScore: 81 }, { finalScore: 78.5 }, previousDate),
-    { previousDate, delta: 2.5, status: "comparable" });
-  assert.deepEqual(entryScoreDayChange({ finalScore: 81 }, { finalScore: 83 }, previousDate),
-    { previousDate, delta: -2, status: "comparable" });
-  assert.deepEqual(entryScoreDayChange({ finalScore: 81 }, { finalScore: 81 }, previousDate),
-    { previousDate, delta: 0, status: "comparable" });
-  assert.deepEqual(entryScoreDayChange({ finalScore: 81 }, null, previousDate),
-    { previousDate, delta: null, status: "missing-previous", missingData: [] });
 });
 
 test("first browser load requests only manifest and latest summary", async () => {
@@ -272,62 +255,37 @@ test("invalid summary options return the public 400 contract before reading stor
   }
 });
 
-test("failed research persistence keeps the market available but retries before caching success", async t => {
-  t.mock.method(console, "error", () => {});
+test("the summary never writes V1.2 research snapshots and is cached from the first request", async () => {
   const db = testDatabase();
   try {
     db.sqlite.exec(readFileSync(new URL("../cloudflare/migrations/0005_research_snapshots.sql", import.meta.url), "utf8"));
-    let fail = true, saves = 0, shardReads = 0;
-    db.beforeStatement = sql => {
-      if (sql.includes("INSERT OR IGNORE INTO entry_score_snapshot_shards")) {
-        saves++;
-        if (fail) throw Error("temporary research storage failure");
-      }
-    };
+    let writes = 0, shardReads = 0;
+    db.beforeStatement = sql => { if (/^\s*(INSERT|UPDATE|DELETE)/i.test(sql)) writes++; };
     const values = new Map([[MANIFEST_KEY, manifest], ...shards.map(shard => [shardKey(manifest.generation, shard.index), shard])]);
     const cache = new Map();
     const coordinator = new MarketSummaryCoordinator({ storage: durableStorage(cache) }, { T86_DB: db,
       MARKET_DATA: { get: async key => { if (key.includes(":shard:")) shardReads++; return values.get(key) ?? null; } },
     });
     const request = () => new Request(`https://example.test/api/v1/market/summary?asOf=${date}`);
-    const failed = await coordinator.fetch(request());
-    assert.equal(failed.status, 200);
-    assert.equal(failed.headers.get("cache-control"), "no-store");
-    assert.equal((await failed.json()).meta.researchCapture, "failed");
-    assert.equal([...cache.keys()].filter(key => key.endsWith(":parts")).length, 0);
-    assert.equal(saves, 0, "public requests never persist research");
-    const capture = new MarketSummaryService(service.market, null, new ResearchSnapshotRepository(db));
-    assert.equal((await capture.summary(date, { period: 9, kSmooth: 3, dSmooth: 3 }, { persistResearch: true })).meta.researchCapture, "failed");
-    const pending = await coordinator.fetch(request());
-    assert.equal(pending.headers.get("cache-control"), "no-store");
-    fail = false;
-    assert.equal((await capture.summary(date, { period: 9, kSmooth: 3, dSmooth: 3 }, { persistResearch: true })).meta.researchCapture, "saved");
-    const retried = await coordinator.fetch(request());
-    assert.equal(retried.status, 200);
-    assert.equal((await retried.json()).meta.researchCapture, "saved");
-    const count = saves;
-    assert.equal(shardReads, SHARD_COUNT * 3);
+    const first = await coordinator.fetch(request());
+    assert.equal(first.status, 200);
+    assert.equal(first.headers.get("cache-control"), "public, max-age=60");
+    assert.equal((await first.json()).meta.researchCapture, "not-required");
+    const reads = shardReads;
     assert.equal((await coordinator.fetch(request())).status, 200);
-    assert.equal(saves, count);
-    assert.equal(shardReads, SHARD_COUNT * 3);
-    // Recomputing an existing revision is a successful, cacheable no-op.
-    const alreadySaved = new MarketSummaryService(service.market, null, new ResearchSnapshotRepository(db));
-    assert.equal((await alreadySaved.summary(date, { period: 9, kSmooth: 3, dSmooth: 3 })).meta.researchCapture, "saved");
+    assert.equal(shardReads, reads, "the second request is served from the summary cache");
+    assert.equal(writes, 0);
   } finally { db.sqlite.close(); }
 });
 
-test("a corporate-action revision changing during a read cannot be attached to saved research", async () => {
-  let revisionReads = 0, saves = 0;
+test("a corporate-action revision changing during a read keeps the summary uncached", async () => {
+  let revisionReads = 0;
   const actions = { revision: async () => ++revisionReads === 1 ? "before" : "after",
     window: async () => ({ coveredDates: new Set(), eventsBySymbol: new Map() }) };
-  const summary = new MarketSummaryService(service.market, actions, { save: async () => { saves++; } });
-  const result = await summary.summary(date, { period: 9, kSmooth: 3, dSmooth: 3 }, { persistResearch: true });
-  assert.equal(result.meta.researchCapture, "failed");
-  assert.equal(saves, 0);
-  assert.equal((await summary.summary(date, { period: 9, kSmooth: 3, dSmooth: 3 }, { persistResearch: true })).meta.researchCapture, "saved");
-  assert.equal(saves, 1);
+  const summary = new MarketSummaryService(service.market, actions);
+  assert.equal((await summary.summary(date, { period: 9, kSmooth: 3, dSmooth: 3 })).meta.researchCapture, "failed");
+  assert.equal((await summary.summary(date, { period: 9, kSmooth: 3, dSmooth: 3 })).meta.researchCapture, "not-required");
 });
-
 
 test("simultaneous HEAD then GET receives a complete shared summary body", async () => {
   const values = new Map([[MANIFEST_KEY, manifest], ...shards.map((shard) =>

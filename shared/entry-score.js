@@ -281,13 +281,3 @@ export function getEntryScore(stock, tradingDates, asOf, options = {}) {
     netRatio, deviation20, previous10Low, riskDistance, atr14, atrPercent };
   return base;
 }
-
-export function entryScoreDayChange(current, previous, previousDate) {
-  const unavailable = (status, score) => ({ previousDate: previousDate ?? null, delta: null,
-    status, missingData: [...(score?.missingData ?? [])] });
-  if (!Number.isFinite(current?.finalScore)) return unavailable("missing-current", current);
-  if (!previousDate) return unavailable("no-previous-session");
-  if (!Number.isFinite(previous?.finalScore)) return unavailable("missing-previous", previous);
-  return { previousDate, delta: Math.round((current.finalScore - previous.finalScore) * 100) / 100,
-    status: "comparable" };
-}

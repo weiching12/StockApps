@@ -1,4 +1,6 @@
 import { entryResearchSummary } from "../../shared/entry-research.js";
+import { institutionalScoreBreakdown } from "../../shared/entry-score.js";
+import { isEtf } from "../../shared/market-codec.js";
 import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_STATUS_LABELS, NEXT_DAY_STATUS_LABELS, SETUP_LABELS } from "../../shared/entry-research-model.js";
 
 // Presentation of entry research results. Every value comes from shared/entry-research.js
@@ -114,7 +116,34 @@ const NEXT_EXPLANATION = {
   NOT_ELIGIBLE: "觸發初步門檻的否決條件，不進行進場評估。",
 };
 
-/** Dialog sections in the required order; the chart and the V1.2 detail follow them. */
+/**
+ * How the structure component is built: the mean of the trend and institutional category scores,
+ * each shown with its own inputs. Needs the per-stock score detail (categories and metrics).
+ */
+function structureHelp(research, stock, { esc, number, percent }) {
+  const categories = stock.entryScore?.categories, metrics = stock.entryScore?.metrics;
+  const trend = categories?.trend?.score, institutional = categories?.institutional?.score;
+  if (!Number.isFinite(trend) || !Number.isFinite(institutional) || !metrics) return "";
+  const mark = (met) => met ? "✓" : "✗";
+  const checks = [["收盤價高於月線 MA20", metrics.close > metrics.ma20], ["月線高於季線 MA60", metrics.ma20 > metrics.ma60],
+    ["月線較前一交易日上升", metrics.ma20 > metrics.previousMa20], ["季線較前一交易日上升", metrics.ma60 > metrics.previousMa60]];
+  const met = checks.filter(([, ok]) => ok).length;
+  const parts = institutionalScoreBreakdown(metrics.netRatio, metrics.institutionBuyDays, metrics.institutionPositiveCategories);
+  const sector = stock.sector && !isEtf(stock)
+    ? `<button type="button" class="outline-button" data-institution-sector="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}所屬${esc(stock.sector)}產業法人買賣">查看產業法人 ↗</button>` : "";
+  return `<details class="research-structure-help"><summary>構面強度計算方式</summary>
+    <p class="research-structure-formula">構面強度 = （趨勢 ${number(trend, 2)} ＋ 法人 ${number(institutional, 2)}）÷ 2 = <strong>${number(research.componentScores.structure, 2)}</strong></p>
+    <section><h4>趨勢結構 ${number(trend, 2)} 分</h4><ul class="research-structure-checks">${checks.map(([label, ok]) => `<li><span aria-hidden="true">${mark(ok)}</span> ${label}</li>`).join("")}</ul>
+      <p>均線條件 ${met} 項 × 20 ＋ 近五日收盤站上月線 ${metrics.fiveAboveMa20} 日 × 4 = ${number(met * 20 + metrics.fiveAboveMa20 * 4, 2)} 分</p></section>
+    <section><h4>法人籌碼 ${number(institutional, 2)} 分</h4>
+      <p>近五日外資、投信、自營商合計淨買賣超 ${number(metrics.institutionNet5, 0)} 股，占同期成交量 ${percent(metrics.netRatio * 100)}。</p>
+      <ul><li>占比分數 50 ＋ 50 × 占比 ÷ 5%（0～100）= ${number(parts.ratioScore, 2)}，計入 60% = ${number(parts.ratioContribution, 2)} 分</li>
+        <li>合計買超 ${metrics.institutionBuyDays} 日 × 5 = ${number(parts.dayContribution, 2)} 分</li>
+        <li>累計買超法人 ${metrics.institutionPositiveCategories} 類 × 5 = ${number(parts.categoryContribution, 2)} 分</li></ul>${sector}</section>
+    <p class="helper-text">兩項分數各占一半，只衡量趨勢與籌碼的強弱，不是門檻；門檻由上方否決條件判斷。</p></details>`;
+}
+
+/** Dialog sections in the required order, under the header and chart. */
 export function researchDialogSections(result, stock, { esc, number, percent }) {
   const { gateResult: gate, entryResearch: research, nextDayPlan: plan, dataQuality: quality } = result;
   // Price, change and date already show in the header and chart above; only price-data warnings
@@ -131,7 +160,7 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
 
   const component = (label, value, weight) => `<div class="research-component"><span>${label}<small>權重 ${weight}%</small></span><strong>${Number.isFinite(value) ? number(value, 0) : "—"}</strong><progress value="${Number.isFinite(value) ? value : 0}" max="100" aria-label="${label} ${Number.isFinite(value) ? number(value, 0) : "無資料"} 分"></progress></div>`;
   const readiness = `<section class="research-readiness" aria-labelledby="research-readiness-title"><h3 id="research-readiness-title">進場準備度</h3>${Number.isFinite(research.score)
-    ? `<div class="research-readiness-body"><div class="research-readiness-score"><strong>${number(research.score, 0)}</strong><span>/ 100</span></div><div class="research-components">${component(isV1(result.modelVersion) ? "五大構面強度" : "構面強度（趨勢＋法人）", research.componentScores.structure, research.weights.structure)}${component("進場訊號品質", research.componentScores.signal, research.weights.signal)}${component("進場位置與時機", research.componentScores.timing, research.weights.timing)}</div></div><div class="research-strengths"><div><h4>表現較好</h4>${items(research.strengths, esc, "沒有特別突出的構面。")}</div><div><h4>仍可改善</h4>${items(research.weaknesses, esc, "沒有明顯偏弱的構面。")}</div></div>`
+    ? `<div class="research-readiness-body"><div class="research-readiness-score"><strong>${number(research.score, 0)}</strong><span>/ 100</span></div><div class="research-components">${component(isV1(result.modelVersion) ? "五大構面強度" : "構面強度（趨勢＋法人）", research.componentScores.structure, research.weights.structure)}${component("進場訊號品質", research.componentScores.signal, research.weights.signal)}${component("進場位置與時機", research.componentScores.timing, research.weights.timing)}</div></div>${isV1(result.modelVersion) ? "" : structureHelp(research, stock, { esc, number, percent })}<div class="research-strengths"><div><h4>表現較好</h4>${items(research.strengths, esc, "沒有特別突出的構面。")}</div><div><h4>仍可改善</h4>${items(research.weaknesses, esc, "沒有明顯偏弱的構面。")}</div></div>`
     : `<p class="research-empty">${gate.status === "FAIL" ? "未通過初步門檻，不計算進場準備度。" : "資料不足，無法計算進場準備度。"}</p>`}<p class="helper-text">衡量進場準備程度供股票之間比較，不是獲利機率或買進指令；權重為暫定、尚未經歷史回測驗證。</p></section>`;
 
   const gates = gatesSection(result, { esc, number });

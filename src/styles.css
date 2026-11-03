@@ -3210,6 +3210,14 @@ html[data-input-mode="keyboard"] .research-chart-info summary:focus-visible { ou
 .research-component progress::-webkit-progress-bar { background: #e4eaf2; }
 .research-component progress::-webkit-progress-value { background: var(--accent); border-radius: 999px; }
 .research-component progress::-moz-progress-bar { background: var(--accent); }
+.research-structure-help { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; font-size: var(--text-secondary); }
+.research-structure-help > summary { cursor: pointer; color: var(--muted); }
+.research-structure-help h4 { margin: 12px 0 4px; font-size: var(--text-secondary); }
+.research-structure-help ul { margin: 4px 0; padding-left: 18px; }
+.research-structure-help .research-structure-checks { padding-left: 0; list-style: none; }
+.research-structure-help p { margin: 4px 0; }
+.research-structure-formula { margin-top: 10px !important; font-variant-numeric: tabular-nums; }
+.research-structure-help .outline-button { margin-top: 8px; }
 .research-strengths { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .research-empty { margin: 0; color: var(--muted); font-size: var(--text-secondary); }
 .research-gates ol { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }

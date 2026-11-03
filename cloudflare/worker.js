@@ -1,13 +1,12 @@
 import { routeApi } from "./api/router.js";
-import { coordinateEntryResearchCapture, coordinateMarketSync, coordinateResearchCapture } from "./sync/coordinator.js";
+import { coordinateEntryResearchCapture, coordinateMarketSync } from "./sync/coordinator.js";
 import { syncDailyCorporateActions } from "./corporate-actions/sync.js";
 export { MarketSyncCoordinator } from "./sync/coordinator.js";
 export { MarketSummaryCoordinator } from "./summary-coordinator.js";
 export { OnlinePresence } from "./presence.js";
 
 export async function runScheduled(controller, env, {
-  sync = coordinateMarketSync, syncActions = syncDailyCorporateActions, capture = coordinateResearchCapture,
-  captureEntry = coordinateEntryResearchCapture,
+  sync = coordinateMarketSync, syncActions = syncDailyCorporateActions, captureEntry = coordinateEntryResearchCapture,
 } = {}) {
   const state = await sync(env, controller.scheduledTime);
   let actions;
@@ -16,14 +15,8 @@ export async function runScheduled(controller, env, {
     console.error(JSON.stringify({ event: "corporate-actions-delayed", message: error.message }));
     actions = { status: "delayed" };
   }
-  let research = { status: "not-required" }, entryResearch = { status: "not-required" };
+  let entryResearch = { status: "not-required" };
   if (state.phase === "done") {
-    try { research = await capture(env); }
-    catch (error) {
-      console.error(JSON.stringify({ event: "research-capture-delayed", message: error.message }));
-      research = { status: "failed" };
-    }
-    // Independent of the V1.2 snapshot: a failure in one never blocks or rolls back the other.
     try { entryResearch = await captureEntry(env); }
     catch (error) {
       console.error(JSON.stringify({ event: "entry-research-capture-delayed", message: error.message }));
@@ -33,7 +26,7 @@ export async function runScheduled(controller, env, {
   console.log(JSON.stringify({ event: "twse-sync", date: state.date, slot: state.slot, phase: state.phase,
     t86Status: state.t86Status, nextShard: state.nextShard, failures: state.failures, error: state.error,
     corporateActions: actions.status, corporateActionEvents: actions.events ?? null,
-    researchCapture: research.status, entryResearchCapture: entryResearch.status }));
+    entryResearchCapture: entryResearch.status }));
 }
 
 export default {

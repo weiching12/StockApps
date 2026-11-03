@@ -13,7 +13,6 @@
 | `sync/common.js` | Fingerprints, temporary-key TTL, shard batch size |
 | `sync/coordinator.js` | Single named DO, serialized ticks, duplicate/out-of-order suppression |
 | `sync/coordinator-store.js` | Durable progress/head storage, legacy import and publication recovery |
-| `research-capture.js` | Idempotent capture of the latest default-settings research revision |
 
 ## Coordination
 

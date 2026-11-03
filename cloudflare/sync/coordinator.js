@@ -2,7 +2,6 @@ import { syncMarket, syncSlot } from "../sync.js";
 import { SYNC_KEY } from "../storage/market-keys.js";
 import { CoordinatorStore } from "./coordinator-store.js";
 import { SyncMetrics, saveSyncMetrics } from "./metrics.js";
-import { captureLatestResearch } from "../research-capture.js";
 import { captureEntryResearch } from "../entry-research-capture.js";
 
 export class MarketSyncCoordinator {
@@ -13,7 +12,6 @@ export class MarketSyncCoordinator {
     this.kv = new CoordinatorStore(ctx.storage, this.metrics.wrap(env.MARKET_DATA));
     this.tail = Promise.resolve();
     this.run = syncMarket;
-    this.capture = captureLatestResearch;
     this.captureEntry = captureEntryResearch;
   }
   // External I/O yields execution in a DO. Serialize the full phase explicitly;
@@ -25,10 +23,6 @@ export class MarketSyncCoordinator {
   }
   async handle(request) {
     const url = new URL(request.url);
-    if (request.method === "POST" && url.pathname === "/capture-research") {
-      await this.kv.recoverPublication();
-      return Response.json(await this.capture({ ...this.env, MARKET_DATA: this.kv }));
-    }
     if (request.method === "POST" && url.pathname === "/capture-entry-research") {
       await this.kv.recoverPublication();
       return Response.json(await this.captureEntry({ ...this.env, MARKET_DATA: this.kv }));
@@ -68,13 +62,5 @@ export async function coordinateEntryResearchCapture(env) {
   const response = await env.MARKET_SYNC.getByName("stock-insight-market-sync").fetch(
     new Request("https://market-sync.internal/capture-entry-research", { method: "POST" }));
   if (!response.ok) throw new Error(`Entry research capture coordinator failed: ${response.status}`);
-  return response.json();
-}
-
-export async function coordinateResearchCapture(env) {
-  if (!env.MARKET_SYNC) throw new Error("MARKET_SYNC binding required for research capture");
-  const response = await env.MARKET_SYNC.getByName("stock-insight-market-sync").fetch(
-    new Request("https://market-sync.internal/capture-research", { method: "POST" }));
-  if (!response.ok) throw new Error(`Research capture coordinator failed: ${response.status}`);
   return response.json();
 }

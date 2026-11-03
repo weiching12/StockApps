@@ -8,9 +8,10 @@ for (const width of [390, 1440]) {
     const entryBounds = await page.locator('#info-dialog').boundingBox();
     const entryInset = await page.locator('.entry-dialog').evaluate(node => node.getBoundingClientRect().left - node.closest('dialog').getBoundingClientRect().left);
     const sector = await page.locator('.entry-dialog-sector').textContent();
-    const condition = page.locator('.entry-condition').filter({ has: page.locator('.entry-condition-copy strong', { hasText: '法人籌碼' }) });
-    await condition.locator('summary').click();
-    await condition.locator('[data-institution-sector="2330"]').click();
+    // The sector link sits with the institutional inputs in the structure explanation.
+    const help = page.locator('.research-structure-help');
+    await help.locator('summary').click();
+    await help.locator('[data-institution-sector="2330"]').click();
     await expect(page.locator('#info-dialog')).toBeHidden();
     await expect(page.locator('#sector-dialog')).toBeVisible();
     if (width <= 520) {

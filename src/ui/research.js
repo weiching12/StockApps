@@ -5,10 +5,9 @@ const fmt = (value) => Number.isFinite(value) ? value.toFixed(2) : "—";
 const delta = (value) => Number.isFinite(value) ? `${value > 0 ? "+" : ""}${fmt(value)}` : "—";
 const tone = (value) => value > 0 ? "up" : value < 0 ? "down" : "neutral";
 
-export function researchCardPrice(period, row, stock, asOf = row?.latest?.asOf) {
+export function researchCardPrice(period, stock, asOf) {
   const positive = value => Number.isFinite(value) && value > 0;
-  const latest = row?.latest?.asOf === asOf ? row.latest : null;
-  const close = positive(latest?.close) ? latest.close : stock?.latest?.date === asOf && positive(stock.latest.close) ? stock.latest.close : null;
+  const close = stock?.latest?.date === asOf && positive(stock.latest.close) ? stock.latest.close : null;
   // Snapshot.close is the observed closing price, even when scoring adjusts earlier bars.
   const joined = period?.addedSnapshot;
   const baseline = period?.baseline ?? (positive(joined?.close) ? { asOf: joined.asOf, close: joined.close, priceBasis: "unadjusted" } : null);
@@ -25,12 +24,12 @@ export const RESEARCH_TRACKING_FILTERS = [["all", "全部追蹤"], ["candidate",
 const number = (value, digits = 2) => Number.isFinite(value)
   ? value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
 
-export function renderResearchCenter({ favorites, stocks, rows, store, date, sort, filter, esc }) {
+export function renderResearchCenter({ favorites, stocks, store, date, sort, filter, esc }) {
   const bySymbol = new Map(stocks.map((stock) => [stock.symbol, stock]));
   const values = favorites.map((symbol) => {
     const stock = bySymbol.get(symbol);
     return { symbol, stock: stock ?? { symbol }, summary: researchSummaryOf(stock),
-      price: researchCardPrice(activeResearchPeriod(store, symbol), rows.get(symbol), stock, date) };
+      price: researchCardPrice(activeResearchPeriod(store, symbol), stock, date) };
   });
   const filtered = values.filter(({ stock }) => matchesResearchFilter(stock, filter));
   const readiness = ({ summary }) => Number.isFinite(summary?.score) ? summary.score : null;

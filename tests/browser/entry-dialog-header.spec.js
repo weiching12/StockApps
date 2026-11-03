@@ -8,7 +8,7 @@ for (const [label, viewport, scroller] of [["phone", { width: 390, height: 844 }
     await page.setViewportSize(viewport);
     await page.goto("/");
     await page.locator("#stock-rows .entry-score-button").first().click();
-    await expect(page.locator("#info-dialog .entry-summary")).toBeVisible();
+    await expect(page.locator("#info-dialog .research-plan-card")).toBeVisible();
     const header = page.locator("#info-dialog .entry-dialog-header");
     await expect(header.locator("h2")).toBeVisible();
     await expect(header.locator(".entry-dialog-meta")).toContainText("波段順勢進場");

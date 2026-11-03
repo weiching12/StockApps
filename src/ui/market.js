@@ -1,24 +1,6 @@
 import { filterStocks, getDominantInstitution } from "../../shared/indicators.js";
 import { compareResearchStocks, matchesResearchFilter, researchListCells, researchSummaryOf } from "./entry-research.js";
 
-export function entryScoreChangePresentation(stock, number) {
-  const entry = stock.entryScore, change = stock.entryScoreChange;
-  const date = entry?.asOf ?? "所選日期";
-  const reasons = (change?.missingData ?? entry?.missingData ?? []).join("；");
-  if (!Number.isFinite(entry?.finalScore)) return { label: "當日資料不足",
-    title: `${date} 無法評分${reasons ? `：${reasons}` : ""}` };
-  if (Number.isFinite(change?.delta)) return {
-    label: `較前期 ${change.delta > 0 ? "+" : ""}${number(change.delta, 2)}`,
-    title: `${date} 與 ${change.previousDate} 的株研評分差額`,
-  };
-  if (change?.status === "no-previous-session" || change?.previousDate === null)
-    return { label: "尚無前期資料", title: `${date} 之前沒有可比較的市場交易日` };
-  if (change?.status === "missing-previous") return { label: "前期資料不足",
-    title: `${change.previousDate} 無法評分${reasons ? `：${reasons}` : ""}` };
-  // Older offline summaries may have no reason metadata. Do not guess which data is missing.
-  return { label: "前期無法比較", title: "尚無可用的前期比較結果，連線後請重新整理" };
-}
-
 export function renderMarketView(context) {
   const { state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl } = context;
   const visibleStocks = filterStocks(snapshots, state).filter((stock) => matchesResearchFilter(stock, state.research));

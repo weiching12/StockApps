@@ -2,9 +2,9 @@ import { expandStock, shardOf, SHARD_COUNT, validSymbol } from "../../shared/mar
 import { DEFAULT_SETTINGS, getSnapshot, getStockInstitutionEstimate, getStockInstitutionSeries,
   getDominantInstitution, getInstitutionNet } from "../../shared/indicators.js";
 import { calculateMarketSentiment } from "../../shared/sentiment.js";
-import { entryScoreDayChange, entryScoreSummary, getEntryScore } from "../../shared/entry-score.js";
+import { entryScoreSummary, getEntryScore } from "../../shared/entry-score.js";
 import { entryResearchSummary, evaluateEntryResearch } from "../../shared/entry-research.js";
-import { compareResearchSnapshots, researchConfigId, researchSnapshot } from "../../shared/research-tracking.js";
+import { compareResearchSnapshots, researchConfigId } from "../../shared/research-tracking.js";
 import { REVIEW_HISTORY_LIMIT, reviewEventTimeline } from "../../shared/research-review.js";
 import { getSectorDetail, getSectorOverview } from "../../shared/sectors.js";
 import { DomainError } from "../../shared/domain-error.js";
@@ -54,33 +54,20 @@ export class MarketSummaryService {
     return { manifest, asOf, dates, stocks };
   }
 
-  async summary(date, settings, { persistResearch = false } = {}) {
+  async summary(date, settings) {
     const { manifest, asOf, dates, stocks } = await this.snapshots(date, settings);
     const actionRevision = this.actions ? await this.actions.revision() : "no-actions";
     const actions = this.actions ? await this.actions.window(dates.slice(-61)) : null;
     const stableActions = !this.actions || actionRevision === await this.actions.revision();
-    const capture = Boolean(this.researchStore && asOf === manifest.asOf &&
-      Object.keys(DEFAULT_SETTINGS).every((key) => settings[key] === DEFAULT_SETTINGS[key]));
-    const capturedAt = capture ? new Date().toISOString() : null;
-    const revisionId = capture ? `${manifest.generation}:${actionRevision}` : null;
-    let researchCapture = capture ? "failed" : "not-required";
-    const previousDate = dates.at(-2) ?? null;
-    const researchRows = [];
     const data = stocks.map((stock) => {
+      // V1.2 is computed only as entry research's input (structure scores and price-data notes).
       const score = getEntryScore(stock, dates, asOf,
         { priceBasis: "unadjusted", corporateActions: actions, settings });
-      const previous = previousDate ? getSnapshot({ ...stock, tradingDates: dates }, previousDate, settings) : null;
-      const previousScore = previous ? getEntryScore(previous, dates, previousDate,
-        { priceBasis: "unadjusted", corporateActions: actions, settings }) : null;
-      if (capture && persistResearch) researchRows.push(researchSnapshot(score, { symbol: stock.symbol,
-        market: stock.market, asOf, capturedAt, generation: manifest.generation,
-        revisionId, settings }));
       return {
         symbol: stock.symbol, name: stock.name, sector: stock.sector, market: stock.market,
         assetType: stock.assetType, currency: stock.currency, listedOn: stock.listedOn,
         latest: stock.latest, signal: stock.signal, priceVolume: stock.priceVolume,
         trend: stock.trend, entryScore: entryScoreSummary(score),
-        entryScoreChange: entryScoreDayChange(score, previousScore, previousDate),
         entryResearch: entryResearchSummary(evaluateEntryResearch({ stock, tradingDates: dates, asOf,
           corporateActions: actions, settings, score })),
         dominantInstitution: getDominantInstitution(stock.latest?.institutions),
@@ -91,23 +78,11 @@ export class MarketSummaryService {
       getSectorOverview(stocks, { window, sort: "net-desc", tradingDates: dates, asOf })
         .map(({ stocks: _stocks, leader, ...sector }) => ({ ...sector,
           leader: leader ? { symbol: leader.symbol, name: leader.name } : null }))]));
-    if (capture && stableActions) {
-      try {
-        const key = { asOf, modelVersion: data[0].entryScore.modelVersion,
-          configId: researchConfigId(settings), revisionId };
-        // Only the serialized sync job may write. A delayed public request
-        // must never publish an older generation after a newer capture.
-        if (persistResearch) {
-          await this.researchStore.save({ ...key, capturedAt, snapshots: researchRows });
-          researchCapture = "saved";
-        } else if (await this.researchStore.hasRevision(key)) researchCapture = "saved";
-      }
-      catch (error) { console.error("Research snapshot capture failed", error); }
-    }
     return { data: { stocks: data, sentiment: calculateMarketSentiment(stocks, asOf, 20, dates, actions), sectors },
       meta: { asOf, sourceAsOf: manifest.asOf, generation: manifest.generation,
         rulesVersion: "technical-v1", settings,
-        researchCapture: stableActions ? researchCapture : "failed" } };
+        // Daily V1.2 snapshots are no longer saved; "failed" still marks an unstable action window.
+        researchCapture: stableActions ? "not-required" : "failed" } };
   }
 
   async research(symbols, date, settings) {

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("entry score stays usable in the market list, detail dialog and phone scroll", async ({ page }) => {
   await page.goto("/");
-  // The list shows the entry readiness score; the V1.2 score lives in the dialog's legacy section.
+  // The list shows the entry readiness score; the retired V1.2 score is shown nowhere.
   await expect(page.locator('[data-sort-heading="readiness"]')).toContainText("進場準備度");
   await expect(page.locator('[data-sort-heading="entryScore"]')).toHaveCount(0);
   const headingColors = await page.locator('[data-sort-heading="readiness"]').evaluate((heading) =>
@@ -26,19 +26,24 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   const firstSymbol = await rows.first().getAttribute("data-symbol");
   await rows.first().locator(".entry-score-button").click();
   await expect(page.locator("#info-dialog")).toBeVisible();
-  await expect(page.locator(".entry-summary-date")).toHaveAttribute("datetime", await page.locator("#trade-date").inputValue());
-  await expect(page.locator(".entry-summary-date")).toHaveCSS("font-size", "11px");
+  await expect(page.locator(".entry-dialog-meta")).toContainText(await page.locator("#trade-date").inputValue());
   await expect(page.locator(".entry-dialog-sector")).not.toBeEmpty();
   await expect(page.locator("#dialog-heading")).toHaveText(new RegExp(`^${firstSymbol} .+$`));
   await expect(page.locator("#dialog-content")).toContainText("波段順勢進場");
-  await expect(page.locator("#dialog-content")).toContainText("進場位置與風險");
-  await expect(page.locator(".entry-summary-reason")).toHaveCount(0);
-  // The dialog's readiness matches the list, and the V1.2 score is labelled as the old composite.
+  await expect(page.locator(".entry-legacy, .entry-summary, .entry-condition")).toHaveCount(0);
+  await expect(page.locator("#dialog-content")).not.toContainText("株研評分");
+  // The dialog's readiness matches the list, and the structure component explains its inputs.
   if (firstListScore === "—") await expect(page.locator(".research-readiness .research-empty")).toBeVisible();
-  else await expect(page.locator(".research-readiness-score strong")).toHaveText(firstListScore);
-  await expect(page.locator(".entry-legacy > h3")).toContainText("舊版株研評分 V1.2");
-  await expect(page.locator(".entry-summary-head strong")).toHaveAttribute("data-score-target", /\d/);
-  await expect(page.locator(".entry-summary-facts")).toHaveCount(0);
+  else {
+    await expect(page.locator(".research-readiness-score strong")).toHaveText(firstListScore);
+    const help = page.locator(".research-structure-help");
+    await expect(help).not.toHaveAttribute("open", "");
+    await help.locator("summary").click();
+    await expect(help.locator(".research-structure-formula")).toContainText(/構面強度 = （趨勢 [\d.]+ ＋ 法人 [\d.]+）÷ 2 = [\d.]+/);
+    await expect(help.locator(".research-structure-checks li")).toHaveCount(4);
+    await expect(help).toContainText("近五日收盤站上月線");
+    await expect(help).toContainText("占比分數");
+  }
   const chart = page.locator(".entry-price-chart");
   const plot = chart.locator(".entry-chart-plot");
   await expect(chart.locator("h3")).toBeVisible();
@@ -110,8 +115,6 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   await page.keyboard.press("ArrowRight");
   await expect(plot).toHaveAttribute("aria-valuenow", "2");
   await expect(chart.locator(".entry-chart-readout")).toBeVisible();
-  await expect(page.locator(".entry-core-panel .entry-condition")).toHaveCount(5);
-  await expect(page.locator(".entry-summary .entry-core-panel .entry-condition")).toHaveCount(5);
   await expect(page.locator(".entry-dialog-title [data-favorite]")).toHaveCount(1);
   await expect(page.locator("#info-dialog .dialog-top .eyebrow")).toBeHidden();
   const dialogFavorite = page.locator(".entry-dialog-title [data-favorite]");
@@ -120,44 +123,7 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   await expect(dialogFavorite).toHaveAttribute("aria-pressed", wasFavorite === "true" ? "false" : "true");
   await expect(page.locator(`#stock-rows [data-favorite="${firstSymbol}"]`))
     .toHaveAttribute("aria-pressed", wasFavorite === "true" ? "false" : "true");
-  await expect(page.locator(".entry-condition-icon svg")).toHaveCount(5);
-  await expect(page.locator(".entry-condition-data").first()).toBeHidden();
-  await expect(page.locator(".entry-condition:not([open]) .entry-category")).toHaveCount(5);
-  await expect(page.locator(".entry-category").first()).toBeVisible();
-  await expect(page.locator(".entry-category").last()).toBeVisible();
-  await page.locator(".entry-condition summary").first().click();
-  await expect(page.locator(".entry-condition-data").first()).toBeVisible();
-  await page.locator(".entry-condition summary").nth(1).click();
-  const kdChart = page.locator(".entry-condition-kd-chart");
-  await expect(page.locator(".entry-condition").nth(1).locator(".entry-condition-data")).toHaveCount(0);
-  await expect(kdChart.locator(".entry-condition-kd-values")).toHaveCount(0);
-  await expect(kdChart.locator("svg .entry-kd-point-label")).toHaveCount(4);
-  await expect(kdChart.locator("svg .entry-kd-point-label").first()).toContainText("K ");
-  await expect(kdChart.locator("svg")).toHaveAttribute("aria-label", /判斷使用的 3 個交易日/);
-  await expect(kdChart.locator(".entry-chart-dates span")).toHaveCount(3);
-  await expect(kdChart.locator(".entry-chart-k")).toHaveAttribute("d", /[ML]/);
-  await expect(kdChart.locator(".entry-chart-d")).toHaveAttribute("d", /[ML]/);
-  await kdChart.locator('[data-chart-series="k"]').click();
-  await expect(kdChart.locator(".entry-chart-k")).toBeHidden();
-  await kdChart.locator('[data-chart-series="k"]').click();
-  await expect(kdChart.locator(".entry-chart-k")).toBeVisible();
   await expect(page.locator(".entry-dialog-meta")).not.toContainText("未還原價格");
-  await expect(page.locator(".entry-category")).toHaveCount(5);
-  await expect(page.locator(".entry-categories")).toHaveCount(0);
-  await expect(page.locator(".entry-condition .entry-category")).toHaveCount(5);
-  await expect(page.locator(".entry-category").first().locator(".entry-category-values > span")).toContainText("權重 25% · 計入分數");
-  await expect(page.locator(".entry-category").first().locator("strong")).toHaveText(/^\d+\.\d{2} 分$/);
-  const excluded = page.locator(".entry-category.excluded");
-  if (await excluded.count()) {
-    await expect(excluded.first().locator(".entry-category-values > span")).toContainText("計入分數 0.00");
-    await expect(page.locator(".entry-summary-head span")).toHaveText("核心條件不通過");
-  }
-  await expect(page.locator(".entry-summary .entry-core-panel > .entry-more:last-child > details")).toHaveCount(2);
-  await expect(page.locator(".entry-more > details[open]")).toHaveCount(0);
-  await page.locator(".entry-more > details").first().locator("summary").click();
-  await expect(page.locator(".entry-more .entry-guide-item").first()).toBeVisible();
-  await page.locator(".entry-metrics summary").click();
-  await expect(page.locator(".entry-metrics .entry-guide-item")).toHaveCount(4);
   await page.locator("#close-dialog").click();
   await rows.first().locator(".price-cell").click();
   await expect(page.locator("#info-dialog")).toBeVisible();
@@ -189,30 +155,16 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   expect(chartBounds.scroll).toBeLessThanOrEqual(chartBounds.width);
   for (const width of [320, 414, 471, 510]) {
     await page.setViewportSize({ width, height: 956 });
-    const layout = await page.locator(".entry-summary").evaluate((element) => {
+    const layout = await page.locator(".entry-dialog").evaluate((element) => {
       const dialog = element.closest("dialog");
-      const core = element.querySelector(".entry-core-panel");
-      const card = element.querySelector(".entry-category");
-      const bounds = element.getBoundingClientRect();
-      const dialogBounds = dialog.getBoundingClientRect();
-      const coreBounds = core.getBoundingClientRect();
-      const cardBounds = card.getBoundingClientRect();
-      const headBounds = element.querySelector(".entry-summary-head").getBoundingClientRect();
-      const dateBounds = element.querySelector(".entry-summary-date").getBoundingClientRect();
-      return {
-        left: bounds.left - dialogBounds.left,
-        right: dialogBounds.right - bounds.right,
-        coreLeft: coreBounds.left - bounds.left,
-        cardLeft: cardBounds.left - coreBounds.left,
-        dateGap: headBounds.top - dateBounds.bottom,
-        overflow: element.scrollWidth - element.clientWidth,
-      };
+      const bounds = element.getBoundingClientRect(), dialogBounds = dialog.getBoundingClientRect();
+      // The pinned header bleeds to the dialog edges by design; every section below stays inside.
+      const sections = [...element.children].filter((child) => !child.matches(".entry-dialog-header"));
+      return { left: bounds.left - dialogBounds.left, right: dialogBounds.right - bounds.right,
+        overflow: Math.max(0, ...sections.map((child) => Math.round(child.getBoundingClientRect().right - bounds.right))) };
     });
     expect(layout.left).toBe(16);
     expect(layout.right).toBe(16);
-    expect(layout.coreLeft).toBe(13);
-    expect(layout.cardLeft).toBe(8);
-    expect(layout.dateGap).toBeLessThanOrEqual(2);
     expect(layout.overflow).toBe(0);
   }
   await page.setViewportSize({ width: 390, height: 844 });

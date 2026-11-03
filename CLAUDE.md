@@ -67,7 +67,7 @@ Durable Objects (`wrangler.jsonc`):
 Cron (weekdays, Taipei evening, see `wrangler.jsonc`) → `runScheduled` in `worker.js`:
 1. `coordinateMarketSync` — phases in `cloudflare/sync/` (plan → acquire → snapshot → publish → cleanup). T86 is validated (date, 19-column schema, integer/formula checks, dynamic row-count thresholds from `T86_*_RATIO` vars) and upserted into D1 transactionally before KV shards are published; identical content hashes are not rewritten; failure keeps the last good version. 30-min cooldown, 3-failure ceiling.
 2. Corporate-action sync (`corporate-actions/`).
-3. When sync phase is `done`, idempotent research snapshot capture (`research-capture.js`) into D1.
+3. When sync phase is `done`, idempotent entry-research sample capture (`entry-research-capture.js`) into D1. Daily V1.2 snapshots are no longer written; `/api/v1/favorites/research` only reads existing ones.
 
 Data rules to preserve: prices are **unadjusted**; missing/suspended data is never zero-filled; indicators/scores return null/insufficient rather than redistributing weights; ETFs are searchable/favoritable but excluded from sector rankings.
 

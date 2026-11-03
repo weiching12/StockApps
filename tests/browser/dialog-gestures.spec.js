@@ -29,7 +29,7 @@ test('phone entry pulls down to a next-day assessment preview, expands upward an
   // The preview keeps the stock identity and its price chart; research detail waits for expansion.
   await expect(page.locator('.entry-price-chart')).toBeVisible();
   await expect(page.locator('.research-plan-card')).toBeHidden();
-  await expect(page.locator('.entry-summary')).toBeHidden();
+  await expect(page.locator('.research-gates')).toBeHidden();
   await expect.poll(async () => {
     const bounds = await dialog.boundingBox();
     return Math.round(bounds.y + bounds.height);
@@ -39,7 +39,7 @@ test('phone entry pulls down to a next-day assessment preview, expands upward an
   expect(cardBounds.y + cardBounds.height).toBeLessThanOrEqual(previewBounds.y + previewBounds.height);
   await swipe(page, page.locator('.entry-dialog-meta'), -120);
   await expect(dialog).not.toHaveAttribute('data-mobile-sheet', 'preview');
-  await expect(page.locator('.entry-summary')).toBeVisible();
+  await expect(page.locator('.research-gates')).toBeVisible();
   await dialog.evaluate(node => { node.scrollTop = 240; });
   await page.locator('.info-dialog-handle').scrollIntoViewIfNeeded();
   await swipe(page, page.locator('.info-dialog-handle'));

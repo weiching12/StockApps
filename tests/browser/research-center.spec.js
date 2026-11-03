@@ -34,7 +34,6 @@ test("research center preserves favorites and opens existing score detail", asyn
   await expect(page.locator(".research-edit")).toHaveCount(0);
   await expect(page.locator("#info-dialog .entry-dialog")).toBeVisible();
   await expect(page.locator(".research-detail")).toHaveCount(0);
-  await expect(page.locator(".entry-summary")).not.toContainText("基礎分數");
   await expect(page.locator("#research-note-form")).toHaveCount(0);
   await expect(page.locator("#dialog-heading")).not.toContainText("株研評分");
 });

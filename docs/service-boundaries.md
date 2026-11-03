@@ -34,13 +34,10 @@ derived cache is cleared; published KV history, D1 research and sync checkpoints
 not part of that storage. Oversized responses remain available without being cached.
 
 Summary DO failures pass through the same awaited API error boundary as other
-services. Research snapshot persistence is ancillary: failure keeps the market
-response available with `meta.researchCapture: "failed"` and `Cache-Control: no-store`,
-and prevents a persistent summary cache entry. Public summaries only check whether
-their exact revision exists; research writes are explicitly enabled only inside the
-serialized sync capture job. Later cron ticks retry persistence, and subsequent
-requests become cacheable once that revision is saved. An existing research
-revision counts as successfully saved. This prevents a delayed public request from
+services. Daily V1.2 research snapshots are no longer written: the summary never
+touches the research store and reports `meta.researchCapture: "not-required"`, so it is
+cacheable from the first request. `"failed"` (with `Cache-Control: no-store`) now only
+marks a corporate-action revision that changed during the read.
 publishing an older generation after a newer capture.
 
 Research API requests use the PWA data cache's network-first policy, not the shell
