@@ -1,12 +1,14 @@
 export function bindResponsiveSearchOrder() {
   const phoneLayout = matchMedia("(max-width: 700px)");
   const searchControls = document.querySelector(".search-controls");
+  const searchBox = document.querySelector(".search-box");
+  // Phones show search above the filter row, so keyboard order must put it first too.
   const arrange = () => {
-    const first = phoneLayout.matches ? document.querySelector("#sector-filter") : document.querySelector(".search-box");
-    if (searchControls.firstElementChild === first) return;
+    const parent = phoneLayout.matches ? searchControls.parentElement : searchControls;
+    if (parent.firstElementChild === searchBox) return;
     const focused = document.activeElement;
-    searchControls.prepend(first);
-    if (first.contains(focused)) focused.focus({ preventScroll: true });
+    parent.prepend(searchBox);
+    if (searchBox.contains(focused)) focused.focus({ preventScroll: true });
   };
   arrange();
   phoneLayout.addEventListener("change", arrange);

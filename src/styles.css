@@ -547,6 +547,7 @@ h1 {
   scrollbar-width: none;
 }
 .filter-tabs::-webkit-scrollbar { display: none; }
+.filter-tabs .filter-chip-research { display: none; }
 .filter-label-mobile,
 .net-column-mobile,
 .net-heading-mobile,
@@ -2959,7 +2960,22 @@ dialog.sector-dialog {
   #stock-rows > tr > :is(.research-cell, .entry-cell) { align-self: center; }
   #stock-rows .research-score-button { flex-direction: row-reverse; align-items: center; justify-content: flex-start; gap: 8px; }
   #stock-rows .research-score-button .research-gate { margin-top: 0; }
-  .search-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  /* Filters: search, one sideways row of quick filters, then industry and sort. */
+  .table-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-items: center; padding: 8px; }
+  .search-controls { display: contents; }
+  .table-toolbar > .search-box { order: 0; grid-column: 1 / -1; width: 100%; max-width: none; min-height: 36px; padding-block: 5px; }
+  .table-toolbar #sector-filter { order: 2; }
+  .table-toolbar #market-sort { order: 3; }
+  .table-toolbar > .filter-tabs { order: 1; grid-column: 1 / -1; width: 100%; justify-content: flex-start; gap: 6px; padding: 0 24px 0 0; border: 0; border-radius: 0; background: transparent;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+  .filter-tabs .segmented-indicator { display: none; }
+  .table-toolbar > .filter-tabs button { flex: none; width: auto; min-height: 32px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-weight: 500; white-space: nowrap; }
+  .table-toolbar > .filter-tabs button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  /* A research chip narrows the list, so 全部 no longer reads as the active choice. */
+  .table-toolbar > .filter-tabs:has(.filter-chip-research[aria-pressed="true"]) button[data-view="all"] { border-color: var(--border); background: transparent; color: var(--muted); }
+  .table-toolbar > .filter-tabs .filter-chip-research { display: inline-flex; align-items: center; }
+  #market-research-filter { display: none; }
+  .table-toolbar :is(#sector-filter, #market-sort) { width: 100%; max-width: none; min-height: 34px; padding-block: 5px; }
 }
 @media (max-width: 359px) {
   /* Too narrow for the longest status and veto on one line: stack score and gate instead. */

@@ -61,13 +61,15 @@ test("filter keyboard order follows the visible order at phone and desktop width
   await page.goto("/");
   for (const width of [390, 1440, 390]) {
     await page.setViewportSize({ width, height: 844 });
-    const first = page.locator(width <= 700 ? "#sector-filter" : "#stock-search");
-    const second = page.locator(width <= 700 ? "#stock-search" : "#sector-filter");
+    const first = page.locator("#stock-search");
+    const second = page.locator(width <= 700 ? '[data-view="all"]' : "#sector-filter");
     await first.focus();
     await page.keyboard.press("Tab");
     await expect(second).toBeFocused();
     const firstRect = await first.boundingBox(), secondRect = await second.boundingBox();
-    expect(firstRect.x).toBeLessThan(secondRect.x);
+    // Phones stack search above the filter row; desktop keeps them side by side.
+    if (width <= 700) expect(firstRect.y).toBeLessThan(secondRect.y);
+    else expect(firstRect.x).toBeLessThan(secondRect.x);
   }
 });
 

@@ -601,6 +601,12 @@ async function openEntryScoreDialog(symbol, focusClose = true) {
   }
 }
 
+/** The desktop menu and the phone chips edit one filter, whichever layout is showing. */
+function setResearchFilter(value) {
+  state.research = value;
+  document.querySelector("#market-research-filter").value = value;
+}
+
 function resetFilters() {
   state.query = "";
   state.sector = "all";
@@ -917,8 +923,16 @@ function bindEvents() {
       );
     }
     if (button.dataset.view) {
-      state.view = button.dataset.view;
+      // The phone row works as toggles: tapping the active chip or 全部 clears it.
+      const phone = matchMedia("(max-width: 700px)").matches;
+      state.view = phone && state.view === button.dataset.view ? "all" : button.dataset.view;
+      if (phone && button.dataset.view === "all") setResearchFilter("all");
       renderTable();
+    }
+    if (button.dataset.researchChip) {
+      setResearchFilter(state.research === button.dataset.researchChip ? "all" : button.dataset.researchChip);
+      renderTable();
+      button.scrollIntoView({ inline: "nearest", block: "nearest" });
     }
     if (button.dataset.sort) {
       state.sortDirection =
@@ -951,7 +965,7 @@ function bindEvents() {
       renderTable();
     });
   document.querySelector("#market-research-filter").addEventListener("change", (event) => {
-    state.research = event.target.value;
+    setResearchFilter(event.target.value);
     renderTable();
   });
   document.querySelector("#market-sort").addEventListener("change", (event) => {

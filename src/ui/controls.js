@@ -1,7 +1,8 @@
 export function createControlsController() {
   const updateSegmented = (group) => {
     if (!group?.getClientRects().length) return;
-    const selected = group.querySelector('button[aria-pressed="true"]');
+    // Skip pressed buttons this layout hides, such as the phone-only research chips.
+    const selected = [...group.querySelectorAll('button[aria-pressed="true"]')].find((button) => button.getClientRects().length);
     if (!selected) return;
     const bounds = selected.getBoundingClientRect();
     group.style.setProperty("--segment-left", `${bounds.left - group.getBoundingClientRect().left - group.clientLeft + group.scrollLeft}px`);
