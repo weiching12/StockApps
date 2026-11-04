@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { compareResearchSnapshots, researchSnapshot, RESEARCH_CHANGE_THRESHOLD } from "../shared/research-tracking.js";
-import { addResearchPeriod, activeResearchPeriod, loadResearchStore, persistResearchStore, recordFirstValidSnapshot, removeResearchPeriod } from "../src/ui/research-store.js";
+import { addResearchPeriod, activeResearchPeriod, loadResearchStore, persistResearchStore, removeResearchPeriod } from "../src/ui/research-store.js";
 
 const keys = ["trend", "momentum", "priceVolume", "institutional", "entryRisk"];
 const weights = { trend: 25, momentum: 15, priceVolume: 15, institutional: 20, entryRisk: 25 };
@@ -88,8 +88,6 @@ test("legacy favorites keep unknown original time; removing and readding starts 
   assert.notEqual(next.id, legacy.id);
   assert.equal(next.addedSnapshot.finalScore, null);
   assert.equal(next.firstValidSnapshot, null);
-  recordFirstValidSnapshot(store, "2330", snap({}, "2026-10-27"));
-  assert.equal(next.firstValidSnapshot.asOf, "2026-10-27");
   assert.equal(next.addedSnapshot.valid, false);
   assert.equal(persistResearchStore(adapter, store), true);
   assert.equal(loadResearchStore(adapter, ["2330"]).periods.length, 2);
