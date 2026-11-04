@@ -51,7 +51,7 @@ export function researchListCells(stock, esc, number) {
   const summary = researchSummaryOf(stock);
   const score = Number.isFinite(summary?.score) ? number(summary.score, 0) : "—";
   const gateTone = summary?.gateStatus === "PASS" ? "pass" : summary?.gateStatus === "FAIL" ? "fail" : "unknown";
-  const readiness = `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><strong>${score}</strong><small class="research-gate ${gateTone}">${esc(gateText(summary))}</small></button>`;
+  const readiness = `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><strong>${score}</strong></button><small class="research-gate ${gateTone}">${esc(gateText(summary))}</small>`;
   const status = summary?.status, next = summary?.nextDayStatus;
   // Everything here concerns the next session, and the chip already covers every status
   // without a plan, so the line only appears for a triggered signal; hover has the full wording.
@@ -162,7 +162,7 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
 
   const reasons = research.status === "TRIGGERED" ? research.triggeredConditions : gate.status !== "PASS" ? gate.reasons : research.pendingConditions;
   const risks = research.riskWarnings.filter((warning) => !quality.warnings.includes(warning));
-  const card = `<section class="research-plan-card ${NEXT_TONE[plan.status] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估 · 依 ${esc(plan.planAsOf)} 收盤</p><div class="research-plan-head"><h3 id="research-plan-title">${esc(plan.label)}</h3>${NEXT_EXPLANATION[plan.status] ? `<details class="research-plan-help"><summary aria-label="${esc(plan.label)}的說明"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg></summary><p role="note">${esc(NEXT_EXPLANATION[plan.status])}</p></details>` : ""}</div><dl class="research-plan-facts"><div><dt>進場準備度</dt><dd>${Number.isFinite(research.score) ? `${number(research.score, 0)} / 100` : "—"}</dd></div><div><dt>初步門檻</dt><dd>${gateSummary(gate, result.modelVersion)}</dd></div><div><dt>進場策略</dt><dd>${esc(research.setupLabel ?? "—")}</dd></div></dl>
+  const card = `<section class="research-plan-card ${NEXT_TONE[plan.status] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估</p><div class="research-plan-head"><h3 id="research-plan-title">${esc(plan.label)}</h3>${NEXT_EXPLANATION[plan.status] ? `<details class="research-plan-help"><summary aria-label="${esc(plan.label)}的說明"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg></summary><p role="note">${esc(NEXT_EXPLANATION[plan.status])}</p></details>` : ""}</div><dl class="research-plan-facts"><div><dt>進場準備度</dt><dd>${Number.isFinite(research.score) ? `${number(research.score, 0)} / 100` : "—"}</dd></div><div><dt>初步門檻</dt><dd>${gateSummary(gate, result.modelVersion)}</dd></div><div><dt>進場策略</dt><dd>${esc(research.setupLabel ?? "—")}</dd></div></dl>
     <details class="research-reasons"><summary>${research.status === "TRIGGERED" ? "主要成立原因" : "目前狀態原因"}</summary>${items(reasons, esc, "沒有額外說明。")}${risks.length ? `<h4>主要風險</h4>${items(risks, esc, "")}` : ""}${plan.conditionsToConfirm.length ? `<h4>明日需確認</h4>${items(plan.conditionsToConfirm, esc, "")}` : ""}</details>
 </section>`;
 
@@ -205,9 +205,10 @@ const validityText = (sessions) => sessions === 1 ? "僅訊號日當天" : `觸�
  */
 function signalRules(research, signal, esc) {
   const validity = signal?.validSessions ?? ENTRY_RESEARCH_MODEL.signal.validSessions;
-  const how = `<p class="research-signal-how">判定方式：系統每個交易日收盤後檢查下列兩種型態。「形成條件」全部成立代表型態已出現；之後「觸發條件」也全部成立的那一天就是訊號日（進場訊號已觸發）。${validity === 1
-    ? "訊號只在訊號日當天有效：當晚依收盤產生明日進場候選，下一個交易日起為「訊號已過期」，需等待新的訊號；之後收盤跌破策略失效價則標示為「訊號失效」。"
-    : `訊號自訊號日起 ${validity} 個交易日內有效，超過為「訊號已過期」；有效期間內收盤跌破策略失效價則為「訊號失效」。`}</p>`;
+  const steps = ["系統每個交易日收盤後，檢查下列兩種型態。", "「形成條件」全部成立，代表型態已出現。", "之後「觸發條件」也全部成立的那一天就是訊號日（進場訊號已觸發）。", ...(validity === 1
+    ? ["訊號只在訊號日當天有效：當晚依收盤產生明日進場候選。", "下一個交易日起為「訊號已過期」，需等待新的訊號。", "之後收盤跌破策略失效價，標示為「訊號失效」。"]
+    : [`訊號自訊號日起 ${validity} 個交易日內有效，超過為「訊號已過期」。`, "有效期間內收盤跌破策略失效價，標示為「訊號失效」。"])];
+  const how = `<details class="research-plan-help research-signal-how"><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>判定方式</summary><ol role="note">${steps.map((step) => `<li>${step}</li>`).join("")}</ol></details>`;
   const setups = (research.setups ?? []).map((today) => {
     const fromSignal = signal?.setupType === today.setupType;
     const checks = fromSignal ? signal.checks : today.checks;

@@ -731,6 +731,25 @@ h1 {
 .entry-price-chart.hide-volume .entry-chart-bars { display: none; }
 .entry-chart-dates { padding-left: 58px; }
 .entry-chart-dates { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+/* One line split into the three institutions' volumes, under a heading with their net amount. */
+.entry-price-chart { --foreign-tone: #2a78d6; --trust-tone: #c47f00; --dealer-tone: #8a5cd6; }
+[data-theme="dark"] .entry-price-chart { --foreign-tone: #4a90e8; --trust-tone: #bd8118; --dealer-tone: #9a78e8; }
+/* The left padding skips the price scale, so the block starts at the first volume bar. */
+.entry-institution-bar { margin-top: 12px; padding-left: 48px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.entry-institution-bar .foreign { --line-tone: var(--foreign-tone); }
+.entry-institution-bar .trust { --line-tone: var(--trust-tone); }
+.entry-institution-bar .dealer { --line-tone: var(--dealer-tone); }
+.entry-institution-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.entry-institution-track { display: flex; gap: 2px; height: 6px; margin: 4px 0 6px; overflow: hidden; border-radius: 3px; background: var(--border); }
+.entry-institution-track i { flex: 0 1 0; min-width: 0; background: var(--line-tone); }
+.entry-institution-net { flex: none; }
+.entry-institution-bar b { color: var(--ink); font-weight: 600; }
+.entry-institution-net b { font-size: 14px; }
+.entry-institution-net b.up { color: var(--up); }
+.entry-institution-net b.down { color: var(--down); }
+.entry-institution-legend { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.entry-institution-legend span { white-space: nowrap; }
+.entry-institution-legend span::before { display: inline-block; width: 6px; height: 6px; margin-right: 4px; border-radius: 50%; vertical-align: 1px; background: var(--line-tone); content: ""; }
 .sector-stock-table [data-sector-target] > :is(th, td) { background: var(--accent-soft); }
 .entry-disclaimer { margin-top: 22px; }
 .price-column { width: 135px; }
@@ -2893,7 +2912,12 @@ dialog.sector-dialog {
 .research-column { width: 132px; }
 .research-cell { min-width: 0; }
 .research-score-button strong { font-size: var(--text-body); font-variant-numeric: tabular-nums; }
-.research-gate { display: block; margin-top: 2px; font-size: var(--text-meta); white-space: nowrap; color: var(--muted); }
+/* The score sits directly above its gate result; the whole row opens the same dialog. */
+.research-score-button { display: flex; width: fit-content; margin-left: auto; }
+.table-scroll .research-score-button { min-height: 0; }
+.table-scroll .research-gate { padding-right: 6px; }
+/* Flex so a veto wider than its column overflows left, past the free space, rather than off the right edge. */
+.research-gate { display: flex; justify-content: flex-end; margin-top: 1px; font-size: var(--text-meta); line-height: 1.5; letter-spacing: 0; white-space: nowrap; color: var(--muted); }
 .research-gate.pass { color: var(--accent); }
 .research-gate.unknown { color: #a16207; }
 .research-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: var(--text-meta); font-weight: 500; line-height: 1.5; white-space: nowrap; background: #eef2f7; color: #475569; }
@@ -2921,8 +2945,8 @@ dialog.sector-dialog {
   .table-scroll { overflow-x: visible; }
   .table-scroll table, .table-scroll tbody { display: block; width: 100%; min-width: 0; }
   .table-scroll colgroup, .table-scroll thead { display: none; }
-  #stock-rows > tr { display: grid; grid-template-columns: var(--table-favorite-width) minmax(0, 1fr) auto;
-    grid-template-areas: "favorite stock price" ". research readiness" ". extras extras"; align-items: center; column-gap: 8px; row-gap: 6px;
+  #stock-rows > tr { display: grid; grid-template-columns: var(--table-favorite-width) minmax(0, 1fr) auto auto;
+    grid-template-areas: "favorite stock gate gate" ". price research readiness" ". extras extras extras"; align-items: center; column-gap: 8px; row-gap: 6px;
     padding: 10px 12px 10px 4px; border-bottom: 1px solid var(--border); }
   #stock-rows > tr > :is(td, th) { position: static; height: auto; min-height: 0; padding: 0; border: 0;
     background: transparent; box-shadow: none; }
@@ -2930,9 +2954,9 @@ dialog.sector-dialog {
   :is(#market-research-filter, #market-sort) { width: 100%; max-width: none; min-height: 34px; padding-block: 5px; font-size: var(--text-meta); }
   #stock-rows > tr > td:first-child { grid-area: favorite; width: auto; min-width: 0; max-width: none; }
   #stock-rows > tr > th { grid-area: stock; }
-  #stock-rows > tr > .entry-cell { grid-area: readiness; text-align: right; }
+  #stock-rows > tr > .entry-cell { display: contents; }
   #stock-rows > tr > .research-cell { grid-area: research; }
-  #stock-rows > tr > :nth-child(5) { grid-area: price; text-align: right; }
+  #stock-rows > tr > :nth-child(5) { grid-area: price; text-align: left; }
   #stock-rows > tr > :nth-child(n+6) { display: none; }
   /* Indicator chips: one row that scrolls sideways inside the card. */
   #stock-rows > tr > td.mobile-extras { display: block; grid-area: extras; min-width: 0; text-align: left; }
@@ -2945,21 +2969,21 @@ dialog.sector-dialog {
   .mobile-chip.down { color: var(--down); }
   [data-theme="dark"] .mobile-chip { background: #0d1726; }
   #stock-rows > tr.initial-field-row { display: flex; gap: 12px; }
-  #stock-rows .research-score-button { min-height: 44px; width: auto; align-items: flex-end; }
   #stock-rows .research-next { overflow-wrap: anywhere; }
   .table-scroll .stock-name { flex-direction: row; align-items: baseline; gap: 6px; }
-  /* Card head: code and name share one style; price and change share one line. */
+  /* Card head: code and name share one style; price and change share the line below them. */
   #stock-rows .stock-name > span { color: var(--ink); font-size: inherit; font-weight: 600; letter-spacing: 0; line-height: inherit; }
-  #stock-rows .stock-price-line { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
+  #stock-rows .stock-price-line { display: inline-flex; align-items: center; justify-content: flex-start; gap: 6px; white-space: nowrap; }
   #stock-rows .stock-close { font-weight: 600; font-variant-numeric: tabular-nums; }
   #stock-rows > tr { align-items: start; }
-  #stock-rows > tr > :is(td:first-child, th, .price-cell) { align-self: center; }
+  #stock-rows > tr > :is(td:first-child, th) { align-self: center; }
   #stock-rows > tr > td:first-child .favorite-button { margin-block: -10px; }
-  #stock-rows > tr > .research-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-  /* Status on the left; gate result and score read as one line on the right. */
-  #stock-rows > tr > :is(.research-cell, .entry-cell) { align-self: center; }
-  #stock-rows .research-score-button { flex-direction: row-reverse; align-items: center; justify-content: flex-start; gap: 8px; }
-  #stock-rows .research-score-button .research-gate { margin-top: 0; }
+  #stock-rows > tr > .research-cell { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+  /* Right side of the card: gate result on the name's line, status and score below it, level with the price. */
+  #stock-rows .research-gate { grid-area: gate; align-self: center; justify-self: end; margin-top: 0; padding-right: 0; }
+  #stock-rows > tr > .price-cell { align-self: start; display: flex; align-items: center; min-height: 22px; }
+  /* The 44px target reaches past the 22px line it shares with the status chip. */
+  #stock-rows .research-score-button { grid-area: readiness; align-self: start; justify-self: end; width: auto; min-height: 44px; margin-block: -11px; }
   /* Filters: search, one sideways row of quick filters, then industry and sort. */
   .table-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-items: center; padding: 8px; }
   .search-controls { display: contents; }
@@ -2978,9 +3002,8 @@ dialog.sector-dialog {
   .table-toolbar :is(#sector-filter, #market-sort) { width: 100%; max-width: none; min-height: 34px; padding-block: 5px; }
 }
 @media (max-width: 359px) {
-  /* Too narrow for the longest status and veto on one line: stack score and gate instead. */
-  #stock-rows .research-score-button { flex-direction: column; align-items: flex-end; gap: 0; }
-  #stock-rows .research-score-button .research-gate { margin-top: 2px; }
+  /* Too narrow for price, the longest status and the score on one line: the status drops below. */
+  #stock-rows > tr { grid-template-areas: "favorite stock gate gate" ". price price readiness" ". research research research" ". extras extras extras"; }
 }
 
 /* Score dialog: research sections come before the chart and the legacy V1.2 detail. */
@@ -3005,6 +3028,9 @@ dialog.sector-dialog {
 [data-theme="dark"] .research-plan-help > p { background: #111b2b; }
 .research-plan-card > p { margin: 0 0 10px; font-size: var(--text-secondary); line-height: 1.65; }
 .research-eyebrow { margin: 0; color: var(--muted); font-size: var(--text-meta) !important; }
+/* The label names the card from its top-right corner; a long status wraps before reaching it. */
+.research-plan-card > .research-eyebrow { position: absolute; top: 12px; right: 12px; margin: 0; white-space: nowrap; }
+.research-plan-card > :is(.research-plan-head, h3) { padding-right: 84px; }
 /* All facts share one row, however many the card has. */
 .research-plan-facts { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin: 0 0 10px; }
 .research-plan-facts div { display: grid; gap: 2px; }
@@ -3231,7 +3257,12 @@ dialog.sector-dialog {
 }
 
 /* Signal analysis: how signals are judged, then both patterns with every condition. */
-.research-signal-how { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--surface); color: var(--muted); font-size: var(--text-meta); line-height: 1.7; }
+/* Opens as a message like the next-day explanation, numbered so the steps read one at a time. */
+.research-signal { position: relative; }
+.research-signal-how { margin: 6px 0 0; }
+.research-signal-how > summary { display: inline-flex; align-items: center; gap: 4px; width: auto; height: 32px; margin-left: -8px; padding: 0 10px 0 8px; border-radius: 999px; font-size: var(--text-meta); }
+.research-signal-how > ol { position: absolute; z-index: 2; left: 12px; right: 12px; margin: 6px 0 0; padding: 10px 12px 10px 30px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--ink); font-size: var(--text-secondary); line-height: 1.65; box-shadow: 0 8px 24px rgba(15, 23, 42, .12); }
+.research-signal-how li + li { margin-top: 4px; }
 .research-setups { display: grid; gap: 8px; margin-top: 10px; }
 .research-setup { border: 1px solid var(--border); border-radius: 10px; }
 .research-setup > summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; padding: 10px 12px; cursor: pointer; }
@@ -3252,4 +3283,4 @@ dialog.sector-dialog {
 [data-theme="dark"] .research-checks li.met > span { color: #5eead4; }
 [data-theme="dark"] .research-checks li.unmet > span { color: #f3a6ad; }
 [data-theme="dark"] .research-setup-state.neutral { color: #f5c66b; }
-[data-theme="dark"] .research-signal-how { background: #0d1726; }
+[data-theme="dark"] .research-signal-how > ol { background: #111b2b; }

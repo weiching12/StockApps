@@ -64,8 +64,18 @@ test("the market list names the first triggered veto", async ({ page }) => {
 test("signal analysis explains how signals are judged and lists both patterns with every condition", async ({ page }) => {
   await openStock(page, "2330");
   const section = page.locator("#info-dialog .research-signal");
-  await expect(section.locator(".research-signal-how")).toContainText("形成條件");
-  await expect(section.locator(".research-signal-how")).toContainText("只在訊號日當天有效");
+  // The judging steps open as a numbered message from the 判定方式 button and close on an outside tap.
+  const how = section.locator(".research-signal-how");
+  await expect(how.locator("summary")).toHaveText("判定方式");
+  await expect(how.locator("summary svg")).toBeVisible();
+  await expect(how.locator("ol")).toBeHidden();
+  await how.locator("summary").click();
+  await expect(how.locator("ol")).toBeVisible();
+  await expect(how.locator("li")).toHaveCount(6);
+  await expect(how.locator("li").nth(1)).toContainText("形成條件");
+  await expect(how.locator("li").nth(3)).toContainText("只在訊號日當天有效");
+  await section.locator("h3").click();
+  await expect(how.locator("ol")).toBeHidden();
   const setups = section.locator(".research-setup");
   await expect(setups.locator("summary strong")).toHaveText(["順勢回踩恢復", "整理區間向上突破"]);
   // An earlier signal is shown as judged on its signal day; the other pattern on today's close.
@@ -91,6 +101,66 @@ test("the next-day explanation opens as a message from the info icon and closes 
   await expect(message).not.toBeEmpty();
   await page.locator("#info-dialog .research-gates h3").click();
   await expect(message).toBeHidden();
+});
+
+test("the next-day label sits alone in the card's top-right corner, clear of the status", async ({ page }) => {
+  for (const width of [320, 390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await openStock(page, "2330");
+    const card = page.locator("#info-dialog .research-plan-card");
+    const label = card.locator(".research-eyebrow");
+    await expect(label).toHaveText("明日進場評估");
+    const [cardBox, labelBox, title] = await Promise.all([card.boundingBox(), label.boundingBox(), card.locator("h3").evaluate((heading) => {
+      const range = document.createRange();
+      range.selectNodeContents(heading);
+      return range.getBoundingClientRect().right;
+    })]);
+    expect(cardBox.x + cardBox.width - (labelBox.x + labelBox.width)).toBeLessThan(20);
+    expect(labelBox.y - cardBox.y).toBeLessThan(20);
+    expect(title).toBeLessThan(labelBox.x);
+  }
+});
+
+test("one institution line sits right under the chart dates at the plot's width, split in three colors with the net amount beside its heading", async ({ page }) => {
+  for (const width of [320, 390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await openStock(page, "2330");
+    const bar = page.locator("#info-dialog .entry-institution-bar");
+    await expect(bar.locator(".entry-institution-net")).toHaveText(/^淨買賣 [+-]?[\d,.]+ (億|萬)$/);
+    await expect(bar.locator(".entry-institution-legend span")).toHaveText([/^外資 [\d,]+ 張$/, /^投信 [\d,]+ 張$/, /^自營商 [\d,]+ 張$/]);
+    const layout = await bar.evaluate((element) => {
+      const box = (node) => node.getBoundingClientRect();
+      const track = element.querySelector(".entry-institution-track");
+      const parts = [...track.children];
+      const net = box(element.querySelector(".entry-institution-net")), title = box(element.querySelector(".entry-institution-head > span"));
+      return { below: box(element).top - box(element.previousElementSibling).bottom, previous: element.previousElementSibling.className,
+        netMiddleGap: Math.abs(net.top + net.height / 2 - (title.top + title.height / 2)), titleRight: title.right, netLeft: net.left, netRight: net.right,
+        trackLeft: box(track).left, trackRight: box(track).right,
+        // Measured together: the desktop drawer may still be sliding in.
+        firstBarLeft: box(element.parentElement.querySelector(".entry-chart-volume")).left, plotRight: box(element.parentElement.querySelector(".entry-chart-plot")).right,
+        widths: parts.map((part) => box(part).width), colors: parts.map((part) => getComputedStyle(part).backgroundColor) };
+    });
+    // The line spans the same width as the trend plot, from its first bar to its right edge.
+    expect(Math.abs(layout.trackLeft - layout.firstBarLeft)).toBeLessThan(3);
+    expect(Math.abs(layout.trackRight - layout.plotRight)).toBeLessThan(2);
+    expect(layout.previous).toBe("entry-chart-dates");
+    expect(layout.below).toBeLessThan(20);
+    // The net amount shares the heading's line, flush with the line's right end.
+    expect(layout.netMiddleGap).toBeLessThan(4);
+    expect(layout.titleRight).toBeLessThanOrEqual(layout.netLeft);
+    expect(Math.abs(layout.netRight - layout.trackRight)).toBeLessThan(2);
+    expect(new Set(layout.colors).size).toBe(3);
+    layout.widths.forEach((partWidth) => expect(partWidth).toBeGreaterThan(0));
+  }
+  // The line follows the day selected on the price chart, then returns to the latest session.
+  const bar = page.locator("#info-dialog .entry-institution-bar");
+  const latestNet = await bar.locator(".entry-institution-net b").textContent();
+  const box = await page.locator("#info-dialog .entry-chart-plot svg").boundingBox();
+  await page.mouse.move(box.x + 12, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(bar.locator(".entry-institution-net b")).not.toHaveText(latestNet);
+  await page.mouse.up();
+  await expect(bar.locator(".entry-institution-net b")).toHaveText(latestNet);
 });
 
 test("plan levels on the chart start hidden and open from a toggle; the signal day is not marked", async ({ page }) => {

@@ -753,15 +753,15 @@ function bindEvents() {
           plot.focus({ preventScroll: true });
           selectEntryChartPoint(plot, chartIndexAt(plot, x), number);
         }
-        restoreEntryChartTitle(plot);
+        restoreEntryChartTitle(plot, number);
         return;
       }
       const plot = event.target.closest(".entry-chart-plot");
-      if (plot) restoreEntryChartTitle(plot);
+      if (plot) restoreEntryChartTitle(plot, number);
     });
   document.addEventListener("focusout", (event) => {
     const plot = event.target.closest(".entry-chart-plot");
-    if (plot) restoreEntryChartTitle(plot);
+    if (plot) restoreEntryChartTitle(plot, number);
   });
   document.addEventListener("keydown", (event) => {
     const plot = event.target.closest(".entry-chart-plot");

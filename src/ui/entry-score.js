@@ -12,6 +12,38 @@ const chartChange = (value) => Number.isFinite(value)
 const chartReadout = (point, number) =>
   `${point.date} · ${Number.isFinite(point.close) ? `收盤 ${number(point.close, 2)}` : "無收盤價"}`;
 
+const INSTITUTION_LINES = [["foreign", "外資"], ["trust", "投信"], ["dealer", "自營商"]];
+const lotsText = (shares, number) => Number.isFinite(shares) ? `${number(shares / 1000)} 張` : "—";
+
+// Net shares at the session's close, so an estimate rather than the traded amount. A missing
+// institution or close leaves it unknown rather than understating it.
+function institutionMix(point, number) {
+  const volumes = INSTITUTION_LINES.map(([key]) => point[`${key}Volume`]);
+  const amount = Number.isFinite(point.institutionalNet) && Number.isFinite(point.close) ? point.institutionalNet * point.close : null;
+  const size = Math.abs(amount);
+  const money = amount === null ? "—" : `${amount > 0 ? "+" : amount < 0 ? "-" : ""}${size >= 1e8 ? `${number(size / 1e8, 2)} 億` : `${number(size / 1e4)} 萬`}`;
+  return { volumes, complete: volumes.every(Number.isFinite), money, tone: amount > 0 ? "up" : amount < 0 ? "down" : "" };
+}
+
+function institutionBarMarkup(point, number) {
+  const { volumes, complete, money, tone } = institutionMix(point, number);
+  return `<div class="entry-institution-bar"><div class="entry-institution-head"><span>三大法人交易量</span><span class="entry-institution-net" title="淨買賣股數 × 當日收盤價，屬估算">淨買賣 <b class="${tone}">${money}</b></span></div>
+    <div class="entry-institution-track" title="三大法人買進＋賣出股數的比例">${INSTITUTION_LINES.map(([key], index) => `<i class="${key}" style="flex-grow:${complete ? volumes[index] : 0}"></i>`).join("")}</div>
+    <div class="entry-institution-legend">${INSTITUTION_LINES.map(([key, label], index) => `<span class="${key}" data-institution="${key}">${label} <b>${lotsText(volumes[index], number)}</b></span>`).join("")}</div></div>`;
+}
+
+/** Point the institution line at one session; the chart header above names the day. */
+function showInstitutionPoint(chart, point, number) {
+  const { volumes, complete, money, tone } = institutionMix(point, number);
+  const net = chart.querySelector(".entry-institution-net b");
+  net.textContent = money;
+  net.className = tone;
+  INSTITUTION_LINES.forEach(([key], index) => {
+    chart.querySelector(`.entry-institution-track .${key}`).style.flexGrow = complete ? volumes[index] : 0;
+    chart.querySelector(`[data-institution="${key}"] b`).textContent = lotsText(volumes[index], number);
+  });
+}
+
 function priceChartMarkup(stock, esc, number, series, marks = null) {
   const heading = '<h3>30 個交易日走勢圖</h3>';
   if (!series.length) return `<section class="entry-price-chart">${heading}<p>走勢資料載入中…</p></section>`;
@@ -77,7 +109,7 @@ function priceChartMarkup(stock, esc, number, series, marks = null) {
     <div class="entry-chart-plot" role="slider" tabindex="0" aria-label="${esc(stock.symbol)}近 ${series.length} 個交易日收盤價；點選圖表查看，觸控長按後左右滑動，鍵盤可用方向鍵" aria-orientation="horizontal" aria-valuemin="1" aria-valuemax="${series.length}" aria-valuenow="${series.length}" aria-valuetext="${esc(readout)}" data-index="${series.length - 1}" data-points="${esc(JSON.stringify(series))}"><svg viewBox="0 0 600 210" preserveAspectRatio="none" aria-hidden="true">
       <line x1="8" y1="16" x2="592" y2="16"/><line x1="8" y1="78" x2="592" y2="78"/><line x1="8" y1="140" x2="592" y2="140"/><line x1="8" y1="197" x2="592" y2="197"/>
       <path class="entry-chart-close" d="${path.trim()}"/><path class="entry-chart-ma20" d="${ma20Path.trim()}"/><path class="entry-chart-ma" d="${ma60Path.trim()}"/>${planSvg}<g class="entry-chart-bars">${bars}</g><g class="entry-chart-points">${dots}</g><line class="entry-chart-cursor" x1="${x(series.length - 1).toFixed(1)}" x2="${x(series.length - 1).toFixed(1)}" y1="16" y2="197"/></svg>${planLabels}</div></div>
-    <div class="entry-chart-dates"><span>${esc(series[0].date)}</span><span>${esc(last.date)}</span></div>${planToggle}</section>`;
+    <div class="entry-chart-dates"><span>${esc(series[0].date)}</span><span>${esc(last.date)}</span></div>${institutionBarMarkup(last, number)}${planToggle}</section>`;
 }
 
 export function selectEntryChartPoint(plot, index, number) {
@@ -103,12 +135,15 @@ export function selectEntryChartPoint(plot, index, number) {
   cursor.setAttribute("x2", x.toFixed(1));
   plot.querySelector(".entry-chart-points .selected")?.classList.remove("selected");
   plot.querySelector(`.entry-chart-points [data-index="${selected}"]`)?.classList.add("selected");
+  showInstitutionPoint(chart, point, number);
 }
 
-export function restoreEntryChartTitle(plot) {
+export function restoreEntryChartTitle(plot, number) {
   const chart = plot.closest(".entry-price-chart");
   chart.querySelector(".entry-chart-default").hidden = false;
   chart.querySelector(".entry-chart-readout").hidden = true;
+  // Back to the latest session, matching the title.
+  showInstitutionPoint(chart, JSON.parse(plot.dataset.points).at(-1), number);
 }
 export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = false, icon = () => "") {
   const score = stock.entryScore;

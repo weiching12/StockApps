@@ -70,10 +70,20 @@ test("daily close series preserves missing market days and excludes later prices
   const series = dailyCloseSeries(history, dates, dates[30]);
   assert.equal(series.length, 30);
   assert.deepEqual(series.find((point) => point.date === dates[10]),
-    { date: dates[10], close: null, volume: null, ma20: null, ma60: null,
-      k: null, d: null, changePercent: null });
+    { date: dates[10], close: null, volume: null, foreignVolume: null, trustVolume: null, dealerVolume: null, institutionalNet: null,
+      ma20: null, ma60: null, k: null, d: null, changePercent: null });
   assert.equal(series.at(-1).date, dates[30]);
   assert.ok(series.every((point) => point.date <= dates[30]));
+});
+
+test("daily series reports each institution's buys plus sells and keeps unknown rows null", async () => {
+  const { dailyCloseSeries } = await import("../shared/price-history.js");
+  const dates = ["2026-07-01"];
+  const at = (institutions) => dailyCloseSeries([{ date: dates[0], close: 100, volume: 1000, institutions }], dates, dates[0])[0];
+  const full = at([{ name: "外資", buy: 300, sell: 100 }, { name: "投信", buy: 0, sell: 0 }, { name: "自營商", buy: 5, sell: 20 }]);
+  assert.deepEqual([full.foreignVolume, full.trustVolume, full.dealerVolume, full.institutionalNet], [400, 0, 25, 185]);
+  const partial = at([{ name: "外資", buy: 300, sell: null }, { name: "投信", buy: 1, sell: 2 }, { name: "投信", buy: 1, sell: 2 }]);
+  assert.deepEqual([partial.foreignVolume, partial.trustVolume, partial.dealerVolume, partial.institutionalNet], [null, null, null, null]);
 });
 
 test("analysis parameter validation follows frontend bounds", () => {
