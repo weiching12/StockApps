@@ -51,20 +51,6 @@ export function removeResearchPeriod(store, symbol, now = new Date().toISOString
   return period;
 }
 
-export function recordFirstValidSnapshot(store, symbol, snapshot) {
-  const period = activeResearchPeriod(store, symbol);
-  if (period && !period.firstValidSnapshot && snapshot?.valid && snapshot.capturedAt >= period.startedAt)
-    { period.firstValidSnapshot = snapshot; period.firstValidSnapshotId = snapshot.id; }
-  return period;
-}
-
-export function recordFirstValidPriceBaseline(store, symbol, baseline) {
-  const period = activeResearchPeriod(store, symbol);
-  if (period && !period.baseline && !period.firstValidPriceBaseline && baseline?.close > 0)
-    period.firstValidPriceBaseline = baseline;
-  return period;
-}
-
 export function persistResearchStore(storage, store) {
   for (const period of store.periods) {
     delete period.reason;
