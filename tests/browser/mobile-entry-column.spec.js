@@ -5,7 +5,7 @@ test("phone research cards keep readiness, gates and status inside each card in 
   await expect(page.locator("#stock-rows .entry-score-button").first()).toBeVisible();
   // Longest labels the cells can show.
   const statuses = ["進場訊號已觸發", "未通過初步門檻", "訊號失效", "資料不足"];
-  const nextDays = ["明日進場候選 · 整理區間向上突破", "明日：價格超出容許範圍 · 順勢回踩恢復", "明日：尚無進場計畫"];
+  const nextDays = ["進場候選 · 區間突破", "價格過高 · 回踩恢復", "資料不足"];
   for (const theme of ["light", "dark"]) {
     await page.evaluate((theme) => { document.documentElement.dataset.theme = theme; }, theme);
     for (const width of [320, 360, 390, 430, 520, 700]) {

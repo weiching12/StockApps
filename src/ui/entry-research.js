@@ -24,6 +24,8 @@ const STATUS_TONE = { TRIGGERED: "positive", WAIT_TRIGGER: "neutral", SIGNAL_EXP
   DATA_INSUFFICIENT: "muted", NOT_ELIGIBLE: "muted" };
 const NEXT_TONE = { NEXT_DAY_CANDIDATE: "positive", WAIT_TRIGGER: "neutral", PRICE_TOO_HIGH: "warning",
   PLAN_INVALIDATED: "negative", DATA_INSUFFICIENT: "muted", NOT_ELIGIBLE: "muted" };
+const NEXT_SHORT = { NEXT_DAY_CANDIDATE: "進場候選", PRICE_TOO_HIGH: "價格過高", DATA_INSUFFICIENT: "資料不足" };
+const SETUP_SHORT = { PULLBACK_RECOVERY: "回踩恢復", RANGE_BREAKOUT: "區間突破" };
 const DATA_LABELS = { close: "收盤價", ma20: "MA20", ma60: "MA60", previousMa20: "前日 MA20", previousMa60: "前日 MA60",
   k: "K", d: "D", previousK: "前日 K", dayBeforeK: "前二日 K", changePercent: "漲跌幅 %", rvol20: "RVOL20",
   institutionalNet5: "近五日法人淨額（股）", deviation20: "MA20 乖離 %", previous10Low: "前十日最低價", atr14: "ATR14",
@@ -51,12 +53,13 @@ export function researchListCells(stock, esc, number) {
   const gateTone = summary?.gateStatus === "PASS" ? "pass" : summary?.gateStatus === "FAIL" ? "fail" : "unknown";
   const readiness = `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><strong>${score}</strong><small class="research-gate ${gateTone}">${esc(gateText(summary))}</small></button>`;
   const status = summary?.status, next = summary?.nextDayStatus;
-  // The next-day line only adds information beyond the status chip.
-  const nextLabel = NEXT_DAY_STATUS_LABELS[next] ?? "—";
-  const nextText = next === "WAIT_TRIGGER" ? "明日：尚無進場計畫" : next === "NOT_ELIGIBLE" ? "明日：尚未評估"
-    : nextLabel.startsWith("明日") ? nextLabel : `明日：${nextLabel}`;
+  // Everything here concerns the next session, and the chip already covers every status
+  // without a plan, so the line only appears for a triggered signal; hover has the full wording.
+  const nextText = status === "TRIGGERED" ? NEXT_SHORT[next] : null;
+  const setup = status === "TRIGGERED" ? summary.setupType : null;
+  const nextLine = nextText ? `<small class="research-next ${NEXT_TONE[next] ?? "muted"}" title="${esc([NEXT_DAY_STATUS_LABELS[next], SETUP_LABELS[setup]].filter(Boolean).join(" · "))}">${esc([nextText, SETUP_SHORT[setup]].filter(Boolean).join(" · "))}</small>` : "";
   const research = summary
-    ? `<span class="research-chip ${STATUS_TONE[status] ?? "muted"}">${esc(ENTRY_RESEARCH_STATUS_LABELS[status] ?? "—")}</span><small class="research-next ${NEXT_TONE[next] ?? "muted"}">${esc(nextText)}${summary.setupType ? ` · ${esc(SETUP_LABELS[summary.setupType])}` : ""}</small>`
+    ? `<span class="research-chip ${STATUS_TONE[status] ?? "muted"}">${esc(ENTRY_RESEARCH_STATUS_LABELS[status] ?? "—")}</span>${nextLine}`
     : '<span class="research-chip muted">資料不足</span>';
   return { readiness, research };
 }
