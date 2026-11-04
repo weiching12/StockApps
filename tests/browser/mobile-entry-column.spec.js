@@ -29,6 +29,15 @@ test("phone research cards keep readiness, gates and status inside each card in 
           for (const element of [button, chip, next].filter(Boolean))
             if (!inside(element, card)) problems.push(`${row.dataset.symbol}: ${element.className} leaves the card`);
           if (chip.getBoundingClientRect().right > target.left + 1) problems.push(`${row.dataset.symbol}: status overlaps readiness`);
+          // From 360px the gate result sits directly left of the score, on the status chip's line.
+          const gate = button.querySelector(".research-gate").getBoundingClientRect(), score = button.querySelector("strong").getBoundingClientRect();
+          const middle = (rect) => rect.top + rect.height / 2;
+          if (innerWidth >= 360) {
+            if (gate.right > score.left + 1) problems.push(`${row.dataset.symbol}: gate is not left of the score`);
+            if (Math.abs(middle(gate) - middle(score)) > 3) problems.push(`${row.dataset.symbol}: gate and score on separate lines`);
+            if (!next && Math.abs(middle(chip.getBoundingClientRect()) - middle(gate)) > 3) problems.push(`${row.dataset.symbol}: status and gate on separate lines`);
+          }
+          if (gate.height > 24) problems.push(`${row.dataset.symbol}: gate wraps`);
           const code = row.querySelector(".stock-name strong"), name = row.querySelector(".stock-name > span");
           const style = (element) => { const { fontSize, fontWeight, color } = getComputedStyle(element); return `${fontSize} ${fontWeight} ${color}`; };
           if (style(code) !== style(name)) problems.push(`${row.dataset.symbol}: name ${style(name)} differs from code ${style(code)}`);

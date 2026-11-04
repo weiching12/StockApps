@@ -2955,8 +2955,16 @@ dialog.sector-dialog {
   #stock-rows > tr > :is(td:first-child, th, .price-cell) { align-self: center; }
   #stock-rows > tr > td:first-child .favorite-button { margin-block: -10px; }
   #stock-rows > tr > .research-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-  #stock-rows .research-score-button { justify-content: flex-start; }
+  /* Status on the left; gate result and score read as one line on the right. */
+  #stock-rows > tr > :is(.research-cell, .entry-cell) { align-self: center; }
+  #stock-rows .research-score-button { flex-direction: row-reverse; align-items: center; justify-content: flex-start; gap: 8px; }
+  #stock-rows .research-score-button .research-gate { margin-top: 0; }
   .search-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 359px) {
+  /* Too narrow for the longest status and veto on one line: stack score and gate instead. */
+  #stock-rows .research-score-button { flex-direction: column; align-items: flex-end; gap: 0; }
+  #stock-rows .research-score-button .research-gate { margin-top: 2px; }
 }
 
 /* Score dialog: research sections come before the chart and the legacy V1.2 detail. */
