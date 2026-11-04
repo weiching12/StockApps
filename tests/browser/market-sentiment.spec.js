@@ -44,10 +44,60 @@ for (const style of ["gauge", "scale"]) {
   });
 }
 
-test("the gauge needle and scale marker both point at the score", async ({ page }) => {
+test("the needle and number sweep up from zero on entry, slowing as they settle", async ({ page }) => {
+  // Sampling starts with the page, so the first frames of the sweep are never missed.
+  await page.addInitScript(() => {
+    window.moodSamples = [];
+    const read = (now) => {
+      const card = document.querySelector("#market-sentiment");
+      const needle = parseFloat(card?.style.getPropertyValue("--sentiment-needle"));
+      if (Number.isFinite(needle)) window.moodSamples.push({ now, needle, text: card.querySelector(".sentiment-score").textContent });
+      requestAnimationFrame(read);
+    };
+    requestAnimationFrame(read);
+  });
+  await page.goto("/");
+  await expect(page.locator("#market-sentiment .sentiment-arc")).toBeVisible();
+  await page.waitForFunction(() => window.moodSamples.at(-1)?.needle === 0 && window.moodSamples.length > 10);
+  const samples = await page.evaluate(() => window.moodSamples);
+  const needles = samples.map(({ needle }) => needle), last = samples.at(-1);
+  // Demo data settles on a score of 50, the needle pointing straight up.
+  expect(last.text).toBe("50");
+  expect(last.needle).toBe(0);
+  expect(needles[0]).toBeLessThan(-30);
+  expect(Number(samples[0].text)).toBeLessThan(35);
+  needles.slice(1).forEach((needle, index) => expect(needle).toBeGreaterThanOrEqual(needles[index]));
+  const halfway = samples.find(({ needle }) => needle >= needles[0] / 2), settled = samples.find(({ needle }) => needle === 0);
+  expect(halfway.now - samples[0].now).toBeLessThan(settled.now - halfway.now);
+});
+
+test("returning to the market page replays the sweep, while scrolling away does not", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 500 });
+  await page.goto("/");
+  const score = page.locator("#market-sentiment .sentiment-score");
+  await expect(score).toHaveText("50");
+  await page.locator(".sidebar").getByRole("button", { name: "株研追蹤" }).click();
+  await expect(page.locator("#market-sentiment")).toBeHidden();
+  await page.addScriptTag({ content: `window.lowest = 100; (function read() { const value = Number(document.querySelector("#market-sentiment .sentiment-score").textContent); if (Number.isFinite(value) && document.querySelector("#market-sentiment").offsetWidth) window.lowest = Math.min(window.lowest, value); requestAnimationFrame(read); })();` });
+  await page.locator(".sidebar").getByRole("button", { name: "市場觀察清單" }).click();
+  await expect(page.locator("#market-sentiment")).toBeVisible();
+  await expect(score).toHaveText("50");
+  expect(await page.evaluate(() => window.lowest)).toBeLessThan(30);
+  // Scrolling the card off and back leaves the settled score alone.
+  await page.evaluate(() => { window.lowest = 100; document.querySelector("#stock-rows tr:last-child").scrollIntoView(); });
+  await expect.poll(() => page.locator("#market-sentiment").evaluate((card) => card.getBoundingClientRect().bottom < 0)).toBe(true);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.lowest)).toBe(50);
+});
+
+test("reduced motion shows the score straight away and the marker agrees", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   const card = page.locator("#market-sentiment");
+  await expect(card.locator(".sentiment-score")).toHaveText(/^\d+$/);
   const score = Number(await card.locator(".sentiment-score").textContent());
+  expect(score).toBe(50);
   const styles = await card.evaluate((node) => ({ needle: node.style.getPropertyValue("--sentiment-needle"), marker: node.style.getPropertyValue("--sentiment-score") }));
   expect(styles.needle).toBe(`${(score - 50) * 1.8}deg`);
   expect(styles.marker).toBe(`${score}%`);

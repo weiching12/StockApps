@@ -110,14 +110,16 @@ test("the next-day label sits alone in the card's top-right corner, clear of the
     const card = page.locator("#info-dialog .research-plan-card");
     const label = card.locator(".research-eyebrow");
     await expect(label).toHaveText("明日進場評估");
-    const [cardBox, labelBox, title] = await Promise.all([card.boundingBox(), label.boundingBox(), card.locator("h3").evaluate((heading) => {
+    // Measured together: the desktop drawer may still be sliding in.
+    const { right, top, titleRight, labelLeft } = await card.evaluate((node) => {
+      const outer = node.getBoundingClientRect(), tag = node.querySelector(".research-eyebrow").getBoundingClientRect();
       const range = document.createRange();
-      range.selectNodeContents(heading);
-      return range.getBoundingClientRect().right;
-    })]);
-    expect(cardBox.x + cardBox.width - (labelBox.x + labelBox.width)).toBeLessThan(20);
-    expect(labelBox.y - cardBox.y).toBeLessThan(20);
-    expect(title).toBeLessThan(labelBox.x);
+      range.selectNodeContents(node.querySelector("h3"));
+      return { right: outer.right - tag.right, top: tag.top - outer.top, titleRight: range.getBoundingClientRect().right, labelLeft: tag.left };
+    });
+    expect(right).toBeLessThan(20);
+    expect(top).toBeLessThan(20);
+    expect(titleRight).toBeLessThan(labelLeft);
   }
 });
 

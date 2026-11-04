@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { flowAmountText, netAmountText, sentimentTone, streakText } from "../src/ui/sentiment.js";
+import { flowAmountText, moodSweepProgress, netAmountText, sentimentTone, streakText } from "../src/ui/sentiment.js";
+
+test("the mood sweep runs from zero to the score and slows as it arrives", () => {
+  assert.equal(moodSweepProgress(0), 0);
+  assert.equal(moodSweepProgress(1), 1);
+  assert.equal(moodSweepProgress(2), 1);
+  assert.ok(moodSweepProgress(0.2) - moodSweepProgress(0) > moodSweepProgress(1) - moodSweepProgress(0.8));
+});
 
 test("sector amounts drop decimals once large enough to crowd their cell", () => {
   assert.equal(flowAmountText(390000000), "+3.90 億");

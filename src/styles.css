@@ -3326,3 +3326,19 @@ dialog.sector-dialog {
 [data-theme="dark"] .research-checks li.unmet > span { color: #f3a6ad; }
 [data-theme="dark"] .research-setup-state.neutral { color: #f5c66b; }
 [data-theme="dark"] .research-signal-how > ol { background: #111b2b; }
+
+/* Sector filters: the same chips as the phone market filters; on phones one row that can scroll sideways. */
+#sector-page .sector-toolbar { justify-content: flex-start; gap: 20px; }
+#sector-page .sector-toolbar :is(.sector-sort-control, .sector-period-control) > span { font-size: var(--text-meta); }
+#sector-page .sector-toolbar .segmented-control { gap: 6px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+#sector-page .sector-toolbar .segmented-indicator { display: none; }
+#sector-page .sector-toolbar .segmented-control button { flex: none; min-width: 0; min-height: 32px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-weight: 500; white-space: nowrap; }
+#sector-page .sector-toolbar .segmented-control button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+@media (max-width: 700px) {
+  #sector-page .sector-toolbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 8px; }
+  #sector-page .sector-toolbar::-webkit-scrollbar { display: none; }
+  #sector-page .sector-toolbar :is(.sector-sort-control, .sector-period-control) { flex: none; width: auto; }
+  #sector-page .sector-toolbar .sector-period-control { padding-left: 8px; border-left: 1px solid var(--border); }
+  #sector-page .sector-toolbar .segmented-control { gap: 4px; }
+  #sector-page .sector-toolbar .segmented-control button { padding: 4px 8px; }
+}

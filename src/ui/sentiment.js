@@ -59,14 +59,59 @@ function factsMarkup(market) {
   return `<div class="sentiment-fact" data-fact="institutions"><span>法人淨買賣</span><strong class="${toneOf(net)}">${netAmountText(net)}</strong><b class="${toneOf(streak)}">${streakText(streak)}</b></div>${flow("inflow", "法人流入", inflow)}${flow("outflow", "法人流出", outflow)}`;
 }
 
+const MOOD_SWEEP_MS = 1400;
+/** Sweep progress for elapsed 0-1: quick off the mark, slowing as it settles on the score. */
+export const moodSweepProgress = (elapsed) => 1 - (1 - Math.min(1, Math.max(0, elapsed))) ** 4;
+
+function showMoodValue(card, score) {
+  card.querySelector(".sentiment-score").textContent = value(score);
+  card.style.setProperty("--sentiment-score", `${score ?? 0}%`);
+  card.style.setProperty("--sentiment-needle", `${((score ?? 50) - 50) * 1.8}deg`);
+}
+
+// The sweep plays each time the market page opens: on first sight, and again on returning from
+// another page, which hides the card. Scrolling it away and back, or a re-render, does not replay it.
+const moodSweep = { state: "waiting", target: null, observer: null, run: 0 };
+
+function playMoodSweep(card) {
+  moodSweep.state = "playing";
+  const run = ++moodSweep.run, start = performance.now();
+  const step = (now) => {
+    if (run !== moodSweep.run) return;
+    const elapsed = (now - start) / MOOD_SWEEP_MS;
+    if (elapsed >= 1) { moodSweep.state = "done"; showMoodValue(card, moodSweep.target); return; }
+    showMoodValue(card, moodSweep.target * moodSweepProgress(elapsed));
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function renderMoodValue(card, score) {
+  moodSweep.target = score;
+  const reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (!Number.isFinite(score) || reduced || !globalThis.IntersectionObserver) { moodSweep.run++; showMoodValue(card, score); return; }
+  if (moodSweep.state === "playing") return;
+  if (moodSweep.state === "done") { showMoodValue(card, score); return; }
+  showMoodValue(card, 0);
+  if (moodSweep.observer) return;
+  moodSweep.observer = new IntersectionObserver(([entry]) => {
+    const scoreKnown = Number.isFinite(moodSweep.target);
+    if (entry.isIntersecting) { if (moodSweep.state === "waiting" && scoreKnown) playMoodSweep(card); return; }
+    // A hidden panel measures zero wide; a card merely scrolled off keeps its size.
+    if (entry.boundingClientRect.width > 0) return;
+    moodSweep.run++;
+    moodSweep.state = "waiting";
+    if (scoreKnown) showMoodValue(card, 0);
+  });
+  moodSweep.observer.observe(card);
+}
+
 export function renderSentiment(sentiment) {
   const card = document.querySelector("#market-sentiment"); if (!card) return;
   card.dataset.sentiment = sentiment.band.key;
   card.querySelector("button").style.setProperty("--sentiment-tone", sentimentTone(sentiment.score));
-  card.querySelector(".sentiment-score").textContent = value(sentiment.score);
   card.querySelector(".sentiment-band").textContent = sentiment.band.label;
-  card.style.setProperty("--sentiment-score", `${sentiment.score ?? 0}%`);
-  card.style.setProperty("--sentiment-needle", `${((sentiment.score ?? 50) - 50) * 1.8}deg`);
+  renderMoodValue(card, sentiment.score);
   card.querySelector(".sentiment-date").textContent = sentiment.status === "insufficient"
     ? sentiment.score === null ? "資料不足 · 等待有效市場資料" : `資料不足 · 沿用 ${sentiment.date} 分數`
     : `${sentiment.components.coverage} 檔上市個股`;
