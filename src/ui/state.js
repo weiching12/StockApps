@@ -14,4 +14,5 @@ export const createState = () => ({
   sectorName: null,
   settings: { ...DEFAULT_SETTINGS },
   theme: "light",
+  moodStyle: "gauge",
 });

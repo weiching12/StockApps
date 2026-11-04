@@ -111,6 +111,56 @@ function combine(components) {
       ? Math.round(sum(entries.map(([key, value]) => components[key] * value)) / weight) : null };
 }
 
+/**
+ * Plain market figures for the latest session, from the same ordinary listed stocks as the score.
+ * Amounts are net shares at each session's close, so estimates. A figure without enough coverage
+ * stays unknown, never a partial total.
+ */
+function marketFacts(stocks, dates, index) {
+  if (index < 0) return null;
+  const rows = stocks.map((stock) => ({ stock, byDate: new Map(stock.history.map((bar) => [bar.date, bar])) }));
+  const enough = (valid, expected) => expected > 0 && valid / expected >= MIN_COMPONENT_COVERAGE;
+  const netOn = (at) => {
+    const date = dates[at], sectors = new Map();
+    let expected = 0, valid = 0, amount = 0;
+    for (const { stock, byDate } of rows) {
+      if (!ordinaryListed(stock, date)) continue;
+      expected++;
+      const bar = byDate.get(date), net = getInstitutionalNet(bar?.institutions);
+      if (!validClose(bar) || !Number.isFinite(net)) continue;
+      valid++;
+      amount += net * bar.close;
+      if (stock.sector) sectors.set(stock.sector, (sectors.get(stock.sector) ?? 0) + net * bar.close);
+    }
+    return { date, amount: enough(valid, expected) ? amount : null, sectors };
+  };
+  const latest = netOn(index);
+  // Sessions in a row on the same side, signed: +3 bought three days running, -2 sold two. A flat
+  // or unknown session ends the run; history before the loaded window cannot extend it.
+  let streak = Math.sign(latest.amount ?? 0);
+  for (let at = index - 1; streak && at >= 0; at--) {
+    if (Math.sign(netOn(at).amount ?? 0) !== Math.sign(streak)) break;
+    streak += Math.sign(streak);
+  }
+  const flows = latest.amount === null ? [] : [...latest.sectors].map(([sector, amount]) => ({ sector, amount }));
+  const inflow = flows.filter(({ amount }) => amount > 0).sort((a, b) => b.amount - a.amount)[0] ?? null;
+  const outflow = flows.filter(({ amount }) => amount < 0).sort((a, b) => a.amount - b.amount)[0] ?? null;
+  const date = dates[index];
+  let advancing = 0, declining = 0, unchanged = 0, expected = 0;
+  for (const { stock, byDate } of rows) {
+    if (!ordinaryListed(stock, date)) continue;
+    expected++;
+    const bar = byDate.get(date);
+    if (!validClose(bar) || index < 1 || !validClose(byDate.get(dates[index - 1])) || !Number.isFinite(bar.changePercent)) continue;
+    if (bar.changePercent > 0) advancing++;
+    else if (bar.changePercent < 0) declining++;
+    else unchanged++;
+  }
+  const breadthKnown = enough(advancing + declining + unchanged, expected);
+  return { date, advancing: breadthKnown ? advancing : null, declining: breadthKnown ? declining : null, unchanged: breadthKnown ? unchanged : null,
+    institutionalNet: latest.amount, institutionalStreak: latest.amount === null ? null : streak, inflow, outflow };
+}
+
 export function calculateMarketSentiment(stocks, asOf, days = 20, tradingDates = null, actions = null) {
   const calendar = (tradingDates ?? stocks[0]?.tradingDates ??
     [...new Set(stocks.flatMap((stock) => stock.history.map((bar) => bar.date)))])
@@ -139,5 +189,5 @@ export function calculateMarketSentiment(stocks, asOf, days = 20, tradingDates =
     { date: asOf, score: null, components: {}, band: sentimentBand(null) };
   return { ...current, status: latest?.date === asOf && latest.score !== null ? "current" : "insufficient",
     requestedDate: asOf, latestEffectiveWeight: latest?.effectiveWeight ?? 0,
-    latestSamples: latest?.samples ?? {}, series, version: SENTIMENT_VERSION };
+    latestSamples: latest?.samples ?? {}, series, market: marketFacts(stocks, dates, dates.length - 1), version: SENTIMENT_VERSION };
 }

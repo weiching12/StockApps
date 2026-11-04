@@ -1,6 +1,7 @@
 import appPackage from "../../package.json" with { type: "json" };
 import { RESEARCH_FILTER_CHIPS, RESEARCH_FILTERS } from "./entry-research.js";
 import { backtestPanelMarkup } from "./backtest.js";
+import { moodMeterMarkup } from "./sentiment.js";
 import { RESEARCH_TRACKING_FILTERS, RESEARCH_TRACKING_SORTS } from "./research.js";
 
 const appVersion = `v${appPackage.version}`;
@@ -43,8 +44,10 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
         <section id="market-sentiment" class="market-sentiment" data-page-panel="market" data-sentiment="unknown" aria-labelledby="sentiment-title">
           <button type="button" data-dialog="sentiment" aria-haspopup="dialog">
             <div class="sentiment-heading"><span class="eyebrow">TAIWAN MARKET MOOD</span><h2 id="sentiment-title">台股市場情緒</h2><span class="sentiment-date">資料更新中</span></div>
-            <div class="sentiment-gauge"><div class="sentiment-gauge-center"><strong class="sentiment-score">—</strong><span class="sentiment-band">資料更新中</span></div></div>
+            <div class="sentiment-meter">${moodMeterMarkup()}</div>
             <span class="sentiment-more">查看組成 ${icon("chevron")}</span>
+            <div class="sentiment-breadth"></div>
+            <div class="sentiment-facts"></div>
           </button>
         </section>
         <section class="panel stocks-panel" data-page-panel="market" aria-label="市場觀察股票表格">

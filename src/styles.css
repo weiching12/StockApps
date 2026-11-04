@@ -29,17 +29,61 @@ body { background: var(--surface); }
 .market-sentiment { margin: 0 0 18px; }
 .market-sentiment[hidden] { display: none; }
 .market-sentiment > button {
-  --sentiment-card: #fff; --sentiment-tone: #64748b;
+  --sentiment-tone: #64748b;
   width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center; gap: 22px; padding: 15px 22px; text-align: left; color: var(--ink);
+  grid-template-areas: "heading meter more" "breadth meter more" "facts facts facts";
+  align-items: center; gap: 12px 22px; padding: 15px 22px; text-align: left; color: var(--ink);
   border: 1px solid var(--border); border-radius: 12px; background: #fff;
+  position: relative; isolation: isolate; overflow: hidden;
 }
+/* A wash of the score's color; below the content, above whichever surface the theme sets. */
+.market-sentiment > button::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(105deg, color-mix(in srgb, var(--sentiment-tone) 14%, transparent), transparent 60%); }
+.sentiment-heading { grid-area: heading; }
+.sentiment-more { grid-area: more; }
+/* The score as a half-circle gauge by default; the moodStyle setting swaps it for a horizontal scale. */
+.sentiment-meter { grid-area: meter; display: grid; justify-items: center; width: 96px; }
+.sentiment-arc { display: block; width: 96px; height: 53px; overflow: visible; }
+.sentiment-arc path { fill: none; stroke-width: 9; }
+.sentiment-needle { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; transform: rotate(var(--sentiment-needle, 0deg)); transform-box: view-box; transform-origin: 60px 60px; }
+.sentiment-arc circle { fill: var(--ink); }
+.sentiment-scale { display: none; }
+.sentiment-readout { display: flex; align-items: baseline; justify-content: center; gap: 4px; white-space: nowrap; }
+.sentiment-scale-track { position: relative; display: flex; gap: 2px; height: 7px; }
+.sentiment-scale-track i { flex: 1; }
+.sentiment-scale-track i:first-child { border-radius: 4px 0 0 4px; }
+.sentiment-scale-track i:last-of-type { border-radius: 0 4px 4px 0; }
+.sentiment-scale-marker { position: absolute; top: -3px; left: var(--sentiment-score, 50%); width: 3px; height: 13px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 1px var(--surface); transform: translateX(-50%); }
+.sentiment-scale-ends { display: flex; justify-content: space-between; margin-top: 3px; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; }
+[data-sentiment="unknown"] :is(.sentiment-needle, .sentiment-scale-marker) { display: none; }
+[data-mood-style="scale"] .market-sentiment > button { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "heading readout more" "scale scale scale" "breadth breadth breadth" "facts facts facts"; }
+[data-mood-style="scale"] .sentiment-meter { display: contents; }
+[data-mood-style="scale"] .sentiment-arc { display: none; }
+[data-mood-style="scale"] .sentiment-scale { display: block; grid-area: scale; min-width: 0; }
+[data-mood-style="scale"] .sentiment-readout { grid-area: readout; }
+/* The day's advance/decline split. */
+.sentiment-breadth { grid-area: breadth; display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sentiment-breadth:empty { display: none; }
+.sentiment-breadth b { font-size: var(--text-secondary); font-weight: 600; }
+.sentiment-breadth .up b { color: var(--up); }
+.sentiment-breadth .down b { color: var(--down); }
+/* Below it, one row of three matching cells: label, headline, detail. */
+.sentiment-facts { grid-area: facts; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.sentiment-facts:empty { display: none; }
+.sentiment-fact { display: grid; gap: 1px; min-width: 0; }
+.sentiment-fact > span { overflow: hidden; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+.sentiment-fact > strong { overflow: hidden; color: var(--ink); font-size: var(--text-secondary); font-weight: 600; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.sentiment-fact b { color: var(--ink); font-size: var(--text-meta); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+.sentiment-fact .up { color: var(--up); }
+.sentiment-fact .down { color: var(--down); }
+.sentiment-breadth-bar { flex: 1; display: flex; gap: 2px; min-width: 0; height: 4px; overflow: hidden; border-radius: 2px; background: var(--border); }
+.sentiment-breadth-bar i { flex: 0 1 0; min-width: 0; }
+.sentiment-breadth-bar .up { background: var(--up); }
+.sentiment-breadth-bar .flat { background: var(--muted); opacity: .5; }
+.sentiment-breadth-bar .down { background: var(--down); }
 .sentiment-heading h2 { margin: 3px 0 2px; font-size: 17px; }
 .sentiment-date { color: var(--muted); font-size: 12px; }
-.sentiment-gauge { width: 84px; height: 84px; padding: 7px; border-radius: 50%; background: conic-gradient(from -90deg, var(--sentiment-tone) 0 var(--sentiment-score, 0%), var(--border) var(--sentiment-score, 0%) 100%); }
-.sentiment-gauge-center { display: flex; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; background: var(--sentiment-card); }
-.sentiment-score { font-size: 27px; font-variant-numeric: tabular-nums; line-height: 1; }
-.sentiment-band { margin-top: 3px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.sentiment-score { font-size: var(--text-title); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.sentiment-band { color: var(--muted); font-size: var(--text-meta); white-space: nowrap; }
 .sentiment-more { display: flex; align-items: center; gap: 3px; color: var(--accent); font-size: 12px; white-space: nowrap; }
 .sentiment-more .icon { width: 14px; height: 14px; }
 .sentiment-dialog-summary { display: flex; align-items: baseline; gap: 12px; margin: 0 0 16px; }
@@ -62,7 +106,6 @@ body { background: var(--surface); }
 .settings-theme h3 span { color: var(--muted); font-weight: 400; }
 .form-field select { min-width: 120px; padding: 9px 28px 9px 10px; border: 1px solid var(--border); border-radius: 4px; color: var(--ink); background: var(--surface); }
 [data-theme="dark"] :is(.source-about, .about-goal, .market-sentiment > button, .panel, #watchlist, dialog, .sector-card, .sector-dialog) { background: #111b2b; color: var(--ink); border-color: var(--border); }
-[data-theme="dark"] .market-sentiment > button { --sentiment-card: #111b2b; }
 [data-theme="dark"] :is(.topbar, .table-toolbar, .filter-tabs, .sector-sort-tabs, .sector-period, .table-scroll thead th) { background: #111b2b; border-color: var(--border); }
 [data-theme="dark"] :is(input, select, .search-box) { background-color: #0d1726; color: var(--ink); border-color: var(--border); }
 [data-theme="dark"] :is(.stock-name strong, .source-details dd, .guide-item code) { color: var(--ink); }
@@ -1311,11 +1354,10 @@ dialog h2 {
   }
 }
 @media (max-width: 760px) {
-  .market-sentiment > button { grid-template-columns: minmax(0, 1fr) 72px; gap: 12px; padding: 13px 14px; }
-  .sentiment-heading h2 { font-size: 14px; }
-  .sentiment-gauge { width: 72px; height: 72px; padding: 6px; }
-  .sentiment-score { font-size: 24px; }
-  .sentiment-band { font-size: 10px; }
+  .market-sentiment > button { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "heading meter" "breadth meter" "facts facts"; gap: 10px 12px; padding: 13px 14px; }
+  [data-mood-style="scale"] .market-sentiment > button { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "heading readout" "scale scale" "breadth breadth" "facts facts"; row-gap: 8px; }
+  .sentiment-heading .eyebrow { display: none; }
+  .sentiment-heading h2 { margin-top: 0; font-size: 14px; }
   .sentiment-more { display: none; }
   .page-heading {
     gap: 20px;

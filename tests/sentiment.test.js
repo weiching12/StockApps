@@ -18,6 +18,55 @@ const makeStock = (symbol, { close = (index) => 100 + index, volume = () => 1000
 });
 const today = (stocks, asOf = last) => calculateMarketSentiment(stocks, asOf, 20, dates);
 
+test("market figures count ordinary listed stocks and value amounts at the session's close", () => {
+  const stocks = [
+    makeStock("2001", { close: (day) => 100 + day, net: () => 500 }),
+    { ...makeStock("2002", { close: (day) => 200 - day, net: () => -200 }), sector: "航運業" },
+    { ...makeStock("2003", { close: () => 100 }), sector: "鋼鐵工業" },
+    { ...makeStock("0050", { close: (day) => 100 + day, net: () => 9000 }), assetType: "etf", sector: "ETF" },
+  ];
+  assert.deepEqual(today(stocks).market, { date: last, advancing: 1, declining: 1, unchanged: 1,
+    institutionalNet: 500 * 184 - 200 * 116, institutionalStreak: 85,
+    inflow: { sector: "半導體業", amount: 500 * 184 }, outflow: { sector: "航運業", amount: -200 * 116 } });
+});
+
+test("the institutional streak counts sessions on the same side and stops at a flat or unknown one", () => {
+  const streak = (net) => today([makeStock("2001", { net })]).market.institutionalStreak;
+  assert.equal(streak((day) => day >= 82 ? 100 : -100), 3);
+  assert.equal(streak((day) => day >= 83 ? -100 : 100), -2);
+  assert.equal(streak((day) => day === 84 ? 100 : -100), 1);
+  assert.equal(streak((day) => day === 82 ? 0 : 100), 2);
+  assert.equal(streak(() => 0), 0);
+  const gap = makeStock("2001", { net: () => 100 });
+  gap.history.at(-3).institutions = [];
+  assert.equal(today([gap]).market.institutionalStreak, 2);
+  gap.history.at(-1).institutions = [];
+  assert.equal(today([gap]).market.institutionalStreak, null);
+});
+
+test("market flows name only the largest sector on each side, summing the sector's stocks", () => {
+  const amounts = [["A", 50], ["A", 30], ["B", 60], ["C", -10], ["D", -40], ["D", -20]];
+  const stocks = amounts.map(([sector, net], index) => ({ ...makeStock(String(2000 + index), { close: () => 100, net: () => net }), sector }));
+  const { inflow, outflow } = today(stocks).market;
+  assert.deepEqual(inflow, { sector: "A", amount: 8000 });
+  assert.deepEqual(outflow, { sector: "D", amount: -6000 });
+  const buyers = amounts.slice(0, 3).map(([sector, net], index) => ({ ...makeStock(String(2000 + index), { close: () => 100, net: () => net }), sector }));
+  assert.equal(today(buyers).market.outflow, null);
+});
+
+test("market figures stay unknown without enough coverage instead of summing what is left", () => {
+  const stocks = ["2001", "2002", "2003"].map((symbol) => makeStock(symbol, { net: () => 100 }));
+  stocks.slice(0, 2).forEach((stock) => { stock.history.at(-1).institutions = []; });
+  const { market } = today(stocks);
+  assert.equal(market.institutionalNet, null);
+  assert.equal(market.institutionalStreak, null);
+  assert.equal(market.inflow, null);
+  assert.equal(market.outflow, null);
+  assert.equal(market.advancing, 3);
+  stocks.forEach((stock) => stock.history.pop());
+  assert.equal(today(stocks).market.advancing, null);
+});
+
 test("breadth gives flat stocks half credit and excludes ETFs and OTC", () => {
   const stocks = Array.from({ length: 10 }, (_, index) =>
     makeStock(String(2000 + index), { close: (day) => 100 + (index < 6 ? day : index < 9 ? -day / 2 : 0) }));

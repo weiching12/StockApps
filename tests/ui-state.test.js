@@ -24,6 +24,21 @@ test("dark theme preference is validated and persisted", () => {
   assert.equal(saved.theme, "dark");
 });
 
+test("the market mood style is validated and persisted, defaulting to the gauge", () => {
+  const loaded = (moodStyle) => {
+    const state = createState();
+    loadPreferences(state, { getItem: () => JSON.stringify({ favorites: [], moodStyle, catalogVersion: 2 }) });
+    return state;
+  };
+  assert.equal(createState().moodStyle, "gauge");
+  assert.equal(loaded("scale").moodStyle, "scale");
+  assert.equal(loaded("rainbow").moodStyle, "gauge");
+  assert.equal(loaded(undefined).moodStyle, "gauge");
+  let saved;
+  persistPreferences(loaded("scale"), () => {}, { setItem: (_, value) => { saved = JSON.parse(value); } });
+  assert.equal(saved.moodStyle, "scale");
+});
+
 test("unavailable or malformed preference storage has a usable fallback", () => {
   for (const getItem of [() => "{", () => { throw new Error("blocked"); }]) {
     const state = createState(); loadPreferences(state, { getItem });
