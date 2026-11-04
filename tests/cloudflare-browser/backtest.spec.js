@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { createManifest, marketDay, mergeShard, normalizeCatalog, normalizeFlows, normalizePrices, SHARD_COUNT } from "../../cloudflare/twse.js";
 import { MarketSummaryService } from "../../cloudflare/services/market-summary-service.js";
 import { EntryResearchService } from "../../cloudflare/services/entry-research-service.js";
+import { ENTRY_RESEARCH_MODEL_VERSION } from "../../shared/entry-research-model.js";
 
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/twse-20261016.json", import.meta.url)));
 const catalog = normalizeCatalog(fixture.companies);
@@ -57,7 +58,8 @@ async function routeApi(page, { empty = false } = {}) {
     if (url.pathname === "/api/v1/market/summary") return route.fulfill({ json: summary });
     if (url.pathname === "/api/v1/research/backtest") {
       requests.push(url.search);
-      return route.fulfill({ json: await service.backtest({ modelVersion: "entry-research-v1", horizon: Number(url.searchParams.get("horizon") ?? 10) }) });
+      // The provisional-parameters note applies to the live model.
+      return route.fulfill({ json: await service.backtest({ modelVersion: ENTRY_RESEARCH_MODEL_VERSION, horizon: Number(url.searchParams.get("horizon") ?? 10) }) });
     }
     if (url.pathname === "/api/v1/research/samples") {
       const detail = url.searchParams.get("detail") === "1";

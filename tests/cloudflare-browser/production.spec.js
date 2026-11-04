@@ -19,7 +19,10 @@ test("2031 comparison follows the selected market date", async ({ page, request 
     // The list and the dialog show entry research only.
     const readiness = stock.entryResearch.score;
     await expect(row.locator(".entry-score-button strong")).toHaveText(Number.isFinite(readiness) ? String(Math.round(readiness)) : "—");
-    await expect(row.locator(".research-gate")).toContainText(`門檻 ${stock.entryResearch.gatePassed}/5`);
+    // The gate line names the outcome; a failure names the first triggered veto.
+    const gate = stock.entryResearch.gateStatus;
+    await expect(row.locator(".research-gate")).toHaveClass(new RegExp(gate === "PASS" ? "pass" : gate === "FAIL" ? "fail" : "unknown"));
+    if (gate !== "FAIL") await expect(row.locator(".research-gate")).toHaveText(gate === "PASS" ? "初步門檻通過" : "初步門檻待確認");
     await row.locator(".entry-score-button").click();
     await expect(page.locator("#info-dialog .research-plan-card")).toBeVisible();
     await expect(page.locator("#info-dialog .entry-legacy")).toHaveCount(0);

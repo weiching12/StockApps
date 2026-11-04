@@ -74,7 +74,7 @@ test("late entry detail cannot replace a subsequently opened settings dialog", a
     return true;
   });
   try {
-    await page.locator(".entry-score-button").first().click();
+    await page.locator("#stock-rows .entry-score-button").first().click();
     await entered.promise;
     await page.locator("#close-dialog").click();
     await page.getByRole("button", { name: "設定", exact: true }).click();
@@ -130,10 +130,10 @@ test("reopening pending stock details shares one analysis request", async ({ pag
     return true;
   });
   try {
-    await page.locator(".entry-score-button").first().click();
+    await page.locator("#stock-rows .entry-score-button").first().click();
     await entered.promise;
     await page.locator("#close-dialog").click();
-    await page.locator(".entry-score-button").first().click();
+    await page.locator("#stock-rows .entry-score-button").first().click();
     waiting.resolve();
     await expect(page.locator("#dialog-content .entry-chart-plot svg")).toBeVisible();
     expect(calls).toBe(1);
@@ -169,35 +169,28 @@ test("reopening a sector shares a pending request and retries after failure", as
   } finally { waiting.resolve(); }
 });
 
-test("removing all favorites invalidates pending research and allows the same selection to reload", async ({ page }) => {
-  const symbol = stocks[0].symbol, waiting = defer(), entered = defer();
-  let calls = 0;
+test("removing and re-adding a favorite updates tracking without reading saved V1.2 research", async ({ page }) => {
+  const symbol = stocks[0].symbol;
+  let researchCalls = 0;
   await page.addInitScript((symbol) => localStorage.setItem("stock-insight-v1",
     JSON.stringify({ favorites: [symbol], catalogVersion: 2 })), symbol);
-  await setup(page, async (route, url) => {
-    if (url.pathname !== "/api/v1/favorites/research") return false;
-    calls++;
-    const stale = calls === 1;
-    if (stale) { entered.resolve(); await waiting.promise; }
-    await route.fulfill({ json: { data: [{ symbol, latest: null, previous: null,
-      comparison: { status: "missing-current", events: [], summary: "缺少當日評分快照" },
-      events: [], history: [], timeline: [] }], meta: { asOf: manifest.asOf, revisions: stale ? [{}, {}] : [] } } });
-    return true;
+  await setup(page, async (_route, url) => {
+    if (url.pathname === "/api/v1/favorites/research") researchCalls++;
+    return false;
   });
-  try {
-    await entered.promise;
-    const favorite = page.locator(`#stock-rows [data-favorite="${symbol}"]`);
-    await favorite.click();
-    await expect(favorite).toHaveAttribute("aria-pressed", "false");
-    const finished = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/favorites/research");
-    waiting.resolve();
-    await finished;
-    await expect(page.locator("#research-date")).not.toContainText("修訂版本");
-    await favorite.click();
-    // One initial request, one join-snapshot read and one new research load.
-    await expect.poll(() => calls).toBe(3);
-    await page.locator('.sidebar [data-page="favorites"]').click();
-    await expect(page.locator("#research-list .research-card")).toHaveCount(1);
-    await expect(page.locator("#research-list")).not.toContainText("讀取研究快照中");
-  } finally { waiting.resolve(); }
+  const favorite = page.locator(`#stock-rows [data-favorite="${symbol}"]`);
+  const openTracking = () => page.locator('.sidebar [data-page="favorites"]').click();
+  await openTracking();
+  await expect(page.locator(`#research-list .research-card[data-research-symbol="${symbol}"]`)).toHaveCount(1);
+  await page.locator('.sidebar [data-page="market"]').click();
+  await favorite.click();
+  await expect(favorite).toHaveAttribute("aria-pressed", "false");
+  await openTracking();
+  await expect(page.locator("#research-list .research-card")).toHaveCount(0);
+  await page.locator('.sidebar [data-page="market"]').click();
+  await favorite.click();
+  await expect(favorite).toHaveAttribute("aria-pressed", "true");
+  await openTracking();
+  await expect(page.locator("#research-list .research-card")).toHaveCount(1);
+  expect(researchCalls).toBe(0);
 });
