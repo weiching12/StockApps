@@ -86,7 +86,7 @@ Account login with D1-backed sessions (PBKDF2 hashes, HttpOnly SameSite=Strict c
 
 ## Custom sector data
 
-`data/custom-sectors/` holds a finer custom sector taxonomy (16 sectors / 92 sub-industries) for all TWSE-listed companies, keyed by stock code. It is data only and not wired into the app yet. Read `data/custom-sectors/README.md` before using or regenerating it.
+`data/custom-sectors/` holds a finer custom sector taxonomy (16 sectors / 92 sub-industries) for all TWSE-listed companies, keyed by stock code. `shared/custom-sectors.js` applies it when `MarketService.market()` reads the manifest, whose stored `sector` stays the official industry: `sector` becomes the sub-industry used everywhere, `sectorGroup` the broader sector used only by the market list's filter, `twseSector` the official one. After regenerating the data run `node scripts/build-custom-sectors.mjs` and bump the summary cache schema. See `data/custom-sectors/README.md`.
 
 ## Docs
 

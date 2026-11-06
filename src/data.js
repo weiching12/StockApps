@@ -1,3 +1,5 @@
+import { classifyStock } from "../shared/custom-sectors.js";
+
 /**
  * Synthetic, reproducible demo data. These are NOT exchange quotes or forecasts.
  * Weekdays are illustrative sessions, not an official Taiwan trading calendar.
@@ -24,7 +26,7 @@ const catalog = [
   ["0050", "元大台灣50", "ETF", 62.8, 56800, 0.0015],
   ["00878", "國泰永續高股息", "ETF", 23.15, 125000, -0.0004],
   ["3026", "禾伸堂", "電子零組件", 105.5, 8500, 0.0004],
-  ["6488", "環球晶", "半導體", 450, 15000, 0.0005],
+  ["6488", "環球晶", "半導體業", 450, 15000, 0.0005],
 ];
 
 function randomGenerator(seed) {
@@ -84,7 +86,7 @@ function createStock([symbol, name, sector, target, baseVolume, drift], index) {
   };
 }
 
-const stocks = catalog.map(createStock);
+const stocks = catalog.map(createStock).map(classifyStock);
 
 /** Provider boundary: network-backed adapters can replace this object later. */
 export const demoProvider = {

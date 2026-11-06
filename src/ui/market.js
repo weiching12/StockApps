@@ -7,7 +7,7 @@ export function renderMarketView(context) {
   if (["all", "favorites"].includes(state.view) && (!state.research || state.research === "all")) {
     const query = state.query.trim().toLocaleLowerCase();
     visibleStocks.push(...snapshots.filter((stock) => pendingSymbols.has(stock.symbol) &&
-      (state.sector === "all" || stock.sector === state.sector) &&
+      (state.sector === "all" || stock.sector === state.sector || stock.sectorGroup === state.sector) &&
       (state.view !== "favorites" || state.favorites.includes(stock.symbol)) &&
       (!query || `${stock.symbol} ${stock.name}`.toLocaleLowerCase().includes(query))));
   }

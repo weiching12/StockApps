@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { flowAmountText, moodSweepProgress, netAmountText, sentimentTone, streakText } from "../src/ui/sentiment.js";
+import { factAmountText, moodSweepProgress, netAmountText, sentimentTone, streakText } from "../src/ui/sentiment.js";
 
 test("the mood sweep runs from zero to the score and slows as it arrives", () => {
   assert.equal(moodSweepProgress(0), 0);
@@ -9,9 +9,10 @@ test("the mood sweep runs from zero to the score and slows as it arrives", () =>
   assert.ok(moodSweepProgress(0.2) - moodSweepProgress(0) > moodSweepProgress(1) - moodSweepProgress(0.8));
 });
 
-test("sector amounts drop decimals once large enough to crowd their cell", () => {
-  assert.equal(flowAmountText(390000000), "+3.90 億");
-  assert.equal(flowAmountText(-124599000000), "-1,246 億");
+test("card amounts drop decimals once large enough to crowd their cell", () => {
+  assert.equal(factAmountText(390000000), "+3.90 億");
+  assert.equal(factAmountText(-124599000000), "-1,246 億");
+  assert.equal(factAmountText(null), "—");
 });
 
 test("market amounts read in 億 and keep unknown as a dash", () => {

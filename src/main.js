@@ -18,7 +18,7 @@ import { loadPreferences, persistPreferences, preferenceStorage } from "./ui/pre
 import { restorePage, rememberPage } from "./ui/page-session.js";
 import { shellMarkup } from "./ui/shell.js";
 import { renderPageView } from "./ui/navigation.js";
-import { renderSectorOverviewView, renderSectorDialogView } from "./ui/sectors.js";
+import { renderSectorOverviewView, renderSectorDialogView, sectorFilterOptions } from "./ui/sectors.js";
 import { bindInputMode, bindPullToRefresh } from "./ui/gestures.js";
 import { createControlsController } from "./ui/controls.js";
 import { createDialogController } from "./ui/dialogs.js";
@@ -850,6 +850,8 @@ function bindEvents() {
       document.querySelector("#info-dialog").close();
       state.page = "sectors";
       state.sectorWindow = "5";
+      // The stock's sub-industry row must be on the page to scroll to.
+      state.sectorExpanded = true;
       renderPage(); renderSectorOverview();
       const sectorCard = [...document.querySelectorAll("#sector-grid [data-sector-details]")]
         .find(card => card.dataset.sectorDetails === stock.sector);
@@ -866,6 +868,10 @@ function bindEvents() {
     }
     if (button.dataset.sectorSort) {
       state.sectorSort = button.dataset.sectorSort;
+      renderSectorOverview();
+    }
+    if (button.dataset.sectorExpand !== undefined) {
+      state.sectorExpanded = true;
       renderSectorOverview();
     }
     if (button.dataset.page) {
@@ -1068,8 +1074,7 @@ async function init() {
     document.querySelector(".demo-badge").innerHTML = `<span></span>${esc(dataset.info.label)}`;
     document.querySelector("#trade-date").innerHTML = dataset.dates.slice(-30).reverse()
       .map((date) => `<option value="${date}">${date.replaceAll("-", "/")}</option>`).join("");
-    document.querySelector("#sector-filter").innerHTML = '<option value="all">全部產業</option>' +
-      [...new Set(dataset.stocks.map((stock) => stock.sector))].map((sector) => `<option>${esc(sector)}</option>`).join("");
+    document.querySelector("#sector-filter").innerHTML = sectorFilterOptions(dataset.stocks, esc);
     loading = false;
     refreshData(); renderConnectionState(); savePreferences();
     updateFlow.finishStartup({ fresh: !usingCachedData });

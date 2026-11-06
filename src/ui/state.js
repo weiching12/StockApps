@@ -11,6 +11,7 @@ export const createState = () => ({
   favorites: [],
   sectorWindow: "day",
   sectorSort: "activity-desc",
+  sectorExpanded: false,
   sectorName: null,
   settings: { ...DEFAULT_SETTINGS },
   theme: "light",

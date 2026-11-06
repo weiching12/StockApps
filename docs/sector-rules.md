@@ -6,6 +6,11 @@ DOM, HTTP or storage dependency. `src/ui/sectors.js` formats these models and
 updates the existing HTML. A future API controller or backtest can call the same
 functions without constructing a UI context or supplying formatting callbacks.
 
+- Industries come from the custom taxonomy in `data/custom-sectors/`, applied by
+  `shared/custom-sectors.js`: `sector` is the sub-industry, which every ranking and
+  detail uses. `sectorGroup`, the broader sector, only organises the market list's
+  filter. A detail also accepts the official industry name older links use.
+  The ranking shows its top 10 rows until the reader expands it.
 - Exclude ETFs identified by either `assetType: "etf"` or the legacy `ETF` sector.
 - Accept analyzed snapshots and oldest-first market dates for one selected
   session. Do not mix snapshots and calendars from different selected sessions.

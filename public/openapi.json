@@ -131,7 +131,7 @@
       "get": {
         "operationId": "getSectorDetail",
         "parameters": [
-          { "name": "name", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "name", "in": "path", "required": true, "description": "細產業或證交所官方產業別名稱", "schema": { "type": "string" } },
           { "name": "asOf", "in": "query", "schema": { "type": "string", "format": "date" } }
         ],
         "responses": {
@@ -1660,7 +1660,16 @@
             "type": "string"
           },
           "sector": {
-            "type": "string"
+            "type": "string",
+            "description": "自訂細產業；ETF 為 ETF"
+          },
+          "sectorGroup": {
+            "type": "string",
+            "description": "自訂大類，只用於市場清單的產業篩選；ETF 沒有此欄位"
+          },
+          "twseSector": {
+            "type": "string",
+            "description": "證交所官方產業別；ETF 沒有此欄位"
           },
           "market": {
             "type": "string"

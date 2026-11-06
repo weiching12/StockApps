@@ -371,7 +371,7 @@ export function filterStocks(
       !`${stock.symbol} ${stock.name}`.toLocaleLowerCase().includes(text)
     )
       return false;
-    if (sector !== "all" && stock.sector !== sector) return false;
+    if (sector !== "all" && stock.sector !== sector && stock.sectorGroup !== sector) return false;
     if (view === "favorites" && !favorites.includes(stock.symbol)) return false;
     if (view === "above" && !(stock.latest.deviation > 0)) return false;
     if (view === "below" && !(stock.latest.deviation < 0)) return false;

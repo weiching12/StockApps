@@ -1,4 +1,25 @@
 import { getSectorOverview, getSectorDetail, rankSectors, sortSectors } from "../../shared/sectors.js";
+
+const COLLAPSED_SUB_INDUSTRIES = 10;
+
+/** The ranking opens on its top rows; what matters sorts first, and the rest is one tap away. */
+export const visibleSectors = (sectors, expanded) => expanded ? sectors : sectors.slice(0, COLLAPSED_SUB_INDUSTRIES);
+
+/** Market filter, the one place broader sectors appear: pick one whole or by its sub-industries. ETFs stay a plain choice. */
+export function sectorFilterOptions(stocks, esc) {
+  const groups = new Map(), plain = new Set();
+  for (const { sector, sectorGroup } of stocks) {
+    if (!sectorGroup) { plain.add(sector); continue; }
+    if (!groups.has(sectorGroup)) groups.set(sectorGroup, new Set());
+    groups.get(sectorGroup).add(sector);
+  }
+  const byName = (a, b) => a.localeCompare(b, "zh-Hant");
+  const option = (value, label = value) => `<option value="${esc(value)}">${esc(label)}</option>`;
+  const grouped = [...groups].sort(([a], [b]) => byName(a, b)).map(([group, subs]) => subs.size === 1 && subs.has(group) ? option(group)
+    : `<optgroup label="${esc(group)}">${option(group, `全部${group}`)}${[...subs].sort(byName).map((sub) => option(sub)).join("")}</optgroup>`);
+  return `${option("all", "全部產業")}${[...plain].sort(byName).map((name) => option(name)).join("")}${grouped.join("")}`;
+}
+
 export function renderSectorOverviewView(context) {
   const { state, dataset, loading, loadFailed, latestSnapshots, sectorOverviews, loadingIcon, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures } = context;
   if (loading || loadFailed) {
@@ -20,7 +41,10 @@ export function renderSectorOverviewView(context) {
   document.querySelector("#sector-change-label").textContent = days === 1
     ? "當日平均漲跌" : `${days} 日平均漲跌`;
   const maxAmount = Math.max(1, ...sectors.map((sector) => Math.abs(sector.estimate.amount ?? 0)));
-  document.querySelector("#sector-grid").innerHTML = sectors.map((sector) => {
+  const shown = visibleSectors(sectors, state.sectorExpanded);
+  const showAll = shown.length < sectors.length
+    ? `<button type="button" class="sector-show-all outline-button" data-sector-expand>顯示全部 ${sectors.length} 個細產業</button>` : "";
+  document.querySelector("#sector-grid").innerHTML = shown.map((sector) => {
     const { leader, leaderValue, leaderChange } = sector;
     const periodLabel = days === 1 ? "" : `${days} 日 `;
     const leaderText = leaderValue === null ? "" : `TOP1·${leader.name}`;
@@ -30,7 +54,7 @@ export function renderSectorOverviewView(context) {
       : `<p>${periodLabel}<span>${esc(leaderText)}</span> <span class="${direction(leaderChange)}">${leader ? percent(leaderChange) : ""}</span></p>`;
     const bar = ranked ? `<i class="${direction(sector.estimate.amount)}" style="--sector-bar:${Math.max(4, Math.round((Math.abs(sector.estimate.amount) / maxAmount) * 100))}%"></i>` : "";
     return `<article class="sector-card" data-sector-name="${esc(sector.name)}" data-sector-details="${esc(sector.name)}" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="sector-dialog" aria-label="查看${esc(sector.name)}產業個股與法人買賣超"><div class="sector-main"><span class="sector-rank">${sector.rank ?? ""}</span><span class="sector-marker ${direction(sector.estimate.amount)}"></span><div class="sector-identity"><h3>${esc(sector.name)}</h3>${leaderLine}<small class="sector-breadth" data-sector-breadth title="所選區間淨買賣超金額為正的家數／金額資料完整的有效家數">${sector.estimate.available ? `買超 ${sector.estimate.buying}／${sector.estimate.available} 檔` : ""}</small>${state.sectorSort === "activity-desc" ? `<small class="sector-activity" data-sector-activity title="法人買進＋賣出金額占全市場法人交易的比重">${Number.isFinite(sector.activity?.share) ? `法人交易占 ${sector.activity.share.toFixed(1)}%` : "法人交易資料不足"}</small>` : ""}</div><strong class="sector-change ${direction(sector.change)}">${percent(sector.change)}</strong><div class="sector-total">${institutionalFigures(sector.estimate.amount, sector.total, 'data-sector-amount', 'data-sector-lots')}${bar}</div></div></article>`;
-  }).join("");
+  }).join("") + showAll;
   if (document.querySelector("#sector-dialog")?.open) renderSectorDialog(state.sectorName);
 }
 

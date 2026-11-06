@@ -1,6 +1,6 @@
 # 自訂細產業分類（台股上市公司）
 
-把證交所 33 類官方產業別再細分成 16 個大類、92 個細產業，涵蓋 2026-11-04 出表的全部 1,099 家上市公司。目前只是資料，尚未接進前端或 Worker。
+把證交所 33 類官方產業別再細分成 16 個大類、92 個細產業，涵蓋 2026-11-04 出表的全部 1,099 家上市公司。App 透過 `shared/custom-sector-data.js` 使用這份資料。
 
 ## 檔案
 
@@ -36,4 +36,4 @@
 python3 -I data/custom-sectors/custom_sectors_classify.py data/custom-sectors/t187ap03_L.json
 ```
 
-JSON 和 CSV 會寫回這個資料夾。調整某家公司的歸類時，修改 `research_notes.tsv` 再重跑；新增或改名細產業時，修改產生器裡的 `SECTORS`。證交所清單更新後，替換 `t187ap03_L.json` 再重跑；新上市的公司會先套用官方產業別的預設細產業；如果屬於半導體業、其他電子業這類範圍較大的官方類別，會標成 `needsReview`。
+JSON 和 CSV 會寫回這個資料夾。接著執行 `node scripts/build-custom-sectors.mjs` 更新 App 使用的對照表，並更新 `cloudflare/summary-coordinator.js` 的摘要快取版本。調整某家公司的歸類時，修改 `research_notes.tsv` 再重跑；新增或改名細產業時，修改產生器裡的 `SECTORS`。證交所清單更新後，替換 `t187ap03_L.json` 再重跑；新上市的公司會先套用官方產業別的預設細產業；如果屬於半導體業、其他電子業這類範圍較大的官方類別，會標成 `needsReview`。

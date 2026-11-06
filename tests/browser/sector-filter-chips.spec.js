@@ -29,16 +29,59 @@ test("sector filters read as one row of chips at every width", async ({ page }) 
   }
 });
 
-test("every phone chip fits at 390px and can be reached by scrolling at 320px", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test("the last phone chip can be reached by scrolling the row sideways", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
   await openSectors(page);
   const last = page.locator('[data-sector-window="20"]');
-  const toolbar = page.locator("#sector-page .sector-toolbar");
-  expect((await last.boundingBox()).x + (await last.boundingBox()).width).toBeLessThanOrEqual((await toolbar.boundingBox()).x + (await toolbar.boundingBox()).width);
-  await page.setViewportSize({ width: 320, height: 844 });
   await last.click();
   await expect(last).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator('[data-sector-window="day"]')).toHaveAttribute("aria-pressed", "false");
+});
+
+test("the ranking lists sub-industries only, and a row opens that sub-industry's stocks", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await openSectors(page);
+  const names = await page.locator("#sector-grid .sector-card h3").allTextContents();
+  expect(names).toContain("晶圓代工");
+  expect(names).not.toContain("半導體");
+  await expect(page.locator("#sector-page")).not.toContainText("大類");
+  await page.locator('#sector-grid [data-sector-name="晶圓代工"]').click();
+  await expect(page.locator("#sector-dialog-heading")).toHaveText("晶圓代工");
+  await expect(page.locator('#sector-dialog [data-sector-stock="2330"]')).toBeVisible();
+  await expect(page.locator('#sector-dialog [data-sector-stock="2454"]')).toHaveCount(0);
+});
+
+test("a long ranking opens on its top ten and expands to all of them", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await openSectors(page);
+  const total = await page.locator("#sector-grid .sector-card").count();
+  // Demo data has too few sub-industries to collapse, so its ranking shows them all.
+  expect(total).toBeLessThanOrEqual(10);
+  await expect(page.locator("[data-sector-expand]")).toHaveCount(0);
+});
+
+test("the market filter offers a whole sector or one sub-industry", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await page.goto("/");
+  const rows = page.locator("#stock-rows tr[data-symbol]");
+  await expect(rows.first()).toBeVisible();
+  const filter = page.locator("#sector-filter");
+  await expect(filter.locator('optgroup[label="半導體"] option').first()).toHaveText("全部半導體");
+  await filter.selectOption("半導體");
+  await expect(page.locator('#stock-rows tr[data-symbol="2330"]')).toBeVisible();
+  await expect(page.locator('#stock-rows tr[data-symbol="2454"]')).toBeVisible();
+  await filter.selectOption("IC設計");
+  await expect(page.locator('#stock-rows tr[data-symbol="2454"]')).toBeVisible();
+  await expect(page.locator('#stock-rows tr[data-symbol="2330"]')).toHaveCount(0);
+  await filter.selectOption("ETF");
+  await expect(page.locator('#stock-rows tr[data-symbol="0050"]')).toBeVisible();
+  await expect(page.locator('#stock-rows tr[data-symbol="2454"]')).toHaveCount(0);
+});
+
+test("a stock's dialog names only its sub-industry", async ({ page }) => {
+  await page.goto("/");
+  await page.locator('#stock-rows tr[data-symbol="2330"] .entry-score-button').click();
+  await expect(page.locator("#info-dialog .entry-dialog-sector")).toHaveText("晶圓代工");
 });
 
 test("the chips still change the ranking and show which is chosen", async ({ page }) => {

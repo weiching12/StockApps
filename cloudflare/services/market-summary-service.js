@@ -6,7 +6,7 @@ import { entryScoreSummary, getEntryScore } from "../../shared/entry-score.js";
 import { entryResearchSummary, evaluateEntryResearch } from "../../shared/entry-research.js";
 import { compareResearchSnapshots, researchConfigId } from "../../shared/research-tracking.js";
 import { REVIEW_HISTORY_LIMIT, reviewEventTimeline } from "../../shared/research-review.js";
-import { getSectorDetail, getSectorOverview } from "../../shared/sectors.js";
+import { getSectorDetail, getSectorOverview, sectorMatches } from "../../shared/sectors.js";
 import { DomainError } from "../../shared/domain-error.js";
 
 const WINDOWS = ["day", "5", "20"];
@@ -28,7 +28,7 @@ export class MarketSummaryService {
     const asOf = date || manifest.asOf;
     if (!manifest.dates.includes(asOf)) throw new DomainError("INVALID_QUERY", "交易日不存在");
     const dates = manifest.dates.filter((day) => day <= asOf);
-    const metadata = sector ? manifest.stocks.filter((stock) => stock.sector === sector) :
+    const metadata = sector ? manifest.stocks.filter((stock) => sectorMatches(stock, sector)) :
       symbols ? manifest.stocks.filter((stock) => symbols.includes(stock.symbol)) : manifest.stocks;
     if (sector && !metadata.length) throw new DomainError("SECTOR_NOT_FOUND", "產業不存在");
     const indices = sector || symbols ? [...new Set(metadata.map((stock) => shardOf(stock.symbol)))] :
@@ -64,7 +64,7 @@ export class MarketSummaryService {
       const score = getEntryScore(stock, dates, asOf,
         { priceBasis: "unadjusted", corporateActions: actions, settings });
       return {
-        symbol: stock.symbol, name: stock.name, sector: stock.sector, market: stock.market,
+        symbol: stock.symbol, name: stock.name, sector: stock.sector, sectorGroup: stock.sectorGroup, market: stock.market,
         assetType: stock.assetType, currency: stock.currency, listedOn: stock.listedOn,
         latest: stock.latest, signal: stock.signal, priceVolume: stock.priceVolume,
         trend: stock.trend, entryScore: entryScoreSummary(score),

@@ -38,8 +38,8 @@ const escapeText = (text) => String(text).replace(/[&<>"']/g, (char) => `&#${cha
 export const netAmountText = (amount) => !Number.isFinite(amount) ? "—"
   : `${amount > 0 ? "+" : amount < 0 ? "-" : ""}${decimals(Math.abs(amount) / 1e8, 2)} 億`;
 
-/** A sector's amount in a narrow cell: whole 億 once it reaches 100. */
-export const flowAmountText = (amount) => Math.abs(amount) < 1e10 ? netAmountText(amount)
+/** An amount in a narrow card cell: whole 億 once it reaches 100. */
+export const factAmountText = (amount) => !(Math.abs(amount) >= 1e10) ? netAmountText(amount)
   : `${amount > 0 ? "+" : "-"}${decimals(Math.abs(amount) / 1e8, 0)} 億`;
 
 /** Signed run of sessions on one side: +3 reads 連買 3 日, -2 reads 連賣 2 日. */
@@ -54,8 +54,9 @@ function breadthMarkup({ advancing, unchanged, declining }) {
 
 function factsMarkup(market) {
   const { institutionalNet: net, institutionalStreak: streak, inflow, outflow } = market;
-  const flow = (key, label, top) => `<div class="sentiment-fact" data-fact="${key}"><span>${label}</span><strong title="${escapeText(top?.sector ?? "")}">${escapeText(top?.sector ?? "—")}</strong><b class="${toneOf(top?.amount)}">${top ? flowAmountText(top.amount) : ""}</b></div>`;
-  return `<div class="sentiment-fact" data-fact="institutions" title="僅計上市普通股，淨買賣股數 × 當日收盤價，屬估算值；流入、流出只代表三大法人"><span>法人淨買賣</span><strong class="${toneOf(net)}">${netAmountText(net)}</strong><b class="${toneOf(streak)}">${streakText(streak)}</b></div>${flow("inflow", "法人流入", inflow)}${flow("outflow", "法人流出", outflow)}`;
+  // Every cell reads the same way down: label, amount, then what the amount is about.
+  const cell = (key, label, amount, detail, detailClass = "") => `<div class="sentiment-fact" data-fact="${key}"><span>${label}</span><strong class="${toneOf(amount)}">${factAmountText(amount)}</strong><small class="${detailClass}">${escapeText(detail)}</small></div>`;
+  return `${cell("institutions", "法人淨買賣", net, streakText(streak), toneOf(streak))}${cell("inflow", "法人流入", inflow?.amount ?? null, inflow?.sector ?? "—")}${cell("outflow", "法人流出", outflow?.amount ?? null, outflow?.sector ?? "—")}`;
 }
 
 const MOOD_SWEEP_MS = 1400;

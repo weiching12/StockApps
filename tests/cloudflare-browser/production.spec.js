@@ -103,8 +103,12 @@ test("partial sector totals exclude missing data and leave unavailable constitue
   };
   // ETFs are excluded from sector rankings, so only an inactive company has a sector card to check.
   const unpriced = manifest.stocks.find((stock) => manifest.coverage.inactive.includes(stock.symbol) && stock.sector !== "ETF");
-  const sectors = [...new Set(["電子零組件業", unpriced?.sector].filter(Boolean))];
+  const sectors = [...new Set(["連接器與線材", unpriced?.sector].filter(Boolean))];
   await page.locator('[data-page="sectors"]').click();
+  // The ranking opens on its top rows; the rest of the sub-industries are one tap away.
+  await expect(page.locator("#sector-grid .sector-card")).toHaveCount(10);
+  await page.locator("[data-sector-expand]").click();
+  await expect(page.locator("#sector-grid .sector-card")).toHaveCount(new Set(manifest.stocks.filter((stock) => stock.sector !== "ETF").map((stock) => stock.sector)).size);
   for (const sector of sectors) {
     for (const [key, days] of [["day", 1], ["5", 5], ["20", 20]]) {
       const result = expected(sector, days);
@@ -131,7 +135,7 @@ test("partial sector totals exclude missing data and leave unavailable constitue
       await expect(row.locator(".sector-stock-close")).toHaveText("—");
       await expect(row.locator('[data-sector-net="day"] strong')).toHaveText("");
     }
-    if (sector === "電子零組件業") {
+    if (sector === "連接器與線材") {
       if (manifest.coverage.missingInstitutions.includes("4943"))
         await expect(page.locator('[data-sector-stock="4943"] [data-sector-net="day"] strong')).toHaveText("");
       for (const width of [320, 390, 1440]) {

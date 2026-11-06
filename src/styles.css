@@ -66,13 +66,15 @@ body { background: var(--surface); }
 .sentiment-breadth b { font-size: var(--text-secondary); font-weight: 600; }
 .sentiment-breadth .up b { color: var(--up); }
 .sentiment-breadth .down b { color: var(--down); }
-/* Below it, one row of three matching cells: label, headline, detail. */
-.sentiment-facts { grid-area: facts; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+/* Below it, three equal cells split by hairlines, each reading label, amount, detail so the amounts line up. */
+.sentiment-facts { grid-area: facts; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 10px; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
 .sentiment-facts:empty { display: none; }
-.sentiment-fact { display: grid; gap: 1px; min-width: 0; }
-.sentiment-fact > span { overflow: hidden; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
-.sentiment-fact > strong { overflow: hidden; color: var(--ink); font-size: var(--text-secondary); font-weight: 600; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
-.sentiment-fact b { color: var(--ink); font-size: var(--text-meta); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+.sentiment-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-inline: 10px; border-left: 1px solid var(--border); }
+.sentiment-fact:first-child { padding-left: 0; border-left: 0; }
+.sentiment-fact:last-child { padding-right: 0; }
+.sentiment-fact > span { color: var(--muted); font-size: var(--text-meta); line-height: 1.5; white-space: nowrap; }
+.sentiment-fact > strong { color: var(--ink); font-size: var(--text-body); font-weight: 600; line-height: 1.3; white-space: nowrap; }
+.sentiment-fact > small { color: var(--ink); font-size: var(--text-meta); line-height: 1.4; overflow-wrap: anywhere; }
 .sentiment-fact .up { color: var(--up); }
 .sentiment-fact .down { color: var(--down); }
 .sentiment-breadth-bar { flex: 1; display: flex; gap: 2px; min-width: 0; height: 4px; overflow: hidden; border-radius: 2px; background: var(--border); }
@@ -97,8 +99,6 @@ body { background: var(--surface); }
   .sentiment-band { font-size: var(--text-secondary); }
   [data-mood-style="scale"] .sentiment-scale { width: 100%; grid-area: auto; }
   [data-mood-style="scale"] .sentiment-readout { order: -1; grid-area: auto; }
-  .sentiment-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-  .sentiment-fact > strong { font-size: var(--text-body); }
 }
 .settings-group { margin: 0 0 16px; padding: 0; border: 0; }
 .settings-group legend { padding-top: 5px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
@@ -3329,9 +3329,9 @@ dialog.sector-dialog {
 /* Sector filters: the same chips as the phone market filters; on phones one row that can scroll sideways. */
 #sector-page .sector-toolbar { justify-content: flex-start; gap: 20px; }
 #sector-page .sector-toolbar :is(.sector-sort-control, .sector-period-control) > span { font-size: var(--text-meta); }
-#sector-page .sector-toolbar .segmented-control { gap: 6px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+#sector-page .sector-toolbar .segmented-control { display: flex; width: fit-content; gap: 6px; padding: 0; border: 0; border-radius: 0; background: transparent; }
 #sector-page .sector-toolbar .segmented-indicator { display: none; }
-#sector-page .sector-toolbar .segmented-control button { flex: none; min-width: 0; min-height: 32px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-weight: 500; white-space: nowrap; }
+#sector-page .sector-toolbar .segmented-control button { flex: none; min-width: 0; min-height: 32px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-size: var(--text-secondary); font-weight: 500; white-space: nowrap; }
 #sector-page .sector-toolbar .segmented-control button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 @media (max-width: 700px) {
   #sector-page .sector-toolbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 8px; }
@@ -3341,3 +3341,5 @@ dialog.sector-dialog {
   #sector-page .sector-toolbar .segmented-control { gap: 4px; }
   #sector-page .sector-toolbar .segmented-control button { padding: 4px 8px; }
 }
+
+.sector-show-all { grid-column: 1 / -1; justify-content: center; width: 100%; min-height: 44px; margin-top: 8px; }

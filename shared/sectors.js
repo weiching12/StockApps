@@ -12,6 +12,9 @@ import {
 const PERIODS = Object.freeze(["day", "5", "20"]);
 const INSTITUTIONS = Object.freeze(["外資", "投信", "自營商"]);
 
+/** A sub-industry, or the official industry name older links still use. */
+export const sectorMatches = (stock, name) => stock.sector === name || stock.twseSector === name;
+
 /** Industry research excludes ETFs, including catalogs that predate assetType. */
 export function groupSectorStocks(snapshots) {
   const groups = new Map();
@@ -119,8 +122,8 @@ const volumeRatio = (shares, volume) => Number.isFinite(shares) && volume ? shar
  * No DOM, HTTP, storage or formatted strings enter the research model.
  */
 export function getSectorDetail(snapshots, name, { tradingDates, asOf = tradingDates.at(-1) }) {
-  const stocks = groupSectorStocks(snapshots).get(name);
-  if (!stocks?.length) return null;
+  const stocks = snapshots.filter((stock) => !isEtf(stock) && sectorMatches(stock, name));
+  if (!stocks.length) return null;
   const selectedDates = tradingDates.filter((date) => date <= asOf);
   const periods = Object.fromEntries(PERIODS.map((window) => {
     const summary = getSectorInstitutionSummary(stocks, window, tradingDates);

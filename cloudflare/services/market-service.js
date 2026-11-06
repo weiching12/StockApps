@@ -1,6 +1,8 @@
+import { classifyStock } from "../../shared/custom-sectors.js";
 import { expandStock, isEtf, shardOf } from "../../shared/market-codec.js";
 
 import { DomainError } from "../../shared/domain-error.js";
+import { sectorMatches } from "../../shared/sectors.js";
 const unavailable = () => new DomainError("DATA_UNAVAILABLE", "股票資料尚未準備完成，請稍後再試。");
 
 export class MarketService {
@@ -8,7 +10,8 @@ export class MarketService {
   async market() {
     const manifest = await this.repository.manifest();
     if (!manifest) throw unavailable();
-    return manifest;
+    // Published manifests keep the official industry; every reader gets the custom taxonomy from here.
+    return { ...manifest, stocks: manifest.stocks.map(classifyStock) };
   }
   async snapshot(generation, index) {
     const shard = await this.repository.shard(generation, index);
@@ -29,7 +32,7 @@ export class MarketService {
   async stocks({ offset, limit, type, sector, query }) {
     const manifest = await this.market();
     const stocks = manifest.stocks.filter((stock) =>
-      (!type || (isEtf(stock) ? "etf" : "stock") === type) && (!sector || stock.sector === sector) &&
+      (!type || (isEtf(stock) ? "etf" : "stock") === type) && (!sector || sectorMatches(stock, sector)) &&
       (!query || `${stock.symbol} ${stock.name}`.toLowerCase().includes(query.toLowerCase())));
     return { data: stocks.slice(offset, offset + limit), meta: { asOf: manifest.asOf,
       updatedAt: manifest.updatedAt, total: stocks.length, offset, limit } };

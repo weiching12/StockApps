@@ -22,25 +22,28 @@ for (const style of ["gauge", "scale"]) {
       await expect(card.locator(".sentiment-arc")).toBeVisible({ visible: style === "gauge" });
       await expect(card.locator(".sentiment-scale")).toBeVisible({ visible: style === "scale" });
       await expect(card.locator('[data-fact="institutions"]')).toHaveText(/^法人淨買賣\s*[+-]?[\d,.]+ 億\s*(連[買賣] \d+ 日|買賣持平)$/);
-      await expect(card.locator('[data-fact="inflow"]')).toHaveText(/^法人流入\s*\S+\s*\+[\d,.]+ 億$/);
-      await expect(card.locator('[data-fact="outflow"]')).toHaveText(/^法人流出\s*\S+\s*-[\d,.]+ 億$/);
+      await expect(card.locator('[data-fact="inflow"]')).toHaveText(/^法人流入\s*\+[\d,.]+ 億\s*\S+$/);
+      await expect(card.locator('[data-fact="outflow"]')).toHaveText(/^法人流出\s*-[\d,.]+ 億\s*\S+$/);
       // The longest values real data can show still stay inside their own cell.
       const layout = await card.locator(".sentiment-card").evaluate((button) => {
-        button.querySelector('[data-fact="institutions"] strong').textContent = "-1,245.99 億";
-        button.querySelector('[data-fact="institutions"] b').textContent = "連賣 12 日";
-        button.querySelector('[data-fact="inflow"] b').textContent = "+1,246 億";
-        button.querySelector('[data-fact="outflow"] b').textContent = "-1,246 億";
+        button.querySelector('[data-fact="institutions"] strong').textContent = "-1,246 億";
+        button.querySelector('[data-fact="institutions"] small').textContent = "連賣 12 日";
+        button.querySelector('[data-fact="inflow"] strong').textContent = "+1,246 億";
+        button.querySelector('[data-fact="inflow"] small').textContent = "ASIC設計服務與矽智財";
+        button.querySelector('[data-fact="outflow"] strong').textContent = "-1,246 億";
         const outer = button.getBoundingClientRect(), box = (selector) => button.querySelector(selector).getBoundingClientRect();
         const inside = (element, cell) => { const range = document.createRange(); range.selectNodeContents(element); const rect = range.getBoundingClientRect(); return rect.left >= cell.left - 1 && rect.right <= cell.right + 1; };
-        const clipped = [...button.querySelectorAll(".sentiment-fact")].flatMap((cell) => [...cell.querySelectorAll("b")].filter((part) => !inside(part, cell.getBoundingClientRect())).map((part) => part.textContent));
-        const tops = [...button.querySelectorAll(".sentiment-fact")].map((cell) => cell.getBoundingClientRect().top);
+        const clipped = [...button.querySelectorAll(".sentiment-fact")].flatMap((cell) => [...cell.querySelectorAll("strong, small")].filter((part) => !inside(part, cell.getBoundingClientRect())).map((part) => part.textContent));
+        // The amounts line up across the three cells.
+        const tops = [...button.querySelectorAll(".sentiment-fact strong")].map((cell) => cell.getBoundingClientRect().top);
         return { clipped, oneRow: new Set(tops).size === 1, readoutInside: box(".sentiment-readout").right <= outer.right, breadthLeftOfGauge: box(".sentiment-breadth-bar").right <= box(".sentiment-meter").left,
           scaleAboveBreadth: box(".sentiment-scale").bottom <= box(".sentiment-breadth").top, factsInside: box(".sentiment-facts").bottom <= outer.bottom, overflow: document.documentElement.scrollWidth > innerWidth };
       });
       expect(layout, `${width}px`).toMatchObject({ clipped: [], oneRow: true, readoutInside: true, factsInside: true, overflow: false,
         // Wide cards put either style on the right; only the narrow scale runs above the breadth line.
         ...(style === "gauge" || width >= 760 ? { breadthLeftOfGauge: true } : { scaleAboveBreadth: true }) });
-      if (width <= 390) expect((await card.boundingBox()).height).toBeLessThan(220);
+      // Injected above: the longest sub-industry name wraps, the tallest a phone card gets.
+      if (width <= 390) expect((await card.boundingBox()).height).toBeLessThan(250);
     }
   });
 }
