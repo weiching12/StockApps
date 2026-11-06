@@ -31,5 +31,5 @@ test("the lapsed count covers yesterday's signals that no longer hold, not today
     stock("4", "TRIGGERED", "2026-10-16"), stock("5", "SIGNAL_EXPIRED", "2026-10-13"), stock("6", "WAIT_TRIGGER", null)];
   const { stats } = renderResearchCenter({ favorites: stocks.map((item) => item.symbol), stocks, store: { periods: [] },
     date: "2026-10-16", previousDate: "2026-10-15", sort: "readiness", filter: "all", esc: String });
-  assert.match(stats, /今日進場候選失效<\/span><strong class="">3<small>/);
+  assert.match(stats, /今日候選失效<\/span><strong class="">3<small>/);
 });
