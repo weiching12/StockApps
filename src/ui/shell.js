@@ -23,7 +23,7 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
       <div class="sidebar-bottom"><button class="nav-item" data-dialog="settings" aria-label="設定">${icon("settings")}<span>設定</span></button><div class="nav-more"><button class="nav-item nav-more-toggle" type="button" aria-label="更多選單" aria-haspopup="menu" aria-expanded="false" aria-controls="nav-more-menu">${icon("menu")}</button><div id="nav-more-menu" class="nav-more-menu" role="menu" aria-label="更多選單" hidden><button type="button" role="menuitem" data-dialog="methodology">${icon("book")}<span>指標說明</span></button><button type="button" role="menuitem" data-dialog="source">${icon("info")}<span>資料說明</span></button><button type="button" role="menuitem" data-dialog="settings">${icon("settings")}<span>設定</span></button></div></div><div class="workspace-status"><span class="status-dot"></span>${isDemo ? "前端示範版" : "每日收盤資料"} <span>${appVersion}</span></div></div>
     </aside>
     <div class="workspace">
-      <header class="topbar"><div class="breadcrumb">研究工作台 ${icon("chevron")} <span id="breadcrumb-current">主頁面</span></div><div class="topbar-actions"><span id="account-menu" class="account-menu"><a href="/login.html">登入</a></span><span id="online-count" hidden></span><span class="demo-badge"><span></span>${esc(dataset.info.label)}</span></div></header>
+      <header class="topbar"><div class="breadcrumb">研究工作台 ${icon("chevron")} <span id="breadcrumb-current">主頁面</span></div><div class="topbar-actions"><span id="account-menu" class="account-menu"><a href="/login.html">登入</a></span><span id="online-count" hidden></span><span class="demo-badge"><span></span>${dataset.info.label ? esc(dataset.info.label) : loadingIcon()}</span></div></header>
       <main id="main" tabindex="-1">
         <section class="page-heading"><div><div class="eyebrow" id="page-eyebrow">TAIWAN STOCK EXPLORER</div><h1 id="page-title">主頁面<span class="heading-dot">.</span></h1><p id="page-description">今日市場情緒與進場篩選結果，點選股票查看完整研究。</p></div><p id="research-date" class="research-date" hidden></p><div class="date-control"><label for="trade-date">${icon("calendar")}<span class="date-label-text">資料交易日</span></label><select id="trade-date">${dataset.dates
           .slice(-30)
@@ -43,7 +43,7 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
         </section>
         <section id="market-sentiment" class="market-sentiment" data-page-panel="home" data-sentiment="unknown" aria-labelledby="sentiment-title">
           <div class="sentiment-card">
-            <div class="sentiment-heading"><h2 id="sentiment-title">台股市場情緒</h2><span class="sentiment-date">資料更新中</span></div>
+            <div class="sentiment-heading"><h2 id="sentiment-title">台股市場情緒</h2><span class="sentiment-date">${loadingIcon("市場情緒載入中")}</span></div>
             <div class="sentiment-meter" title="株研建立的觀察指標，不是交易所官方指數">${moodMeterMarkup()}</div>
             <div class="sentiment-breadth"></div>
             <div class="sentiment-facts"></div>

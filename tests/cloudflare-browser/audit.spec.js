@@ -218,7 +218,8 @@ test("a stock's detail shows what the list knows while its analysis loads, never
   await expect(dialog.locator(".entry-chart-price strong")).not.toBeEmpty();
   await expect(dialog.locator(".research-plan-card h3")).not.toBeEmpty();
   await expect(dialog.locator(".research-plan-facts dt")).toHaveText(["進場準備度", "初步門檻", "進場策略"]);
-  await expect(dialog.locator(".entry-pending")).toContainText("研究明細載入中");
+  await expect(dialog.locator(".entry-pending .loading-spinner")).toBeVisible();
+  await expect(dialog).not.toContainText("載入中");
   await expect(dialog).not.toContainText("資料不足，無法進行");
   const quick = await dialog.locator(".research-plan-card h3").textContent();
   release();

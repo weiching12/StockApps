@@ -46,7 +46,7 @@ function showInstitutionPoint(chart, point, number) {
 
 function priceChartMarkup(stock, esc, number, series, marks = null) {
   const heading = '<h3>30 個交易日走勢圖</h3>';
-  if (!series.length) return `<section class="entry-price-chart">${heading}<p>走勢資料載入中…</p></section>`;
+  if (!series.length) return `<section class="entry-price-chart">${heading}<p>近 30 個交易日沒有走勢資料。</p></section>`;
   const valid = series.filter(({ close }) => Number.isFinite(close) && close > 0);
   if (!valid.length) return `<section class="entry-price-chart">${heading}<p>近 30 個交易日沒有可用的收盤價。</p></section>`;
   const planLines = (marks?.lines ?? []).filter(({ value }) => Number.isFinite(value) && value > 0);
@@ -157,7 +157,7 @@ export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = f
       <p class="entry-dialog-meta">波段順勢進場 · ${esc(score.asOf ?? stock.latest?.date ?? "")}</p></header>
       <section class="entry-price-chart entry-chart-pending"><div class="entry-chart-pending-head"><h3>30 個交易日走勢圖</h3>${price}</div><div class="entry-pending-body">${loadingIcon("走勢資料載入中")}</div></section>
       ${researchCardPreview(stock.entryResearch, { esc, number })}
-      <section class="entry-pending" role="status">${loadingIcon("研究明細載入中")}<span>研究明細載入中</span></section></div>`;
+      <section class="entry-pending">${loadingIcon("研究明細載入中")}</section></div>`;
   }
   if (!score || !research) return `${heading}<p>資料不足，無法進行進場研究。</p>`;
   const chartSeries = stock.priceHistory ?? dailyCloseSeries(stock.history,

@@ -483,7 +483,7 @@ function openSectorDialog(name, focusHandle = true, stockSymbol = null) {
     const date = dataset.info.asOf, key = `${summaryKey(date)}:${name}`;
     if (sectorDetailCache.has(key)) renderSectorDialog(name);
     else {
-      document.querySelector("#sector-dialog-content").innerHTML = '<p role="status">資料載入中…</p>';
+      document.querySelector("#sector-dialog-content").innerHTML = loadingIcon();
       const settings = { ...state.settings };
       const isCurrent = () => document.querySelector("#sector-dialog").open && state.sectorName === name &&
         key === `${summaryKey(dataset.info.asOf)}:${name}`;
@@ -556,7 +556,7 @@ function openDialog(type, focusClose = true) {
       state.favorites.includes(symbol), icon, loadingIcon) :
       `<h2 id="dialog-heading">個股進場評估</h2><p>找不到這檔股票。</p>`;
   } else if (type === "backtest-sample") {
-    content.innerHTML = `<h2 id="dialog-heading">研究樣本說明</h2><div class="backtest-loading">${loadingIcon("樣本說明載入中")}<span>樣本說明載入中</span></div>`;
+    content.innerHTML = `<h2 id="dialog-heading">研究樣本說明</h2><div class="backtest-loading">${loadingIcon("樣本說明載入中")}</div>`;
   } else if (type === "signals") {
     content.innerHTML = `<h2 id="dialog-heading">KD 技術建議怎麼看？</h2>${technicalSignalGuide()}`;
   } else if (type === "source" && !isDemo && !dataset.info.updatedAt) {
@@ -1083,7 +1083,7 @@ async function init() {
   };
   if (apiMode) {
     loading = true; isDemo = false;
-    dataset = { stocks: [], dates: [], info: { mode: "twse", label: "資料載入中", asOf: "" } };
+    dataset = { stocks: [], dates: [], info: { mode: "twse", label: "", asOf: "" } };
     snapshots = []; latestSnapshots = [];
     pendingSymbols.clear();
     shell(); bindEvents(); enablePwa(); refreshData();

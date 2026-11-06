@@ -27,7 +27,7 @@ function arcSegment(index) {
 /** Both score styles; the moodStyle setting shows one through CSS, so switching needs no re-render. */
 export const moodMeterMarkup = () => `<svg class="sentiment-arc" viewBox="0 0 120 66" aria-hidden="true">${bandTones.map((tone, index) => `<path d="${arcSegment(index)}" stroke="${tone}"/>`).join("")}<line class="sentiment-needle" x1="60" y1="60" x2="60" y2="20"/><circle cx="60" cy="60" r="4"/></svg>
   <div class="sentiment-scale" aria-hidden="true"><div class="sentiment-scale-track">${bandTones.map((tone) => `<i style="background:${tone}"></i>`).join("")}<span class="sentiment-scale-marker"></span></div><div class="sentiment-scale-ends"><span>恐懼</span><span>貪婪</span></div></div>
-  <div class="sentiment-readout"><strong class="sentiment-score">—</strong><span class="sentiment-band">資料更新中</span></div>`;
+  <div class="sentiment-readout"><strong class="sentiment-score">—</strong><span class="sentiment-band"></span></div>`;
 
 const count = (number) => Number.isFinite(number) ? number.toLocaleString("zh-TW") : "—";
 const decimals = (number, digits) => number.toLocaleString("zh-TW", { minimumFractionDigits: digits, maximumFractionDigits: digits });

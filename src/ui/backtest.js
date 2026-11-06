@@ -177,10 +177,10 @@ function sampleRows(samples, horizon) {
 }
 
 function samplesMarkup(state) {
-  const { samples, total, horizon, loadingMore } = state;
+  const { samples, total, horizon, loadingMore, loadingIcon } = state;
   return `<section class="backtest-section" aria-labelledby="backtest-samples-title"><h2 id="backtest-samples-title">研究樣本 <small>共 ${count(total)} 筆，依日期新到舊；點選查看當日保存的說明</small></h2>
     ${samples.length ? `<div class="backtest-table-wrap"><table class="backtest-table backtest-samples"><thead><tr><th scope="col">日期</th><th scope="col">股票</th><th scope="col">門檻</th><th scope="col">準備度</th><th scope="col">研究狀態</th><th scope="col">明日狀態</th><th scope="col">模擬 ${horizon} 日</th><th scope="col">收盤後 ${horizon} 日</th></tr></thead><tbody>${sampleRows(samples, horizon)}</tbody></table></div>
-    ${samples.length < total ? `<button type="button" class="outline-button backtest-more" data-backtest-more${loadingMore ? " disabled" : ""}>${loadingMore ? "載入中…" : `載入更多（還有 ${count(total - samples.length)} 筆）`}</button>` : ""}`
+    ${samples.length < total ? `<button type="button" class="outline-button backtest-more" data-backtest-more${loadingMore ? " disabled" : ""}>${loadingMore ? loadingIcon("樣本載入中") : `載入更多（還有 ${count(total - samples.length)} 筆）`}</button>` : ""}`
     : `<p class="backtest-empty">目前條件沒有研究樣本。</p>`}</section>`;
 }
 
@@ -228,7 +228,7 @@ export function createBacktestController({ client, apiMode, esc, openSample, loa
       content.innerHTML = `<div class="backtest-empty-state panel"><h2>示範模式沒有研究樣本</h2><p>策略回測只使用正式模式每日收盤後保存的全市場研究樣本與後續實際行情，不以模擬資料產生回測結果。</p><p>${RETENTION_NOTE}</p></div>`;
       return;
     }
-    if (state.loading && !state.result) { scope.textContent = ""; content.innerHTML = `<div class="backtest-loading">${loadingIcon("回測資料載入中")}<span>回測資料載入中</span></div>`; return; }
+    if (state.loading && !state.result) { scope.textContent = ""; content.innerHTML = `<div class="backtest-loading">${loadingIcon("回測資料載入中")}</div>`; return; }
     if (state.error) {
       scope.textContent = "";
       content.innerHTML = `<div class="backtest-empty-state panel" role="alert"><h2>回測資料載入失敗</h2><p>${esc(state.error)}</p><button type="button" class="outline-button" data-backtest-retry>重新載入</button></div>`;
@@ -242,7 +242,7 @@ export function createBacktestController({ client, apiMode, esc, openSample, loa
       return;
     }
     state.width = chartWidth(content);
-    content.innerHTML = `${tilesMarkup(result.data, result.meta)}${chartsMarkup(result, state.width)}${samplesMarkup({ ...state, horizon: result.meta.horizon })}<p class="backtest-note">${RETENTION_NOTE} 回測僅供研究模型參數，不代表未來報酬，也不是買賣建議。</p>`;
+    content.innerHTML = `${tilesMarkup(result.data, result.meta)}${chartsMarkup(result, state.width)}${samplesMarkup({ ...state, loadingIcon, horizon: result.meta.horizon })}<p class="backtest-note">${RETENTION_NOTE} 回測僅供研究模型參數，不代表未來報酬，也不是買賣建議。</p>`;
   }
 
   async function load() {
