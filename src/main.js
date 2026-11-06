@@ -553,7 +553,7 @@ function openDialog(type, focusClose = true) {
     const stock = snapshots.find((item) => item.symbol === symbol);
     const detail = stockDetailCache.get(`${summaryKey(state.date)}:${symbol}`);
     content.innerHTML = stock ? entryScoreDialogMarkup(detail ? { ...stock, ...detail } : stock, esc, number, percent,
-      state.favorites.includes(symbol), icon) :
+      state.favorites.includes(symbol), icon, loadingIcon) :
       `<h2 id="dialog-heading">個股進場評估</h2><p>找不到這檔股票。</p>`;
   } else if (type === "backtest-sample") {
     content.innerHTML = `<h2 id="dialog-heading">研究樣本說明</h2><div class="backtest-loading">${loadingIcon("樣本說明載入中")}<span>樣本說明載入中</span></div>`;
@@ -625,8 +625,13 @@ async function openEntryScoreDialog(symbol, focusClose = true) {
         state.favorites.includes(symbol), icon);
     }
   } catch (error) {
-    if (isCurrent())
-      document.querySelector("#dialog-content").innerHTML = `<h2 id="dialog-heading">個股進場評估</h2><p role="alert">${esc(error.message || "評分明細載入失敗")}</p>`;
+    if (isCurrent()) {
+      // What the list already showed stays; only the part that could not load says so.
+      const message = `<p role="alert">${esc(error.message || "評分明細載入失敗")}</p>`;
+      const content = document.querySelector("#dialog-content"), pending = content.querySelector(".entry-pending");
+      if (pending) { pending.outerHTML = message; content.querySelector(".entry-pending-body")?.remove(); }
+      else content.innerHTML = `<h2 id="dialog-heading">個股進場評估</h2>${message}`;
+    }
   }
 }
 

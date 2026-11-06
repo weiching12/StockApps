@@ -1,5 +1,5 @@
 import { dailyCloseSeries } from "../../shared/price-history.js";
-import { researchChartMarks, researchDialogSections } from "./entry-research.js";
+import { researchCardPreview, researchChartMarks, researchDialogSections } from "./entry-research.js";
 
 export function priceTrend(series) {
   const valid = series.filter(({ close }) => Number.isFinite(close) && close > 0);
@@ -145,10 +145,20 @@ export function restoreEntryChartTitle(plot, number) {
   // Back to the latest session, matching the title.
   showInstitutionPoint(chart, JSON.parse(plot.dataset.points).at(-1), number);
 }
-export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = false, icon = () => "") {
+export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = false, icon = () => "", loadingIcon = () => "") {
   const score = stock.entryScore;
   const heading = `<div class="entry-dialog-title"><p class="entry-dialog-sector">${esc(stock.sector ?? "產業未分類")}</p><button type="button" class="icon-button favorite-button ${favorite ? "is-favorite" : ""}" data-favorite="${esc(stock.symbol)}" aria-label="${favorite ? "移除" : "加入"}${esc(stock.name)}自選" aria-pressed="${favorite}">${icon("star")}</button><h2 id="dialog-heading">${esc(stock.symbol)} ${esc(stock.name)}</h2></div>`;
   const research = stock.entryResearch?.gateResult ? stock.entryResearch : null;
+  // The list already knows the identity, price and next-day result; only the rest waits for the stock's analysis.
+  if (score && !research && stock.entryResearch) {
+    const change = stock.latest?.changePercent;
+    const price = Number.isFinite(stock.latest?.close) ? `<div class="entry-chart-price"><strong>${number(stock.latest.close, 2)}</strong>${Number.isFinite(change) ? `<span class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${chartChange(change)}</span>` : ""}</div>` : "";
+    return `<div class="entry-dialog has-research"><header class="entry-dialog-header">${heading}
+      <p class="entry-dialog-meta">波段順勢進場 · ${esc(score.asOf ?? stock.latest?.date ?? "")}</p></header>
+      <section class="entry-price-chart entry-chart-pending"><div class="entry-chart-pending-head"><h3>30 個交易日走勢圖</h3>${price}</div><div class="entry-pending-body">${loadingIcon("走勢資料載入中")}</div></section>
+      ${researchCardPreview(stock.entryResearch, { esc, number })}
+      <section class="entry-pending" role="status">${loadingIcon("研究明細載入中")}<span>研究明細載入中</span></section></div>`;
+  }
   if (!score || !research) return `${heading}<p>資料不足，無法進行進場研究。</p>`;
   const chartSeries = stock.priceHistory ?? dailyCloseSeries(stock.history,
     stock.tradingDates ?? stock.history?.map((bar) => bar.date), score.asOf);

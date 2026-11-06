@@ -201,3 +201,39 @@ test("removing and re-adding a favorite updates tracking without reading saved V
   await expect(page.locator("#research-list .research-card")).toHaveCount(1);
   expect(researchCalls).toBe(0);
 });
+
+test("a stock's detail shows what the list knows while its analysis loads, never a missing-data message", async ({ page }) => {
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/v1/stocks/*/analysis*", async (route) => { await held; await route.continue(); });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  const row = page.locator("#stock-rows tr[data-symbol]").first();
+  await expect(row).toBeVisible();
+  const symbol = await row.getAttribute("data-symbol");
+  await row.locator(".stock-name").click();
+  const dialog = page.locator("#info-dialog");
+  await expect(dialog.locator("#dialog-heading")).toContainText(symbol);
+  await expect(dialog.locator(".entry-dialog-meta")).toContainText("波段順勢進場");
+  await expect(dialog.locator(".entry-chart-price strong")).not.toBeEmpty();
+  await expect(dialog.locator(".research-plan-card h3")).not.toBeEmpty();
+  await expect(dialog.locator(".research-plan-facts dt")).toHaveText(["進場準備度", "初步門檻", "進場策略"]);
+  await expect(dialog.locator(".entry-pending")).toContainText("研究明細載入中");
+  await expect(dialog).not.toContainText("資料不足，無法進行");
+  const quick = await dialog.locator(".research-plan-card h3").textContent();
+  release();
+  await expect(dialog.locator(".entry-pending")).toHaveCount(0);
+  await expect(dialog.locator(".entry-chart-plot")).toBeVisible();
+  await expect(dialog.locator(".research-plan-card h3")).toHaveText(quick);
+});
+
+test("a failed analysis keeps the list's facts and says only the detail is missing", async ({ page }) => {
+  await page.route("**/api/v1/stocks/*/analysis*", (route) => route.fulfill({ status: 503, json: { error: { code: "DATA_UNAVAILABLE", message: "明細暫時無法取得" } } }));
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#stock-rows tr[data-symbol] .stock-name").first().click();
+  const dialog = page.locator("#info-dialog");
+  await expect(dialog.locator('[role="alert"]')).toBeVisible();
+  await expect(dialog.locator(".research-plan-card")).toBeVisible();
+  await expect(dialog.locator(".entry-pending")).toHaveCount(0);
+});

@@ -147,6 +147,12 @@ function structureHelp(research, stock, { esc, number, percent }) {
     <p class="helper-text">兩項分數各占一半，只衡量趨勢與籌碼的強弱，不是門檻；門檻由上方否決條件判斷。</p></details>`;
 }
 
+/** The next-day card from the list's compact fields, shown at once while the full research loads. */
+export function researchCardPreview(summary, { esc, number }) {
+  const gate = { status: summary.gateStatus, passedCount: summary.gatePassed, conditions: summary.gateConditions ?? {} };
+  return `<section class="research-plan-card ${NEXT_TONE[summary.nextDayStatus] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估</p><div class="research-plan-head"><h3 id="research-plan-title">${esc(NEXT_DAY_STATUS_LABELS[summary.nextDayStatus] ?? "—")}</h3></div><dl class="research-plan-facts"><div><dt>進場準備度</dt><dd>${Number.isFinite(summary.score) ? `${number(summary.score, 0)} / 100` : "—"}</dd></div><div><dt>初步門檻</dt><dd>${esc(gateSummary(gate, summary.modelVersion))}</dd></div><div><dt>進場策略</dt><dd>${esc(SETUP_LABELS[summary.setupType] ?? "—")}</dd></div></dl></section>`;
+}
+
 /** Dialog sections in the required order, under the header and chart. */
 export function researchDialogSections(result, stock, { esc, number, percent }) {
   const { gateResult: gate, entryResearch: research, nextDayPlan: plan, dataQuality: quality } = result;

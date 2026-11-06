@@ -3383,3 +3383,13 @@ dialog.sector-dialog {
   #stock-rows > tr { grid-template-areas: "favorite stock stock" ". research research" ". price price" ". extras extras"; }
   #stock-rows > tr > .research-cell { align-items: flex-start; justify-self: start; }
 }
+
+/* Stock detail while its analysis loads: what the list knows, then room held for the rest. */
+.entry-chart-pending-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.entry-chart-pending-head h3 { margin: 0; }
+.entry-chart-price { display: grid; justify-items: end; gap: 2px; }
+.entry-chart-price strong { font-size: var(--text-title); font-variant-numeric: tabular-nums; }
+.entry-chart-price span.up { color: var(--up); }
+.entry-chart-price span.down { color: var(--down); }
+.entry-pending-body { display: grid; place-items: center; min-height: 260px; }
+.entry-pending { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; padding: 24px 12px; color: var(--muted); font-size: var(--text-secondary); }
