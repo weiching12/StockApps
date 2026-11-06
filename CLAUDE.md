@@ -86,7 +86,7 @@ Account login with D1-backed sessions (PBKDF2 hashes, HttpOnly SameSite=Strict c
 
 ## Custom sector data
 
-`data/custom-sectors/` holds a finer custom sector taxonomy (16 sectors / 101 sub-industries) for all TWSE-listed companies, keyed by stock code. It is data only and not wired into the app yet. Read `data/custom-sectors/README.md` before using or regenerating it.
+`data/custom-sectors/` holds a finer custom sector taxonomy (16 sectors / 92 sub-industries) for all TWSE-listed companies, keyed by stock code. It is data only and not wired into the app yet. Read `data/custom-sectors/README.md` before using or regenerating it.
 
 ## Docs
 
