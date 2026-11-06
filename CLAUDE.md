@@ -84,6 +84,10 @@ Data rules to preserve: prices are **unadjusted**; missing/suspended data is nev
 ### Auth
 Account login with D1-backed sessions (PBKDF2 hashes, HttpOnly SameSite=Strict cookie, role re-checked server-side). Users are created only via `node scripts/manage-user.mjs ... --local|--remote`; no self-signup or default accounts. See `docs/accounts.md`.
 
+## Custom sector data
+
+`data/custom-sectors/` holds a finer custom sector taxonomy (16 sectors / 101 sub-industries) for all TWSE-listed companies, keyed by stock code. It is data only and not wired into the app yet. Read `data/custom-sectors/README.md` before using or regenerating it.
+
 ## Docs
 
 `docs/` holds the authoritative design notes per subsystem (data-contract, sync-architecture, service-boundaries, frontend-architecture, t86-sync, history-storage, entry-score, sector-rules, visitor-analytics, accounts, native-ios, operations, cloudflare, rest-api). When changing behaviour in one of these areas, update the matching doc (in Chinese) and the README feature list if user-visible.
