@@ -42,13 +42,12 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
           <section class="research-center" aria-label="追蹤股票的進場研究"><div id="research-stats" class="research-stats"></div><div class="research-controls"><label>排序 <select id="research-sort">${RESEARCH_TRACKING_SORTS.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label><label>篩選 <select id="research-filter">${RESEARCH_TRACKING_FILTERS.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label></div><div id="research-list" class="research-list"></div></section>
         </section>
         <section id="market-sentiment" class="market-sentiment" data-page-panel="market" data-sentiment="unknown" aria-labelledby="sentiment-title">
-          <button type="button" data-dialog="sentiment" aria-haspopup="dialog">
-            <div class="sentiment-heading"><span class="eyebrow">TAIWAN MARKET MOOD</span><h2 id="sentiment-title">台股市場情緒</h2><span class="sentiment-date">資料更新中</span></div>
-            <div class="sentiment-meter">${moodMeterMarkup()}</div>
-            <span class="sentiment-more">查看組成 ${icon("chevron")}</span>
+          <div class="sentiment-card">
+            <div class="sentiment-heading"><h2 id="sentiment-title">台股市場情緒</h2><span class="sentiment-date">資料更新中</span></div>
+            <div class="sentiment-meter" title="株研建立的觀察指標，不是交易所官方指數">${moodMeterMarkup()}</div>
             <div class="sentiment-breadth"></div>
             <div class="sentiment-facts"></div>
-          </button>
+          </div>
         </section>
         <section class="panel stocks-panel" data-page-panel="market" aria-label="市場觀察股票表格">
           <div class="table-toolbar"><div class="filter-tabs segmented-control" role="group" aria-label="清單篩選"><span class="segmented-indicator" aria-hidden="true"></span><button data-view="all" class="active" aria-pressed="true"><span class="filter-label-desktop">全部標的</span><span class="filter-label-mobile">全部</span></button><button data-view="favorites" aria-pressed="false"><span class="filter-label-desktop">我的自選</span><span class="filter-label-mobile">自選</span></button>${RESEARCH_FILTER_CHIPS.map(([value, label]) => `<button class="filter-chip-research" data-research-chip="${value}" aria-pressed="${state.research === value}" aria-label="${RESEARCH_FILTERS.find(([key]) => key === value)[1]}">${label}</button>`).join("")}<button data-view="above" aria-pressed="false">站上季線</button><button data-view="below" aria-pressed="false">季線之下</button><button data-view="oversold" aria-pressed="false" aria-label="K 值低於 20">K值低於20</button></div><div class="search-controls"><label class="search-box">${icon("search")}<input id="stock-search" type="search" placeholder="搜尋代碼或名稱" aria-label="搜尋股票代碼或名稱" autocomplete="off"/><kbd>/</kbd></label><select id="sector-filter" aria-label="產業篩選"><option value="all">全部產業</option>${[...new Set(dataset.stocks.map((stock) => stock.sector))].map((sector) => `<option>${esc(sector)}</option>`).join("")}</select><select id="market-research-filter" aria-label="進場研究篩選">${RESEARCH_FILTERS.map(([value, label]) => `<option value="${value}"${state.research === value ? " selected" : ""}>${label}</option>`).join("")}</select><select id="market-sort" aria-label="清單排序"><option value="">預設：進場研究</option><option value="readiness">進場準備度</option><option value="changePercent">日漲跌幅</option><option value="volume">成交量</option><option value="symbol">股票代碼</option></select></div></div>

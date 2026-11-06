@@ -33,7 +33,7 @@ import { renderResearchCenter } from "./ui/research.js";
 import { dailyCloseSeries } from "../shared/price-history.js";
 import { priceBaseline } from "../shared/research-review.js";
 import { entryScoreDialogMarkup, selectEntryChartPoint, restoreEntryChartTitle } from "./ui/entry-score.js";
-import { renderSentiment, sentimentDialogMarkup } from "./ui/sentiment.js";
+import { renderSentiment } from "./ui/sentiment.js";
 import { createBacktestController } from "./ui/backtest.js";
 import {
   DEFAULT_SETTINGS,
@@ -114,7 +114,7 @@ const state = createState();
 const controls = createControlsController();
 const dialogs = createDialogController();
 
-let dataset, snapshots, latestSnapshots, currentSentiment;
+let dataset, snapshots, latestSnapshots;
 const apiMode = import.meta.env.VITE_DATA_MODE === "api";
 const nativeMode = import.meta.env.VITE_APP_TARGET === "native";
 const marketClient = new MarketApiClient();
@@ -213,8 +213,7 @@ function refreshData() {
   if (apiMode) {
     latestSnapshots = latestSummary?.data.stocks ?? [];
     snapshots = selectedSummary?.data.stocks ?? [];
-    currentSentiment = latestSummary?.data.sentiment ?? null;
-    if (currentSentiment) renderSentiment(currentSentiment);
+    if (latestSummary?.data.sentiment) renderSentiment(latestSummary.data.sentiment);
     renderTable(); renderSectorOverview(); renderPage(); renderResearch();
     return;
   }
@@ -241,8 +240,7 @@ function refreshData() {
   latestSnapshots = cached(dataset.info.asOf, latestCache);
   snapshots = state.date === dataset.info.asOf ? latestSnapshots
     : cached(state.date, historicalCache);
-  currentSentiment = calculateMarketSentiment(latestSnapshots, dataset.info.asOf, 20, dataset.dates);
-  renderSentiment(currentSentiment);
+  renderSentiment(calculateMarketSentiment(latestSnapshots, dataset.info.asOf, 20, dataset.dates));
   renderTable();
   renderSectorOverview();
   renderPage();
@@ -527,8 +525,6 @@ function openDialog(type, focusClose = true) {
       `<h2 id="dialog-heading">個股進場評估</h2><p>找不到這檔股票。</p>`;
   } else if (type === "backtest-sample") {
     content.innerHTML = `<h2 id="dialog-heading">研究樣本說明</h2><div class="backtest-loading">${loadingIcon("樣本說明載入中")}<span>樣本說明載入中</span></div>`;
-  } else if (type === "sentiment") {
-    content.innerHTML = sentimentDialogMarkup(currentSentiment);
   } else if (type === "signals") {
     content.innerHTML = `<h2 id="dialog-heading">KD 技術建議怎麼看？</h2>${technicalSignalGuide()}`;
   } else if (type === "source" && !isDemo && !dataset.info.updatedAt) {

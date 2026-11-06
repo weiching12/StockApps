@@ -25,7 +25,7 @@ for (const style of ["gauge", "scale"]) {
       await expect(card.locator('[data-fact="inflow"]')).toHaveText(/^法人流入\s*\S+\s*\+[\d,.]+ 億$/);
       await expect(card.locator('[data-fact="outflow"]')).toHaveText(/^法人流出\s*\S+\s*-[\d,.]+ 億$/);
       // The longest values real data can show still stay inside their own cell.
-      const layout = await card.locator("button").evaluate((button) => {
+      const layout = await card.locator(".sentiment-card").evaluate((button) => {
         button.querySelector('[data-fact="institutions"] strong').textContent = "-1,245.99 億";
         button.querySelector('[data-fact="institutions"] b').textContent = "連賣 12 日";
         button.querySelector('[data-fact="inflow"] b').textContent = "+1,246 億";
@@ -38,7 +38,8 @@ for (const style of ["gauge", "scale"]) {
           scaleAboveBreadth: box(".sentiment-scale").bottom <= box(".sentiment-breadth").top, factsInside: box(".sentiment-facts").bottom <= outer.bottom, overflow: document.documentElement.scrollWidth > innerWidth };
       });
       expect(layout, `${width}px`).toMatchObject({ clipped: [], oneRow: true, readoutInside: true, factsInside: true, overflow: false,
-        ...(style === "gauge" ? { breadthLeftOfGauge: true } : { scaleAboveBreadth: true }) });
+        // Wide cards put either style on the right; only the narrow scale runs above the breadth line.
+        ...(style === "gauge" || width >= 760 ? { breadthLeftOfGauge: true } : { scaleAboveBreadth: true }) });
       if (width <= 390) expect((await card.boundingBox()).height).toBeLessThan(220);
     }
   });
@@ -121,9 +122,28 @@ test("settings switches the mood style at once and remembers it", async ({ page 
   await expect(page.locator("#mood-style")).toHaveValue("scale");
 });
 
-test("the market mood card still opens its composition dialog", async ({ page }) => {
+test("the market mood card has no composition page to open", async ({ page }) => {
   await page.goto("/");
-  await page.locator("#market-sentiment button").click();
-  await expect(page.locator("#info-dialog .sentiment-components > div")).toHaveCount(5);
-  await expect(page.locator("#info-dialog .sentiment-trend polyline").first()).toBeVisible();
+  const card = page.locator("#market-sentiment");
+  await expect(card.locator(".sentiment-score")).toHaveText(/^\d+$/);
+  await expect(card).not.toContainText("查看組成");
+  await expect(card.locator("button, [data-dialog]")).toHaveCount(0);
+  await card.locator(".sentiment-card").click();
+  await expect(page.locator("#info-dialog")).not.toBeVisible();
+});
+
+test("on a wide card the larger gauge fills the right side, beside everything else", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await page.goto("/");
+  await expect(page.locator("#market-sentiment .sentiment-fact").first()).toBeVisible();
+  const layout = await page.locator("#market-sentiment .sentiment-card").evaluate((card) => {
+    const box = (selector) => card.querySelector(selector).getBoundingClientRect();
+    const meter = box(".sentiment-meter");
+    return { arcWidth: box(".sentiment-arc").width, leftEnd: Math.max(box(".sentiment-heading").right, box(".sentiment-breadth").right, box(".sentiment-facts").right),
+      meterLeft: meter.left, rightGap: card.getBoundingClientRect().right - meter.right, spansFacts: meter.top <= box(".sentiment-heading").top && meter.bottom >= box(".sentiment-facts").bottom };
+  });
+  expect(layout.arcWidth).toBeGreaterThanOrEqual(160);
+  expect(layout.leftEnd).toBeLessThanOrEqual(layout.meterLeft);
+  expect(layout.rightGap).toBeLessThan(40);
+  expect(layout.spansFacts).toBe(true);
 });
