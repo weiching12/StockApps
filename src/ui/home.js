@@ -6,31 +6,24 @@ const readiness = (stock) => researchSummaryOf(stock)?.score;
 const byReadiness = (a, b) => (Number.isFinite(readiness(b)) ? readiness(b) : -1) - (Number.isFinite(readiness(a)) ? readiness(a) : -1)
   || a.symbol.localeCompare(b.symbol);
 
-/** The latest session's screening: next-day candidates, then everything that cleared the gates. */
-export function homeEntryLists(stocks) {
-  return { candidate: stocks.filter((stock) => matchesResearchFilter(stock, "candidate")).sort(byReadiness),
-    gatePass: stocks.filter((stock) => matchesResearchFilter(stock, "gatePass")).sort(byReadiness) };
-}
-
-/** Candidates can be few or none, so a day without any opens on the stocks that cleared the gates. */
-export const homeEntryChoice = (lists, chosen) => chosen ?? (lists.candidate.length ? "candidate" : "gatePass");
+/** The latest session's screening: its next-day candidates, highest readiness first. */
+export const homeCandidates = (stocks) => stocks.filter((stock) => matchesResearchFilter(stock, "candidate")).sort(byReadiness);
 
 export function renderHomeView({ state, stocks, loading, loadFailed, asOf, loadingIcon, esc, number, percent, direction }) {
   const list = document.querySelector("#home-list");
   if (!list) return;
   const date = document.querySelector("#home-date");
   date.textContent = asOf ? `依 ${asOf} 收盤` : "";
+  const count = document.querySelector("#home-count");
   if (loading || loadFailed) {
-    document.querySelector("#home-tabs").innerHTML = "";
+    count.textContent = "";
     list.innerHTML = loading ? `<div class="home-loading">${loadingIcon("進場篩選載入中")}</div>` : "";
     return;
   }
-  const lists = homeEntryLists(stocks), choice = homeEntryChoice(lists, state.homeList);
-  const tab = (value, label) => `<button type="button" data-home-list="${value}" aria-pressed="${choice === value}">${label} ${lists[value].length}</button>`;
-  document.querySelector("#home-tabs").innerHTML = tab("candidate", "明日候選") + tab("gatePass", "門檻通過");
-  const chosen = lists[choice];
+  const chosen = homeCandidates(stocks);
+  count.textContent = `明日候選 ${chosen.length} 檔`;
   if (!chosen.length) {
-    list.innerHTML = `<p class="research-muted">${choice === "candidate" ? "本日沒有明日進場候選。" : "本日沒有通過初步門檻的個股。"}</p>`;
+    list.innerHTML = '<p class="research-muted">本日沒有明日進場候選。</p>';
     return;
   }
   const shown = state.homeExpanded ? chosen : chosen.slice(0, COLLAPSED_ROWS);

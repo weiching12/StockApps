@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 // Phones reach settings through the menu; wider screens show the button directly.
 async function openSettings(page) {
+  await page.locator('.nav-item[data-page="home"]').waitFor();
   const menu = page.getByRole('button', { name: '更多選單' });
   if (await menu.isVisible()) {
     await menu.click();

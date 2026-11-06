@@ -88,7 +88,7 @@ test("returning to the home page replays the sweep, while scrolling away does no
   await expect(score).toHaveText("50");
   expect(await page.evaluate(() => window.lowest)).toBeLessThan(30);
   // Scrolling the card off and back leaves the settled score alone.
-  await page.evaluate(() => { window.lowest = 100; document.querySelector(".page-footer").scrollIntoView(); });
+  await page.evaluate(() => { window.lowest = 100; document.querySelector(".page-footer").style.marginTop = "2000px"; document.querySelector(".page-footer").scrollIntoView(); });
   await expect.poll(() => page.locator("#market-sentiment").evaluate((card) => card.getBoundingClientRect().bottom < 0)).toBe(true);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(300);

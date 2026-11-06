@@ -50,8 +50,7 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
           </div>
         </section>
         <section id="home-entry" class="panel home-entry" data-page-panel="home" aria-labelledby="home-entry-title">
-          <div class="home-entry-head"><h2 id="home-entry-title">本日進場篩選</h2><span id="home-date"></span></div>
-          <div id="home-tabs" class="sector-chip-row" role="group" aria-label="進場篩選清單"></div>
+          <div class="home-entry-head"><h2 id="home-entry-title">本日進場篩選 <small id="home-count"></small></h2><span id="home-date"></span></div>
           <div id="home-list" class="research-list"></div>
         </section>
         <section class="panel stocks-panel" data-page-panel="market" aria-label="市場觀察股票表格" hidden>

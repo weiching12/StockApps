@@ -14,7 +14,7 @@ test("research center preserves favorites and opens existing score detail", asyn
   await expect(page.locator("#watchlist h2")).toHaveCount(0);
   await expect(page.locator("#legacy-watchlist")).toBeHidden();
   await expect(page.locator("#research-stats")).toContainText("自選股票");
-  await expect(page.locator("#research-stats .research-stat-label")).toHaveText(["自選股票", "明日進場候選", "初步門檻通過"]);
+  await expect(page.locator("#research-stats .research-stat-label")).toHaveText(["自選股票", "明日進場候選", "今日候選失效"]);
   await expect(page.locator("#research-stats .research-stat strong").first()).toContainText("檔");
   await expect(page.locator("#research-list table")).toBeVisible();
   // The list shows entry research, not the V1.2 score, and leads with readiness.

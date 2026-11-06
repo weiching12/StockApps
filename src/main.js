@@ -163,7 +163,7 @@ function saveResearch() { return persistResearchStore(appStorage(), researchStor
 function renderResearch() {
   if (!researchStore || !document.querySelector("#research-list")) return;
   const result = renderResearchCenter({ favorites: state.favorites, stocks: snapshots,
-    store: researchStore, date: state.date,
+    store: researchStore, date: state.date, previousDate: dataset.dates[dataset.dates.indexOf(state.date) - 1] ?? null,
     sort: researchSort, filter: researchFilter, esc });
   document.querySelector("#research-date").textContent = `交易日 ${dataset.info.asOf || "—"}`;
   document.querySelector("#research-stats").innerHTML = result.stats;
@@ -891,11 +891,6 @@ function bindEvents() {
       renderTable(); renderSectorOverview();
     }
     if (button.dataset.sectorOpen) openSectorDialog(button.dataset.sectorOpen, !touchInteraction);
-    if (button.dataset.homeList) {
-      state.homeList = button.dataset.homeList;
-      state.homeExpanded = false;
-      renderHome();
-    }
     if (button.dataset.homeExpand !== undefined) {
       state.homeExpanded = true;
       renderHome();

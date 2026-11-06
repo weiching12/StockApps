@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_SETTINGS } from "../shared/indicators.js";
-import { entryResearchGates, evaluateEntryResearch } from "../shared/entry-research.js";
+import { entryResearchGates, entryResearchSummary, evaluateEntryResearch } from "../shared/entry-research.js";
 import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V1, ENTRY_RESEARCH_MODEL_V2, ENTRY_RESEARCH_MODEL_V3 } from "../shared/entry-research-model.js";
 
 const KEYS = ["trend", "momentum", "priceVolume", "institutional", "entryRisk"];
@@ -140,4 +140,13 @@ test("v2 gates never read sessions after the evaluated date", () => {
   const changed = bars.map((bar, index) => index > last - 5
     ? { ...bar, close: 1, high: 2, low: 0.5, open: 1, ma20: 50, ma60: 90, volume: 1, changePercent: -50, institutions: flows(-1e9) } : bar);
   assert.deepEqual(entryResearchGates({ ...input(changed), asOf: asOfEarlier }), before);
+});
+
+test("a veto still reports the latest signal date for lists, without opening the research stage", () => {
+  const vetoed = baseline(); vetoed[last].ma20 = vetoed[last].ma60 - 0.1;
+  const result = evaluateEntryResearch(input(vetoed));
+  assert.equal(result.entryResearch.status, "NOT_ELIGIBLE");
+  assert.equal(result.entryResearch.signal, null);
+  assert.ok("lastSignalDate" in result.entryResearch);
+  assert.equal(entryResearchSummary(result).signalDate, result.entryResearch.lastSignalDate);
 });

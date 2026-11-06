@@ -2,33 +2,42 @@ import { test, expect } from "@playwright/test";
 
 const signedIn = { user: { username: "tester", role: "user", mustChangePassword: false } };
 
-test("the app opens on home with the mood and today's screening, and a row opens the stock", async ({ page }) => {
+test("the app opens on home with the mood and only today's next-day candidates", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#page-title")).toContainText("主頁面");
   await expect(page.locator("#market-sentiment")).toBeVisible();
   await expect(page.locator(".stocks-panel")).toBeHidden();
   await expect(page.locator("#trade-date")).toBeHidden();
-  const tabs = page.locator("#home-tabs button");
-  await expect(tabs).toHaveCount(2);
-  await expect(tabs.first()).toContainText("明日候選");
-  // The demo data has no candidates that day, so the page opens on what cleared the gates.
-  await expect(page.locator('[data-home-list="gatePass"]')).toHaveAttribute("aria-pressed", "true");
-  const rows = page.locator("#home-list tr.research-card");
-  await expect(rows.first()).toBeVisible();
-  const scores = (await rows.locator(".research-score-button strong").allTextContents()).map(Number);
-  expect(scores).toEqual([...scores].sort((a, b) => b - a));
-  await page.locator('[data-home-list="candidate"]').click();
+  // The demo session has no candidates, and stocks that only cleared the gates are not listed.
+  await expect(page.locator("#home-count")).toHaveText("明日候選 0 檔");
   await expect(page.locator("#home-list")).toContainText("本日沒有明日進場候選");
-  await page.locator('[data-home-list="gatePass"]').click();
-  const symbol = await rows.first().getAttribute("data-research-symbol");
+  await expect(page.locator("[data-home-list]")).toHaveCount(0);
+  await expect(page.locator("#home-list tr.research-card")).toHaveCount(0);
+});
+
+test("candidates sort by readiness and a row opens the stock", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#home-count")).toHaveText("明日候選 0 檔");
+  await page.evaluate(async () => {
+    const { renderHomeView } = await import("/src/ui/home.js");
+    const stock = (symbol, name, score, nextDayStatus = "NEXT_DAY_CANDIDATE") => ({ symbol, name, latest: { close: 100, changePercent: 1 },
+      entryResearch: { score, status: "TRIGGERED", nextDayStatus, gateStatus: "PASS", gateConditions: {} } });
+    renderHomeView({ state: { homeExpanded: false }, stocks: [stock("2454", "聯發科", 70), stock("2330", "台積電", 90), stock("2303", "聯電", 99, "WAIT_TRIGGER")],
+      loading: false, loadFailed: false, asOf: "2026-10-16", loadingIcon: () => "", esc: String,
+      number: (value, digits = 0) => value.toFixed(digits), percent: (value) => `${value}%`, direction: () => "up" });
+  });
+  await expect(page.locator("#home-count")).toHaveText("明日候選 2 檔");
+  const rows = page.locator("#home-list tr.research-card");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toHaveAttribute("data-research-symbol", "2330");
   await rows.first().locator(".research-price").click();
-  await expect(page.locator("#dialog-heading")).toContainText(symbol);
+  await expect(page.locator("#dialog-heading")).toContainText("2330");
 });
 
 test("home fits a phone and the phone bar has no ranking page", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto("/");
-  await expect(page.locator("#home-list tr.research-card").first()).toBeVisible();
+  await expect(page.locator("#home-count")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
   await expect(page.locator('[data-page="sectors"]')).toHaveCount(0);
   await expect(page.locator(".nav-item[data-page] >> visible=true")).toHaveCount(3);

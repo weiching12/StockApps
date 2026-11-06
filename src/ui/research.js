@@ -24,7 +24,10 @@ export const RESEARCH_TRACKING_FILTERS = [["all", "全部自選"], ["candidate",
 const number = (value, digits = 2) => Number.isFinite(value)
   ? value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
 
-export function renderResearchCenter({ favorites, stocks, store, date, sort, filter, esc }) {
+/** Yesterday's signal no longer holds: it lasts one session, unless a new one fired or a veto ended it. */
+const lapsedToday = (summary, previousDate) => Boolean(previousDate) && summary.signalDate === previousDate && summary.status !== "TRIGGERED";
+
+export function renderResearchCenter({ favorites, stocks, store, date, previousDate, sort, filter, esc }) {
   const bySymbol = new Map(stocks.map((stock) => [stock.symbol, stock]));
   const values = favorites.map((symbol) => {
     const stock = bySymbol.get(symbol);
@@ -51,7 +54,7 @@ export function renderResearchCenter({ favorites, stocks, store, date, sort, fil
   const candidates = count((summary) => summary.nextDayStatus === "NEXT_DAY_CANDIDATE");
   return { stats: stat("自選股票", favorites.length, `資料日 ${date || "—"}`) +
       stat("明日進場候選", candidates, "訊號觸發且價格在計畫內", candidates ? "up" : "") +
-      stat("初步門檻通過", count((summary) => summary.gateStatus === "PASS"), `共 ${favorites.length} 檔自選`),
+      stat("今日候選失效", count((summary) => lapsedToday(summary, previousDate)), "昨日訊號已不成立"),
     cards: entries ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col">準備度</th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${entries}</tbody></table>`
       : `<p class="research-muted">${favorites.length ? "此篩選目前沒有股票。" : "尚無自選股票。"}</p>` };
 }

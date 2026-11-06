@@ -3347,7 +3347,7 @@ dialog.sector-dialog {
 .sector-nav { display: grid; gap: 8px; padding: 12px 14px 0; }
 .sector-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .sector-chip-row[hidden] { display: none; }
-#home-tabs { margin-bottom: 12px; }
+.home-entry-head small { margin-left: 6px; color: var(--muted); font-size: var(--text-meta); font-weight: 500; }
 .sector-chip-row button { flex: none; min-height: 32px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-size: var(--text-meta); white-space: nowrap; cursor: pointer; }
 .sector-chip-row button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .sector-flow { margin: 12px 14px 0; padding: 12px; border: 1px solid var(--border); border-radius: 12px; }

@@ -318,7 +318,11 @@ export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActi
     return { ...base, gateResult: gate, entryResearch: research,
       nextDayPlan: nextDayPlan(status, research.signal, today, reader, tradingDates, model, base), dataQuality };
   };
-  if (gate.status === "FAIL" && !researchAllStocks) return finish("NOT_ELIGIBLE");
+  if (gate.status === "FAIL" && !researchAllStocks) {
+    // A veto ends the research, but lists still need to know a recent signal has lapsed.
+    if (validBar(today) && Number.isFinite(reader.atr(reader.index))) research.lastSignalDate = findSignal(reader, model)?.date ?? null;
+    return finish("NOT_ELIGIBLE");
+  }
   if ((gate.status !== "PASS" && !researchAllStocks) || !validBar(today) || !Number.isFinite(reader.atr(reader.index)))
     return finish("DATA_INSUFFICIENT");
 
@@ -383,7 +387,7 @@ export function entryResearchSummary(result) {
   return { modelVersion: result.modelVersion, gateStatus: result.gateResult.status, gatePassed: result.gateResult.passedCount,
     gateTotal: result.gateResult.totalCount, gateConditions: result.gateResult.conditions,
     score: result.entryResearch.score, status: result.entryResearch.status, setupType: result.entryResearch.setupType,
-    signalDate: result.entryResearch.signal?.date ?? null, nextDayStatus: result.nextDayPlan.status,
+    signalDate: result.entryResearch.signal?.date ?? result.entryResearch.lastSignalDate ?? null, nextDayStatus: result.nextDayPlan.status,
     dataQuality: result.dataQuality.status };
 }
 

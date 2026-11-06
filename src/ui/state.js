@@ -13,7 +13,6 @@ export const createState = () => ({
   sectorSort: "activity-desc",
   sectorExpanded: false,
   sectorName: null,
-  homeList: null,
   homeExpanded: false,
   settings: { ...DEFAULT_SETTINGS },
   theme: "light",
