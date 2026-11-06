@@ -1,8 +1,13 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 const openStock = async (page, symbol) => {
   await page.goto("/");
-  await page.locator(`#stock-rows tr[data-symbol="${symbol}"] .entry-score-button`).click();
+  await page.locator(`#stock-rows tr[data-symbol="${symbol}"] .stock-name`).click();
   await expect(page.locator("#info-dialog .research-gates")).toBeVisible();
 };
 
@@ -170,7 +175,7 @@ test("plan levels on the chart start hidden and open from a toggle; the signal d
   // Demo data may have no next-day plan today; check whichever stock carries one.
   const symbols = await page.locator("#stock-rows tr[data-symbol]").evaluateAll((rows) => rows.map((row) => row.dataset.symbol));
   for (const symbol of symbols) {
-    await page.locator(`#stock-rows tr[data-symbol="${symbol}"] .entry-score-button`).click();
+    await page.locator(`#stock-rows tr[data-symbol="${symbol}"] .stock-name`).click();
     const chart = page.locator("#info-dialog .entry-price-chart");
     await expect(chart.locator(".entry-chart-signal")).toHaveCount(0);
     const toggle = chart.locator(".entry-chart-plan-toggle");
@@ -192,7 +197,7 @@ test("plan levels on the chart start hidden and open from a toggle; the signal d
 test("only the current page's panels are visible", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".stocks-panel")).toBeVisible();
-  for (const target of ["market", "favorites", "sectors", "backtest"]) {
+  for (const target of ["home", "market", "favorites", "backtest"]) {
     await page.locator(`.sidebar [data-page="${target}"]`).evaluate((button) => button.click());
     const visible = await page.locator("[data-page-panel]").evaluateAll((panels) =>
       [...new Set(panels.filter((panel) => panel.getBoundingClientRect().height > 0).map((panel) => panel.dataset.pagePanel))]);

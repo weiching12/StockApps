@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 test("desktop entry score opens beside the market list and switches stocks", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
@@ -32,7 +37,7 @@ test("desktop entry score opens beside the market list and switches stocks", asy
 test("phone entry score remains a modal dialog", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.locator("#stock-rows tr[data-symbol]").last().locator(".entry-score-button").click();
+  await page.locator("#stock-rows tr[data-symbol]").last().locator(".stock-name").click();
   const dialog = page.locator("#info-dialog");
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAttribute("data-entry-drawer", "false");

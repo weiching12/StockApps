@@ -130,7 +130,7 @@ test("daily capture saves every listed stock once, keeps first captures and comp
 test("samples API filters saved research and returns explanations on request", async () => {
   const db = database(), env = { T86_DB: db };
   await captureEntryResearch(env, { createServices: marketAt(dataset.dates[150], "g1") });
-  const services = { market: {}, entryResearch: new EntryResearchService(new EntryResearchRepository(db)) };
+  const services = { market: {}, entryResearch: new EntryResearchService(new EntryResearchRepository(db)), signedInUser: async () => ({ user: { username: "t" } }) };
   const get = async (query) => {
     const response = await routeApi(new Request(`https://example.test/api/v1/research/samples${query}`), env, services);
     return { status: response.status, body: await response.json() };
@@ -198,7 +198,7 @@ test("backtest API aggregates filtered samples in SQL and flags small groups", a
   insert.run("1104", "2026-09-02", "entry-research-v3", "FAIL", 3, null, "NOT_ELIGIBLE", null, "NOT_ELIGIBLE");
   outcome.run("1104", "2026-09-02", -50, -50, -50, 1, -60, "NOT_APPLICABLE", null, null, null);
   insert.run("1105", "2026-09-02", "entry-research-v0", "PASS", 5, 90, "TRIGGERED", "RANGE_BREAKOUT", "NEXT_DAY_CANDIDATE");
-  const services = { market: {}, entryResearch: new EntryResearchService(new EntryResearchRepository(db)) };
+  const services = { market: {}, entryResearch: new EntryResearchService(new EntryResearchRepository(db)), signedInUser: async () => ({ user: { username: "t" } }) };
   const get = async (query) => {
     const response = await routeApi(new Request(`https://example.test/api/v1/research/backtest${query}`), { T86_DB: db }, services);
     return { status: response.status, body: await response.json() };
@@ -238,4 +238,18 @@ test("backtest API aggregates filtered samples in SQL and flags small groups", a
   for (const bad of ["?horizon=7", "?gate=MAYBE", "?from=2026-09-05&to=2026-09-01"])
     assert.equal((await get(bad)).status, 400, bad);
   db.sqlite.close();
+});
+
+test("research samples and backtests need a signed-in session and are never cached", async () => {
+  const services = { market: {}, entryResearch: new EntryResearchService(new EntryResearchRepository(database())) };
+  for (const path of ["samples", "backtest"]) {
+    const request = () => new Request(`https://example.test/api/v1/research/${path}`);
+    const anonymous = await routeApi(request(), { T86_DB: database() }, services);
+    assert.equal(anonymous.status, 401, path);
+    const refused = await routeApi(request(), {}, { ...services, signedInUser: async () => ({ failure: new Response(null, { status: 403 }) }) });
+    assert.equal(refused.status, 403, path);
+    const allowed = await routeApi(request(), {}, { ...services, signedInUser: async () => ({ user: { username: "t" } }) });
+    assert.equal(allowed.status, 200, path);
+    assert.equal(allowed.headers.get("cache-control"), "no-store", path);
+  }
 });

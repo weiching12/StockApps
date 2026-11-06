@@ -15,7 +15,7 @@ test('desktop worktable removes nationality entry and visit registration ignores
   });
   await page.setViewportSize({ width: 1440, height: 956 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /市場觀察清單/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /主頁面/ })).toBeVisible();
   await expect(page.getByText('訪客資料說明', { exact: true })).toHaveCount(0);
   await expect(page.locator('#visitor-nationality-form, .visitor-info')).toHaveCount(0);
   await expect(page.getByLabel(/國籍/)).toHaveCount(0);

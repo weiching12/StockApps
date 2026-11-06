@@ -1,4 +1,9 @@
 import { test, expect } from '@playwright/test';
+
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
 test.use({ viewport: { width: 479, height: 956 }, hasTouch: true });
 
 async function swipe(page, target, distance = 120) {
@@ -13,7 +18,7 @@ async function swipe(page, target, distance = 120) {
 
 test('phone entry pulls down to a next-day assessment preview, expands upward and closes only after a second pull', async ({ page }) => {
   await page.goto('/');
-  const trigger = page.locator('#stock-rows .entry-score-button').first();
+  const trigger = page.locator('#stock-rows tr[data-symbol] .stock-name').first();
   await trigger.click();
   const dialog = page.locator('#info-dialog');
   await expect(page.locator('#close-dialog')).toBeHidden();
@@ -59,7 +64,7 @@ test('phone entry pulls down to a next-day assessment preview, expands upward an
 
 test('entry preview supports keyboard controls and a full pull can close directly', async ({ page }) => {
   await page.goto('/');
-  const trigger = page.locator('#stock-rows .entry-score-button').first();
+  const trigger = page.locator('#stock-rows tr[data-symbol] .stock-name').first();
   const dialog = page.locator('#info-dialog');
   const handle = page.locator('.info-dialog-handle');
   await trigger.click();
@@ -78,7 +83,8 @@ test('entry preview supports keyboard controls and a full pull can close directl
 
 test('phone sector content supports pull-down while scrolled content stays readable', async ({ page }) => {
   await page.goto('/');
-  await page.locator('[data-page="sectors"]').click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking > summary").click();
   await page.locator('.sector-card').first().click();
   const dialog = page.locator('#sector-dialog');
   await expect(dialog).toBeVisible();

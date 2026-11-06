@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 test("2031 comparison follows the selected market date", async ({ page, request }) => {
   const manifest = await (await request.get("/api/v1/market")).json();
   const settings = "period=9&kSmooth=3&dSmooth=3";
@@ -62,7 +67,8 @@ test("full-market phone table and sector detail remain usable", async ({ page },
     await page.locator('[data-page="market"]').click();
     await expect(page.locator("#stock-rows tr").first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await page.locator('[data-page="sectors"]').click();
+    await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
     await page.locator(".sector-card").first().click();
     await expect(page.locator("#sector-dialog")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`market-sector-${width}.png`) });
@@ -104,7 +110,8 @@ test("partial sector totals exclude missing data and leave unavailable constitue
   // ETFs are excluded from sector rankings, so only an inactive company has a sector card to check.
   const unpriced = manifest.stocks.find((stock) => manifest.coverage.inactive.includes(stock.symbol) && stock.sector !== "ETF");
   const sectors = [...new Set(["連接器與線材", unpriced?.sector].filter(Boolean))];
-  await page.locator('[data-page="sectors"]').click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
   // The ranking opens on its top rows; the rest of the sub-industries are one tap away.
   await expect(page.locator("#sector-grid .sector-card")).toHaveCount(10);
   await page.locator("[data-sector-expand]").click();

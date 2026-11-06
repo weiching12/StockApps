@@ -9,6 +9,9 @@ import { presenceController } from "./presence-controller.js";
 import { pushController, pushResendController, pushStatusController } from "./push-controller.js";
 import { apiFailure } from "./errors.js";
 import { json, error } from "./http.js";
+import { signedInUser } from "./session-guard.js";
+
+const SIGNED_IN_ROUTES = new Set(["researchSamples", "researchBacktest"]);
 
 export async function routeApi(request, env, injected) {
   const url = new URL(request.url), route = resolveApiRoute(url.pathname);
@@ -20,6 +23,10 @@ export async function routeApi(request, env, injected) {
     if (route.name === "presence") return await presenceController(request, env, route.versioned);
     if (!injected && env.MARKET_SUMMARY && ["marketSummary", "favoriteSummary", "sectorDetail"].includes(route.name))
       return await env.MARKET_SUMMARY.getByName("stock-insight-market-summary").fetch(request);
+    if (SIGNED_IN_ROUTES.has(route.name)) {
+      const { failure } = await (injected?.signedInUser ?? signedInUser)(request, env);
+      if (failure) return failure;
+    }
     const services = injected?.market && typeof injected.market !== "function" ? injected : injected
       ? { market: injected, analysis: new AnalysisService(injected), summary: new MarketSummaryService(injected), history: new HistoryService(injected) }
       : createApplicationServices(env);
@@ -30,7 +37,7 @@ export async function routeApi(request, env, injected) {
     if (route.name === "nativePushConfig" || route.name === "nativePushSubscriptions")
       return await pushController(request, route, services.nativePush);
     const body = await marketController(route, url, services);
-    return json(request, body, 200, body.meta?.researchCapture === "failed" ? "no-store" : route.name === "snapshot"
+    return json(request, body, 200, body.meta?.researchCapture === "failed" || SIGNED_IN_ROUTES.has(route.name) ? "no-store" : route.name === "snapshot"
       ? "public, max-age=86400, immutable" : "public, max-age=60");
   } catch (cause) { return apiFailure(request, route.versioned, cause); }
 }

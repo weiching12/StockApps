@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 const html = { status: 200, contentType: "text/html", body: "<!doctype html><title>fallback</title>" };
 
 async function controlledPage(page) {

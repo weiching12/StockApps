@@ -1,36 +1,88 @@
-import { getSectorOverview, getSectorDetail, rankSectors, sortSectors } from "../../shared/sectors.js";
+import { getSectorGroupOverview, getSectorOverview, getSectorDetail, rankSectors, sortSectors } from "../../shared/sectors.js";
 
 const COLLAPSED_SUB_INDUSTRIES = 10;
 
 /** The ranking opens on its top rows; what matters sorts first, and the rest is one tap away. */
 export const visibleSectors = (sectors, expanded) => expanded ? sectors : sectors.slice(0, COLLAPSED_SUB_INDUSTRIES);
 
-/** Market filter, the one place broader sectors appear: pick one whole or by its sub-industries. ETFs stay a plain choice. */
-export function sectorFilterOptions(stocks, esc) {
+/** The market list's sector choices: broader sectors with their sub-industries; ETFs stay a plain choice. */
+export function sectorTree(stocks) {
   const groups = new Map(), plain = new Set();
   for (const { sector, sectorGroup } of stocks) {
+    if (!sector) continue;
     if (!sectorGroup) { plain.add(sector); continue; }
     if (!groups.has(sectorGroup)) groups.set(sectorGroup, new Set());
     groups.get(sectorGroup).add(sector);
   }
   const byName = (a, b) => a.localeCompare(b, "zh-Hant");
-  const option = (value, label = value) => `<option value="${esc(value)}">${esc(label)}</option>`;
-  const grouped = [...groups].sort(([a], [b]) => byName(a, b)).map(([group, subs]) => subs.size === 1 && subs.has(group) ? option(group)
-    : `<optgroup label="${esc(group)}">${option(group, `全部${group}`)}${[...subs].sort(byName).map((sub) => option(sub)).join("")}</optgroup>`);
-  return `${option("all", "全部產業")}${[...plain].sort(byName).map((name) => option(name)).join("")}${grouped.join("")}`;
+  return { groups: [...groups].sort(([a], [b]) => byName(a, b)).map(([name, subs]) => ({ name, subs: [...subs].sort(byName) })),
+    plain: [...plain].sort(byName) };
+}
+
+/** First row picks a sector; a sector with several sub-industries opens a second row. */
+export function sectorChipsMarkup(stocks, selected, esc) {
+  const { groups, plain } = sectorTree(stocks);
+  const chip = (value, label, pressed) => `<button type="button" data-sector-chip="${esc(value)}" aria-pressed="${pressed}">${esc(label)}</button>`;
+  const group = groups.find(({ name, subs }) => name === selected || subs.includes(selected));
+  const first = [chip("all", "全部", selected === "all"), ...groups.map(({ name }) => chip(name, name, name === group?.name)),
+    ...plain.map((name) => chip(name, name, name === selected))].join("");
+  const second = group && group.subs.length > 1
+    ? [chip(group.name, `全部${group.name}`, selected === group.name), ...group.subs.map((name) => chip(name, name, name === selected))].join("") : "";
+  return { first, second };
+}
+
+const FLOW_WINDOWS = [["day", "當日"], ["5", "5 日"], ["20", "20 日"]];
+
+/** The chosen sector's institutional flows at the level it was chosen, or nothing for 全部 and ETFs. */
+export function sectorFlowMarkup(context) {
+  const { state, dataset, snapshots, asOf, sectorOverviews, sectorGroupOverviews, direction, esc, institutionalMoney } = context;
+  const name = state.sector;
+  if (name === "all") return "";
+  const { groups } = sectorTree(dataset.stocks);
+  const isGroup = groups.some((group) => group.name === name && group.subs.length > 1);
+  const overview = (window) => {
+    if (sectorOverviews) return (isGroup ? sectorGroupOverviews : sectorOverviews)?.[window] ?? [];
+    return (isGroup ? getSectorGroupOverview : getSectorOverview)(snapshots, { window,
+      tradingDates: dataset.dates.filter((date) => date <= asOf), asOf });
+  };
+  const periods = FLOW_WINDOWS.map(([window, label]) => [label, overview(window).find((sector) => sector.name === name)]);
+  if (!periods.some(([, sector]) => sector)) return "";
+  const cells = periods.map(([label, sector]) => {
+    const amount = sector?.estimate?.amount ?? null;
+    const breadth = sector?.estimate?.available ? `買超 ${sector.estimate.buying}／${sector.estimate.available} 檔` : "";
+    return `<div class="sector-flow-period" data-flow-period="${label}"><span>${label}</span><strong class="${direction(amount)}">${amount === null ? "資料不足" : institutionalMoney(amount)}</strong><small>${breadth}</small></div>`;
+  }).join("");
+  const detail = isGroup ? "" : `<button type="button" class="text-button" data-sector-open="${esc(name)}">查看個股法人明細</button>`;
+  return `<div class="sector-flow-head"><h3>${esc(name)} 法人動向</h3><span>非買進訊號</span></div><div class="sector-flow-periods">${cells}</div><div class="sector-flow-foot"><small>金額依各股每日法人淨買賣股數 × 當日收盤價累計，資料日 ${esc(asOf)}。</small>${detail}</div>`;
+}
+
+export function renderSectorNavView(context) {
+  const { state, dataset, esc } = context;
+  const first = document.querySelector("#sector-chips");
+  if (!first) return;
+  const second = document.querySelector("#sub-sector-chips");
+  const markup = sectorChipsMarkup(dataset.stocks, state.sector, esc);
+  // Rewriting a row would throw away how far it was scrolled sideways.
+  if (first.dataset.markup !== markup.first) { const left = first.scrollLeft; first.innerHTML = markup.first; first.dataset.markup = markup.first; first.scrollLeft = left; }
+  if (second.dataset.markup !== markup.second) { second.innerHTML = markup.second; second.dataset.markup = markup.second; second.scrollLeft = 0; }
+  second.hidden = !markup.second;
+  const flow = sectorFlowMarkup(context), block = document.querySelector("#sector-flow");
+  block.innerHTML = flow;
+  block.hidden = !flow;
+  document.querySelector("#sector-ranking").hidden = state.sector !== "all";
 }
 
 export function renderSectorOverviewView(context) {
-  const { state, dataset, loading, loadFailed, latestSnapshots, sectorOverviews, loadingIcon, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures } = context;
+  const { state, dataset, loading, loadFailed, snapshots, asOf, sectorOverviews, loadingIcon, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures } = context;
   if (loading || loadFailed) {
     document.querySelector("#sector-grid").innerHTML = loading
       ? `<div class="sector-loading-fields" aria-label="產業統計載入中">${["產業排名", "當日平均漲跌", "法人淨買賣超金額"].map((label) => `<div><span>${label}</span>${loadingIcon()}</div>`).join("")}</div>` : "";
     return;
   }
   const days = state.sectorWindow === "day" ? 1 : Number(state.sectorWindow);
-  const sectors = sectorOverviews ? [...(sectorOverviews[state.sectorWindow] ?? [])] : getSectorOverview(latestSnapshots, {
+  const sectors = sectorOverviews ? [...(sectorOverviews[state.sectorWindow] ?? [])] : getSectorOverview(snapshots, {
     window: state.sectorWindow, sort: state.sectorSort,
-    tradingDates: dataset.dates, asOf: dataset.info.asOf,
+    tradingDates: dataset.dates.filter((date) => date <= asOf), asOf,
   });
   if (sectorOverviews) rankSectors(sortSectors(sectors, state.sectorSort), state.sectorSort);
   document.querySelectorAll("[data-sector-window]").forEach((button) =>

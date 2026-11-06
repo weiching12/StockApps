@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 async function loadFixture(page) {
   await page.route("**/src/provider.js*", (route) => route.fulfill({ contentType: "application/javascript",
     body: `import { demoProvider } from "/src/data.js";
@@ -19,7 +24,8 @@ async function loadFixture(page) {
         return data;
       }` }));
   await page.goto("/");
-  await page.locator('.sidebar [data-page="sectors"]').click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking > summary").click();
 }
 
 test("sector breadth follows the selected complete monetary window", async ({ page }) => {

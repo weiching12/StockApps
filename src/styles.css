@@ -591,7 +591,6 @@ h1 {
   scrollbar-width: none;
 }
 .filter-tabs::-webkit-scrollbar { display: none; }
-.filter-tabs .filter-chip-research { display: none; }
 .filter-label-mobile,
 .net-column-mobile,
 .net-heading-mobile,
@@ -3029,22 +3028,14 @@ dialog.sector-dialog {
   .table-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-items: center; padding: 8px; }
   .search-controls { display: contents; }
   .table-toolbar > .search-box { order: 0; grid-column: 1 / -1; width: 100%; max-width: none; min-height: 36px; padding-block: 5px; }
-  .table-toolbar #sector-filter { order: 2; }
-  .table-toolbar #market-sort { order: 3; }
+  .table-toolbar #market-sort { order: 3; grid-column: 1 / -1; }
   .table-toolbar > .filter-tabs { order: 1; grid-column: 1 / -1; width: 100%; justify-content: flex-start; gap: 6px; padding: 0 24px 0 0; border: 0; border-radius: 0; background: transparent;
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
   .filter-tabs .segmented-indicator { display: none; }
   .table-toolbar > .filter-tabs button { flex: none; width: auto; min-height: 32px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-weight: 500; white-space: nowrap; }
   .table-toolbar > .filter-tabs button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-  /* A research chip narrows the list, so 全部 no longer reads as the active choice. */
-  .table-toolbar > .filter-tabs:has(.filter-chip-research[aria-pressed="true"]) button[data-view="all"] { border-color: var(--border); background: transparent; color: var(--muted); }
-  .table-toolbar > .filter-tabs .filter-chip-research { display: inline-flex; align-items: center; }
   #market-research-filter { display: none; }
-  .table-toolbar :is(#sector-filter, #market-sort) { width: 100%; max-width: none; min-height: 34px; padding-block: 5px; }
-}
-@media (max-width: 359px) {
-  /* Too narrow for price, the longest status and the score on one line: the status drops below. */
-  #stock-rows > tr { grid-template-areas: "favorite stock gate gate" ". price price readiness" ". research research research" ". extras extras extras"; }
+  .table-toolbar #market-sort { width: 100%; max-width: none; min-height: 34px; padding-block: 5px; }
 }
 
 /* Score dialog: research sections come before the chart and the legacy V1.2 detail. */
@@ -3343,3 +3334,52 @@ dialog.sector-dialog {
 }
 
 .sector-show-all { grid-column: 1 / -1; justify-content: center; width: 100%; min-height: 44px; margin-top: 8px; }
+
+/* Page structure: home, then a market list split by sector with that sector's institutional flows. */
+.nav-item[hidden] { display: none; }
+.home-entry { padding: 16px; }
+.home-entry-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin-bottom: 10px; }
+.home-entry-head h2 { margin: 0; font-size: var(--text-title); }
+.home-entry-head span { color: var(--muted); font-size: var(--text-meta); }
+.home-loading { display: grid; place-items: center; min-height: 96px; }
+.research-tracking .research-stock-badges { text-align: left; }
+.home-show-all { display: flex; width: 100%; margin-top: 12px; }
+.sector-nav { display: grid; gap: 8px; padding: 12px 14px 0; }
+.sector-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.sector-chip-row[hidden] { display: none; }
+#home-tabs { margin-bottom: 12px; }
+.sector-chip-row button { flex: none; min-height: 32px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-size: var(--text-meta); white-space: nowrap; cursor: pointer; }
+.sector-chip-row button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.sector-flow { margin: 12px 14px 0; padding: 12px; border: 1px solid var(--border); border-radius: 12px; }
+.sector-flow[hidden] { display: none; }
+.sector-flow-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.sector-flow-head h3 { margin: 0; font-size: var(--text-body); }
+.sector-flow-head span { color: var(--muted); font-size: var(--text-meta); }
+.sector-flow-periods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.sector-flow-period { display: grid; gap: 2px; min-width: 0; }
+.sector-flow-period span, .sector-flow-period small { color: var(--muted); font-size: var(--text-meta); }
+.sector-flow-period strong { font-size: var(--text-body); font-variant-numeric: tabular-nums; }
+.sector-flow-period strong.up { color: var(--up); }
+.sector-flow-period strong.down { color: var(--down); }
+.sector-flow-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin-top: 10px; color: var(--muted); }
+.sector-flow-foot small { flex: 1 1 14rem; font-size: var(--text-meta); }
+.sector-ranking-details { margin: 12px 14px 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.sector-ranking-details[hidden] { display: none; }
+.sector-ranking-details > summary { padding: 10px 12px; cursor: pointer; font-size: var(--text-secondary); font-weight: 600; }
+@media (max-width: 700px) {
+  .home-entry { padding: 12px; }
+  .sector-nav { padding: 8px 8px 0; }
+  .sector-nav .sector-chip-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; padding-right: 24px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+  .sector-nav .sector-chip-row::-webkit-scrollbar { display: none; }
+  .sector-flow, .sector-ranking-details { margin: 8px 8px 0; }
+  /* The market card keeps one status; readiness and strategy live on the home page and in the detail. */
+  #stock-rows > tr { grid-template-columns: var(--table-favorite-width) minmax(0, 1fr) auto; grid-template-areas: "favorite stock research" ". price price" ". extras extras"; }
+  #stock-rows > tr > .entry-cell, #stock-rows .research-next { display: none; }
+  #stock-rows > tr > .research-cell { align-self: center; justify-self: end; }
+}
+@media (max-width: 359px) {
+  /* Too narrow for a long name and the status on one line: the status drops below. */
+  #stock-rows > tr { grid-template-areas: "favorite stock stock" ". research research" ". price price" ". extras extras"; }
+  #stock-rows > tr > .research-cell { align-items: flex-start; justify-self: start; }
+}

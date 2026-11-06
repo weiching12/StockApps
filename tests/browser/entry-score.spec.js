@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 test("entry score stays usable in the market list, detail dialog and phone scroll", async ({ page }) => {
   await page.goto("/");
   // The list shows the entry readiness score; the retired V1.2 score is shown nowhere.
@@ -143,11 +148,11 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   expect(ascending).toEqual([...ascending].sort((a, b) => a - b));
   // Phones show one card per stock without horizontal scrolling.
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(rows.first().locator(".entry-score-button")).toBeVisible();
+  await expect(rows.first().locator(".stock-name")).toBeVisible();
   const bounds = await page.locator(".table-scroll").evaluate((element) =>
     ({ client: element.clientWidth, content: element.scrollWidth }));
   expect(bounds.content).toBeLessThanOrEqual(bounds.client);
-  await rows.first().locator(".entry-score-button").click();
+  await rows.first().locator(".stock-name").click();
   await expect(page.locator("#info-dialog")).toBeVisible();
   await expect(page.locator(".entry-price-chart svg circle")).toHaveCount(30);
   const chartBounds = await page.locator(".entry-price-chart").evaluate((element) =>
@@ -170,9 +175,9 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator(".info-dialog-handle").click();
   await expect(page.locator("#info-dialog")).toBeHidden();
-  await rows.last().locator(".entry-score-button").scrollIntoViewIfNeeded();
+  await rows.last().locator(".stock-name").scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-  await rows.last().locator(".entry-score-button").click();
+  await rows.last().locator(".stock-name").click();
   await expect(page.locator(".entry-dialog")).toBeVisible();
   const dialogBounds = await page.locator("#info-dialog").boundingBox();
   const closeBounds = await page.locator(".info-dialog-handle").boundingBox();

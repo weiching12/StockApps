@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 // The stock identity (sector, name, favorite, strategy date) stays pinned flush with the
 // scroller's top edge while the score detail scrolls, on the phone sheet and desktop drawer.
 for (const [label, viewport, scroller] of [["phone", { width: 390, height: 844 }, "#info-dialog"],
@@ -7,7 +12,7 @@ for (const [label, viewport, scroller] of [["phone", { width: 390, height: 844 }
   test(`entry dialog header stays pinned while scrolling on ${label}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/");
-    await page.locator("#stock-rows .entry-score-button").first().click();
+    await page.locator("#stock-rows tr[data-symbol] .stock-name").first().click();
     await expect(page.locator("#info-dialog .research-plan-card")).toBeVisible();
     const header = page.locator("#info-dialog .entry-dialog-header");
     await expect(header.locator("h2")).toBeVisible();

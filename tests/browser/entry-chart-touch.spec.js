@@ -1,10 +1,15 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 
 test("phone chart shows the touched trading day without a separate slider", async ({ page }) => {
   await page.goto("/");
-  await page.locator("#stock-rows .entry-score-button").first().click();
+  await page.locator("#stock-rows tr[data-symbol] .stock-name").first().click();
   const chart = page.locator(".entry-price-chart");
   const plot = chart.locator(".entry-chart-plot");
   // The chart follows the research sections; bring it on screen before touching it.
@@ -53,7 +58,7 @@ test("phone chart shows the touched trading day without a separate slider", asyn
 
 test("dragging the phone chart after a hold does not scroll the detail panel", async ({ page }) => {
   await page.goto("/");
-  await page.locator("#stock-rows .entry-score-button").first().click();
+  await page.locator("#stock-rows tr[data-symbol] .stock-name").first().click();
   const dialog = page.locator("#info-dialog");
   const plot = dialog.locator(".entry-chart-plot");
   await plot.scrollIntoViewIfNeeded();
@@ -74,7 +79,7 @@ test("dragging the phone chart after a hold does not scroll the detail panel", a
 
 test("a quick vertical swipe on the phone chart scrolls the detail panel instead of scrubbing", async ({ page }) => {
   await page.goto("/");
-  await page.locator("#stock-rows .entry-score-button").first().click();
+  await page.locator("#stock-rows tr[data-symbol] .stock-name").first().click();
   const dialog = page.locator("#info-dialog");
   const plot = dialog.locator(".entry-chart-plot");
   await plot.scrollIntoViewIfNeeded();
@@ -110,6 +115,7 @@ test("mouse clicking a market row does not leave a blue focus outline", async ({
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
   await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
   const row = page.locator("#stock-rows tr[data-symbol]").first();
   await row.click();
   await expect(page.locator("#info-dialog")).toBeVisible();

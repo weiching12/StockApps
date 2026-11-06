@@ -9,12 +9,16 @@ test("a reload restores only a known page within the current tab", () => {
   const state = { page: "market" };
   restorePage(state, storage);
   assert.equal(state.page, "favorites");
-  rememberPage("sectors", storage);
+  rememberPage("backtest", storage);
   restorePage(state, storage);
-  assert.equal(state.page, "sectors");
+  assert.equal(state.page, "backtest");
+  // The institutional ranking page moved into the market list.
+  storage.setItem("stock-insight-current-page", "sectors");
+  restorePage(state, storage);
+  assert.equal(state.page, "market");
   rememberPage("unknown", storage);
   assert.equal([...values.values()][0], "sectors");
   values.set("stock-insight-current-page", "unknown");
   restorePage(state, storage);
-  assert.equal(state.page, "sectors");
+  assert.equal(state.page, "market");
 });

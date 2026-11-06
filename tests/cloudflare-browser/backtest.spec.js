@@ -5,6 +5,11 @@ import { MarketSummaryService } from "../../cloudflare/services/market-summary-s
 import { EntryResearchService } from "../../cloudflare/services/entry-research-service.js";
 import { ENTRY_RESEARCH_MODEL_VERSION } from "../../shared/entry-research-model.js";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/twse-20261016.json", import.meta.url)));
 const catalog = normalizeCatalog(fixture.companies);
 const date = "2026-10-16";
@@ -69,6 +74,8 @@ async function routeApi(page, { empty = false } = {}) {
     }
     return route.fulfill({ status: 404 });
   });
+  // The page and its APIs are for signed-in accounts.
+  await page.route("**/api/v1/auth/me", (route) => route.fulfill({ json: { user: { username: "tester", role: "user", mustChangePassword: false } } }));
   return requests;
 }
 

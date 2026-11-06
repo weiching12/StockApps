@@ -4,6 +4,11 @@ import { MarketSummaryService } from "../../cloudflare/services/market-summary-s
 import { AnalysisService } from "../../cloudflare/services/analysis-service.js";
 import { SHARD_COUNT, shardOf } from "../../shared/market-codec.js";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 const demo = await demoProvider.load();
 const stocks = demo.stocks.slice(0, 2).map((stock) => ({ ...stock, tradingDates: demo.dates }));
 const manifest = { schemaVersion: 2, source: "twse", generation: "audit-fixture", dates: demo.dates,
@@ -74,7 +79,7 @@ test("late entry detail cannot replace a subsequently opened settings dialog", a
     return true;
   });
   try {
-    await page.locator("#stock-rows .entry-score-button").first().click();
+    await page.locator("#stock-rows tr[data-symbol] .stock-name").first().click();
     await entered.promise;
     await page.locator("#close-dialog").click();
     await page.getByRole("button", { name: "設定", exact: true }).click();
@@ -92,7 +97,8 @@ test("industry page and detail retain the latest session after historical market
   });
   await page.locator("#trade-date").selectOption(demo.dates.at(-2));
   await expect(page.locator("#table-summary")).toContainText(demo.dates.at(-2));
-  await page.locator('.sidebar [data-page="sectors"]').click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
   await page.locator(".sector-card").first().click();
   await expect(page.locator("#sector-dialog-meta")).toContainText(manifest.asOf);
   expect(requested).toEqual([manifest.asOf]);
@@ -130,10 +136,10 @@ test("reopening pending stock details shares one analysis request", async ({ pag
     return true;
   });
   try {
-    await page.locator("#stock-rows .entry-score-button").first().click();
+    await page.locator("#stock-rows tr[data-symbol] .stock-name").first().click();
     await entered.promise;
     await page.locator("#close-dialog").click();
-    await page.locator("#stock-rows .entry-score-button").first().click();
+    await page.locator("#stock-rows tr[data-symbol] .stock-name").first().click();
     waiting.resolve();
     await expect(page.locator("#dialog-content .entry-chart-plot svg")).toBeVisible();
     expect(calls).toBe(1);
@@ -154,7 +160,8 @@ test("reopening a sector shares a pending request and retries after failure", as
     return false;
   });
   try {
-    await page.locator('.sidebar [data-page="sectors"]').click();
+    await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
     await page.locator(".sector-card").first().click();
     await entered.promise;
     await page.locator("#close-sector-dialog").click();

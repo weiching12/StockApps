@@ -1,6 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { demoProvider } from "../../src/data.js";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 async function loadMarket(page, count = 150, initialCount = 30) {
   await page.route("**/src/provider.js*", (route) => route.fulfill({
     contentType: "application/javascript",
@@ -62,7 +67,7 @@ test("filter keyboard order follows the visible order at phone and desktop width
   for (const width of [390, 1440, 390]) {
     await page.setViewportSize({ width, height: 844 });
     const first = page.locator("#stock-search");
-    const second = page.locator(width <= 700 ? '[data-view="all"]' : "#sector-filter");
+    const second = page.locator(width <= 700 ? '[data-view="all"]' : "#market-research-filter");
     await first.focus();
     await page.keyboard.press("Tab");
     await expect(second).toBeFocused();
@@ -80,6 +85,7 @@ test("market filters and empty results keep page and column widths stable with n
     ignoreDefaultArgs: ["--hide-scrollbars"],
   });
   const page = await browser.newPage({ baseURL: testInfo.project.use.baseURL, reducedMotion: "reduce" });
+  await page.addInitScript(() => sessionStorage.setItem("stock-insight-current-page", "market"));
   const measure = () => page.evaluate(() => {
     const bounds = element => {
       const rect = element.getBoundingClientRect();
@@ -176,7 +182,8 @@ test("phone sector identity stays compact while amounts and percentages align fo
       }`,
   }));
   await page.goto("/");
-  await page.locator('.sidebar [data-page="sectors"]').click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking > summary").click();
   // 產業 (activity) omits the TOP1 line; 買超 keeps it between the name and the breadth.
   for (const sort of ["activity-desc", "net-desc"]) for (const width of [320, 360, 390, 700]) {
     await page.locator(`[data-sector-sort="${sort}"]`).click();
@@ -219,7 +226,8 @@ test("sector estimated billions follow each selected period's daily prices and n
   const data = await demoProvider.load();
   await page.goto("/");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator('.sidebar [data-page="sectors"]').click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking > summary").click();
   const sector = data.stocks[0].sector;
   const stocks = data.stocks.filter((stock) => stock.sector === sector);
   const estimate = page.locator(`[data-sector-name="${sector}"] [data-sector-amount]`);

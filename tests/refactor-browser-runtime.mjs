@@ -74,6 +74,7 @@ try {
     page.on("requestfailed", (request) => errors.push(`${request.url()} ${request.failure()?.errorText}`));
     await page.route(/https:\/\/(?:fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (route) => route.abort());
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.locator('.sidebar [data-page="market"], [data-page="market"]').first().click();
     await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "false");
     if (width <= 700) {
       for (const phoneWidth of [390, 320]) {
@@ -98,7 +99,7 @@ try {
     assert.equal(apiRequests.filter((path) => path === "/api/v1/market/summary").length, width === 1440 ? 1 : 2,
       JSON.stringify({ apiRequests, errors, serverErrors }));
     assert.equal(apiRequests.filter((path) => path === "/api/v1/favorites/summary").length, previousFavoriteRequests);
-    await page.locator('.sidebar [data-page="sectors"]').click();
+    await page.locator('#sector-ranking > summary').click();
     for (const window of ["day", "5", "20"]) {
       await page.locator(`[data-sector-window="${window}"]`).click();
       const expected = getSectorOverview(snapshots, { window, sort: "activity-desc", tradingDates: dataset.dates, asOf: date });

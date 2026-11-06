@@ -1,6 +1,7 @@
 // One document shares account state and a single cross-tab subscription across
 // the desktop top bar and repeatedly opened mobile settings.
 const menus = new Map();
+const listeners = new Set();
 let user = null, loaded = false, busy = false, logoutFailed = false;
 let generation = 0, pending, controller, channel, listening = false;
 
@@ -34,7 +35,15 @@ function render(node, settings) {
   if (destination && settings) node.append(destination);
 }
 
+/** Called with the account now and on every change, once it is known. */
+export function onAccountChange(listener) {
+  listeners.add(listener);
+  if (loaded) listener(user);
+  return () => listeners.delete(listener);
+}
+
 function notify() {
+  for (const listener of listeners) listener(user);
   for (const [node, settings] of menus) {
     if (node.isConnected) render(node, settings);
     else menus.delete(node);

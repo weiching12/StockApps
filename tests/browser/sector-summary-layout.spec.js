@@ -1,10 +1,16 @@
 import { test, expect } from '@playwright/test';
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 for (const width of [320, 375, 390, 1440]) {
   test(`sector institutional periods sit side by side with aligned rows at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
-    await page.locator('.sidebar [data-page="sectors"]').click();
+    await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking > summary").click();
     await page.locator('#sector-grid .sector-card').first().click();
     await expect(page.locator('#sector-dialog')).toBeVisible();
     const grid = page.locator('#sector-dialog .sector-summary-grid');

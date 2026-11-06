@@ -5,7 +5,7 @@ import { classifyStock, defaultSubIndustry } from "../shared/custom-sectors.js";
 import { SUB_INDUSTRIES } from "../shared/custom-sector-data.js";
 import { MarketService } from "../cloudflare/services/market-service.js";
 import { sectorMatches } from "../shared/sectors.js";
-import { sectorFilterOptions, visibleSectors } from "../src/ui/sectors.js";
+import { sectorChipsMarkup, visibleSectors } from "../src/ui/sectors.js";
 
 const source = JSON.parse(readFileSync("data/custom-sectors/custom_sectors.json", "utf8"));
 
@@ -39,18 +39,22 @@ test("every official industry's default is a real sub-industry", () => {
   }
 });
 
-test("the ranking collapses to ten rows and the filter groups sub-industries under their sector", () => {
+test("the ranking collapses to ten rows and chips open a sector's sub-industries on a second row", () => {
   const rows = Array.from({ length: 12 }, (_, index) => ({ name: String(index) }));
   assert.equal(visibleSectors(rows, false).length, 10);
   assert.equal(visibleSectors(rows, true).length, 12);
   const esc = (text) => text;
-  const html = sectorFilterOptions(["2330", "2454", "0050", "9100"].map((symbol) => symbol === "0050"
-    ? { symbol, sector: "ETF", assetType: "etf" } : classifyStock({ symbol, sector: "半導體業" })), esc);
-  assert.match(html, /^<option value="all">全部產業<\/option><option value="ETF">ETF<\/option>/);
-  const group = html.match(/<optgroup label="半導體">(.*?)<\/optgroup>/)[1];
-  assert.match(group, /^<option value="半導體">全部半導體<\/option>/);
-  assert.match(group, /<option value="IC設計">IC設計<\/option>/);
-  assert.match(group, /<option value="晶圓代工">晶圓代工<\/option>/);
+  const stocks = ["2330", "2454", "0050", "9100"].map((symbol) => symbol === "0050"
+    ? { symbol, sector: "ETF", assetType: "etf" } : classifyStock({ symbol, sector: "半導體業" }));
+  const closed = sectorChipsMarkup(stocks, "all", esc);
+  assert.match(closed.first, /^<button type="button" data-sector-chip="all" aria-pressed="true">全部<\/button>/);
+  assert.match(closed.first, /data-sector-chip="ETF" aria-pressed="false">ETF</);
+  assert.equal(closed.second, "");
+  const chosen = sectorChipsMarkup(stocks, "IC設計", esc);
+  assert.match(chosen.first, /data-sector-chip="半導體" aria-pressed="true">半導體</);
+  assert.match(chosen.second, /^<button type="button" data-sector-chip="半導體" aria-pressed="false">全部半導體<\/button>/);
+  assert.match(chosen.second, /data-sector-chip="IC設計" aria-pressed="true">IC設計</);
+  assert.match(chosen.second, /data-sector-chip="晶圓代工" aria-pressed="false">晶圓代工</);
 });
 
 test("ETFs stay outside the taxonomy", () => {

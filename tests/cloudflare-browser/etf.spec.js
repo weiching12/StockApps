@@ -4,6 +4,11 @@ import { normalizeCatalog, normalizePrices, normalizeFlows, marketDay, mergeShar
 import { prepareEtfRelease } from "../../scripts/prepare-etfs.js";
 import { MarketSummaryService } from "../../cloudflare/services/market-summary-service.js";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/twse-20261016.json", import.meta.url)));
 const date = "2026-10-16", companies = normalizeCatalog(fixture.companies);
 const day = marketDay(companies, normalizePrices(fixture.prices, date), normalizeFlows(fixture.flows, date));
@@ -59,7 +64,8 @@ test("ETF search and favorites work while every industry ranking and detail excl
     lots: card.querySelector("[data-sector-lots]").textContent, breadth: card.querySelector("[data-sector-breadth]").textContent,
   })));
   await page.goto("/"); await ready();
-  await page.locator('[data-page="sectors"]').click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
   const before = {};
   for (const window of ["day", "5", "20"]) {
     await page.locator(`[data-sector-window="${window}"]`).click(); before[window] = await sectorValues();
@@ -67,7 +73,7 @@ test("ETF search and favorites work while every industry ranking and detail excl
   includeEtfs = true;
   await page.reload(); await ready();
   await page.locator('.sidebar [data-page="market"]').click();
-  await page.locator("#sector-filter").selectOption("ETF");
+  await page.locator('#sector-chips [data-sector-chip="ETF"]').click();
   await expect(page.locator("#stock-rows tr")).toHaveCount(3);
   await page.locator("#stock-search").fill("00632R");
   await expect(page.locator('#stock-rows [data-symbol="00632R"] .stock-close')).not.toHaveText("");
@@ -75,7 +81,9 @@ test("ETF search and favorites work while every industry ranking and detail excl
   await page.locator('#stock-rows [data-favorite="00632R"]').click();
   await page.locator('[data-page="favorites"]').click();
   await expect(page.locator('#research-list .research-card[data-research-symbol="00632R"]')).toBeVisible();
-  await page.locator('[data-page="sectors"]').click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('#sector-chips [data-sector-chip="all"]').click();
+  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
   for (const window of ["day", "5", "20"]) {
     await page.locator(`[data-sector-window="${window}"]`).click();
     expect(await sectorValues()).toEqual(before[window]);

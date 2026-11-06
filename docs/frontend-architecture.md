@@ -13,13 +13,14 @@ clients; view modules never call `fetch` directly.
 - `ui/preferences.js`: existing storage schema, defaults, migration and failure handling.
 - `ui/shell.js`: shared shell markup and accessible navigation.
 - `ui/navigation.js`: page visibility, headings, active navigation and date controls.
+- `ui/home.js`: the home page's screening of the latest session (next-day candidates and stocks that cleared the gates).
 - `ui/market.js`: sorting/filtering, row reuse and batched market table rendering.
-- `ui/sectors.js`: sector ranking and constituent dialog rendering; ETFs stay excluded.
+- `ui/sectors.js`: the market list's sector chips, the chosen sector's institutional flows, sector ranking and constituent dialog rendering; ETFs stay excluded.
 - `ui/controls.js`: segmented-control geometry and resize handling.
 - `ui/dialogs.js`: common dialog opening, backdrop dismissal and mobile drag dismissal.
 - `ui/gestures.js`: input-mode tracking, pull-to-refresh and drag gesture primitives.
 - `ui/keyboard.js`: sector-card and search keyboard navigation.
-- `ui/responsive-layout.js`: responsive search and sector-filter DOM order.
+- `ui/responsive-layout.js`: responsive search DOM order.
 - `ui/table-batches.js`: viewport-driven progressive table rendering.
 - `about.js`: purpose, current capabilities and future goals.
 

@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS } from "../../shared/indicators.js";
 export const createState = () => ({
   date: "",
-  page: "market",
+  page: "home",
   view: "all",
   sector: "all",
   query: "",
@@ -13,6 +13,8 @@ export const createState = () => ({
   sectorSort: "activity-desc",
   sectorExpanded: false,
   sectorName: null,
+  homeList: null,
+  homeExpanded: false,
   settings: { ...DEFAULT_SETTINGS },
   theme: "light",
   moodStyle: "gauge",

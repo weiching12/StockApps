@@ -3,6 +3,11 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 let server, origin, version = 1;
 test.beforeAll(async () => {
   server = createServer(async (request, response) => {
@@ -35,14 +40,14 @@ async function workerVersion(page) {
 }
 async function open(page) {
   await page.goto(origin);
-  await expect(page.locator('#stock-rows .entry-score-button').first()).toBeVisible();
+  await expect(page.locator('.nav-item[data-page="market"]')).toBeVisible();
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect.poll(() => workerVersion(page)).toBe(version);
 }
 
 test("new app version waits for its mandatory button and restores research tracking after update", async ({ page }) => {
   await open(page);
-  await page.getByRole('button', { name: '株研追蹤', exact: true }).click();
+  await page.locator('[data-page="favorites"]').click();
   version++;
   await page.evaluate(async () => (await navigator.serviceWorker.ready).update());
   const prompt = page.locator('#required-update-dialog');
@@ -59,9 +64,9 @@ test("new app version waits for its mandatory button and restores research track
   await page.keyboard.press('Escape');
   await page.mouse.click(3, 3);
   await expect(prompt).toBeVisible();
-  await expect(page.locator('#page-title')).toContainText('株研追蹤');
+  await expect(page.locator('#page-title')).toContainText('自選');
   await Promise.all([page.waitForEvent('load'), prompt.getByRole('button', { name: '更新', exact: true }).click()]);
-  await expect(page.locator('#page-title')).toContainText('株研追蹤');
+  await expect(page.locator('#page-title')).toContainText('自選');
   await expect(prompt).toBeHidden();
   await expect.poll(() => workerVersion(page)).toBe(version);
   expect(await page.evaluate(() => sessionStorage.getItem('stock-insight-update-progress'))).toBeNull();
@@ -73,11 +78,11 @@ test("launch animation applies a waiting version automatically and retains the s
     window.matchMedia = query => query === '(display-mode: standalone)' ? { matches: true } : match(query);
   });
   await open(page);
-  await page.getByRole('button', { name: '株研追蹤', exact: true }).click();
+  await page.locator('[data-page="favorites"]').click();
   version++;
   await page.goto(origin);
   await expect.poll(() => workerVersion(page)).toBe(version);
-  await expect(page.locator('#page-title')).toContainText('株研追蹤');
+  await expect(page.locator('#page-title')).toContainText('自選');
   await expect(page.locator('#required-update-dialog')).toBeHidden();
 });
 
@@ -85,7 +90,7 @@ test("another tab activating a version does not reload an already open research 
   await open(page);
   const other = await context.newPage();
   await open(other);
-  await other.getByRole('button', { name: '株研追蹤', exact: true }).click();
+  await other.locator('[data-page="favorites"]').click();
   let navigations = 0;
   other.on('framenavigated', frame => { if (frame === other.mainFrame()) navigations++; });
   version++;
@@ -93,9 +98,9 @@ test("another tab activating a version does not reload an already open research 
   await expect(page.locator('#required-update-dialog')).toBeVisible();
   await Promise.all([page.waitForEvent('load'), page.locator('#apply-app-update').click()]);
   await expect(other.locator('#required-update-dialog')).toBeVisible();
-  await expect(other.locator('#page-title')).toContainText('株研追蹤');
+  await expect(other.locator('#page-title')).toContainText('自選');
   expect(navigations).toBe(0);
   await Promise.all([other.waitForEvent('load'), other.locator('#apply-app-update').click()]);
   await expect(other.locator('#required-update-dialog')).toBeHidden();
-  await expect(other.locator('#page-title')).toContainText('株研追蹤');
+  await expect(other.locator('#page-title')).toContainText('自選');
 });

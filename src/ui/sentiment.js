@@ -69,7 +69,7 @@ function showMoodValue(card, score) {
   card.style.setProperty("--sentiment-needle", `${((score ?? 50) - 50) * 1.8}deg`);
 }
 
-// The sweep plays each time the market page opens: on first sight, and again on returning from
+// The sweep plays each time the home page opens: on first sight, and again on returning from
 // another page, which hides the card. Scrolling it away and back, or a re-render, does not replay it.
 const moodSweep = { state: "waiting", target: null, observer: null, run: 0 };
 

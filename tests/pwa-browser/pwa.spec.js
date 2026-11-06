@@ -1,6 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 const releaseVersion = `v${JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version}`;
 
 // Phones reach settings through the menu; wider screens show the button directly.
@@ -98,9 +103,10 @@ test("page buttons check on interaction and settings can check immediately", asy
   await expect.poll(() => page.evaluate(() => window.__pwaUpdateChecks)).toBe(0);
   await page.clock.install();
   await page.clock.fastForward(61_000);
-  await page.getByRole("button", { name: "株研追蹤" }).click();
+  await page.locator('[data-page="favorites"]').click();
   await expect.poll(() => page.evaluate(() => window.__pwaUpdateChecks)).toBe(1);
-  await page.getByRole("button", { name: "法人買株" }).click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking > summary").click();
   await expect.poll(() => page.evaluate(() => window.__pwaUpdateChecks)).toBe(1);
   await openSettings(page);
   await page.getByRole("button", { name: "檢查更新" }).click();
@@ -112,7 +118,7 @@ test("refresh checks the app version before reloading and keeps the current page
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-  await page.getByRole("button", { name: "株研追蹤" }).click();
+  await page.locator('[data-page="favorites"]').click();
   await openSettings(page);
   await page.getByRole("button", { name: "檢查更新" }).click();
   await expect(page.locator("#update-check-status")).toHaveText("已是最新版本");
@@ -142,7 +148,7 @@ test("refresh checks the app version before reloading and keeps the current page
   ]);
   await touch.detach();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("pwa-refresh-update-checked"))).toBe("yes");
-  await expect(page.locator("#page-title")).toContainText("株研追蹤");
+  await expect(page.locator("#page-title")).toContainText("自選");
 });
 
 test("settings shows the release version beside update on phone and desktop", async ({ page }) => {

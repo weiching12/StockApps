@@ -74,6 +74,7 @@ async function openSettings(page) {
 
 test("iPhone entry hydrates native favorites and settings and leaves web app services unused", async ({ page }) => {
   const { calls } = await setup(page);
+  await page.locator('[data-page="market"]').first().click();
   const favorite = page.locator('#stock-rows [data-favorite="2330"]');
   await expect(favorite).toHaveAttribute("aria-pressed", "true");
   await favorite.click();
@@ -102,13 +103,13 @@ test("iPhone return refreshes a changed generation and restores the selected pag
   expect(server.calls.filter((path) => path === "/api/v1/market")).toHaveLength(reads);
   await page.evaluate(() => { void window.__nativeListeners.get('appStateChange')({isActive:true}); });
   await expect(page.locator("#required-update-dialog")).toBeVisible();
-  await expect(page.locator("#page-title")).toContainText("株研追蹤");
+  await expect(page.locator("#page-title")).toContainText("自選");
   await page.keyboard.press("Escape");
   await expect(page.locator("#required-update-dialog")).toBeVisible();
   await Promise.all([page.waitForEvent("load"), page.locator("#apply-app-update").click()]);
   await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "false");
   await expect(page.locator("#required-update-dialog")).toBeHidden();
-  await expect(page.locator("#page-title")).toContainText("株研追蹤");
+  await expect(page.locator("#page-title")).toContainText("自選");
   expect(server.calls.filter((path) => path === "/api/v1/market/summary")).toHaveLength(2);
 });
 

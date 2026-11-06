@@ -1,8 +1,14 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 const openSectors = async (page) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "法人買株" }).locator("visible=true").first().click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking > summary").click();
   await expect(page.locator("#sector-page")).toBeVisible();
 };
 
@@ -60,27 +66,9 @@ test("a long ranking opens on its top ten and expands to all of them", async ({ 
   await expect(page.locator("[data-sector-expand]")).toHaveCount(0);
 });
 
-test("the market filter offers a whole sector or one sub-industry", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 844 });
-  await page.goto("/");
-  const rows = page.locator("#stock-rows tr[data-symbol]");
-  await expect(rows.first()).toBeVisible();
-  const filter = page.locator("#sector-filter");
-  await expect(filter.locator('optgroup[label="半導體"] option').first()).toHaveText("全部半導體");
-  await filter.selectOption("半導體");
-  await expect(page.locator('#stock-rows tr[data-symbol="2330"]')).toBeVisible();
-  await expect(page.locator('#stock-rows tr[data-symbol="2454"]')).toBeVisible();
-  await filter.selectOption("IC設計");
-  await expect(page.locator('#stock-rows tr[data-symbol="2454"]')).toBeVisible();
-  await expect(page.locator('#stock-rows tr[data-symbol="2330"]')).toHaveCount(0);
-  await filter.selectOption("ETF");
-  await expect(page.locator('#stock-rows tr[data-symbol="0050"]')).toBeVisible();
-  await expect(page.locator('#stock-rows tr[data-symbol="2454"]')).toHaveCount(0);
-});
-
 test("a stock's dialog names only its sub-industry", async ({ page }) => {
   await page.goto("/");
-  await page.locator('#stock-rows tr[data-symbol="2330"] .entry-score-button').click();
+  await page.locator('#stock-rows tr[data-symbol="2330"] .stock-name').click();
   await expect(page.locator("#info-dialog .entry-dialog-sector")).toHaveText("晶圓代工");
 });
 

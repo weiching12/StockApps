@@ -75,20 +75,20 @@ test("the needle and number sweep up from zero on entry, slowing as they settle"
   expect(halfway.now - samples[0].now).toBeLessThan(settled.now - halfway.now);
 });
 
-test("returning to the market page replays the sweep, while scrolling away does not", async ({ page }) => {
+test("returning to the home page replays the sweep, while scrolling away does not", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 500 });
   await page.goto("/");
   const score = page.locator("#market-sentiment .sentiment-score");
   await expect(score).toHaveText("50");
-  await page.locator(".sidebar").getByRole("button", { name: "株研追蹤" }).click();
+  await page.locator('.sidebar [data-page="favorites"]').click();
   await expect(page.locator("#market-sentiment")).toBeHidden();
   await page.addScriptTag({ content: `window.lowest = 100; (function read() { const value = Number(document.querySelector("#market-sentiment .sentiment-score").textContent); if (Number.isFinite(value) && document.querySelector("#market-sentiment").offsetWidth) window.lowest = Math.min(window.lowest, value); requestAnimationFrame(read); })();` });
-  await page.locator(".sidebar").getByRole("button", { name: "市場觀察清單" }).click();
+  await page.locator('.sidebar [data-page="home"]').click();
   await expect(page.locator("#market-sentiment")).toBeVisible();
   await expect(score).toHaveText("50");
   expect(await page.evaluate(() => window.lowest)).toBeLessThan(30);
   // Scrolling the card off and back leaves the settled score alone.
-  await page.evaluate(() => { window.lowest = 100; document.querySelector("#stock-rows tr:last-child").scrollIntoView(); });
+  await page.evaluate(() => { window.lowest = 100; document.querySelector(".page-footer").scrollIntoView(); });
   await expect.poll(() => page.locator("#market-sentiment").evaluate((card) => card.getBoundingClientRect().bottom < 0)).toBe(true);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(300);

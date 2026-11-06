@@ -1,8 +1,8 @@
 const pageCopy = {
-  market: ["MARKET WATCHLIST", "市場觀察清單", "比較全部標的的價量、技術指標與法人籌碼。"],
-  favorites: ["MY RESEARCH WATCHLIST", "株研追蹤", "查看追蹤股票的進場研究：準備度、初步門檻與明日進場評估，預設依準備度排序。點選股票查看完整研究。"],
+  home: ["TODAY'S OVERVIEW", "主頁面", "今日市場情緒與進場篩選結果，點選股票查看完整研究。"],
+  market: ["MARKET WATCHLIST", "市場觀察清單", "依產業切換個股，同時查看該產業的法人買賣超。"],
+  favorites: ["MY RESEARCH WATCHLIST", "自選", "查看自選股票的進場研究：準備度、初步門檻與明日進場評估，預設依準備度排序。點選股票查看完整研究。"],
   backtest: ["STRATEGY BACKTEST", "策略回測", "以每日保存的全市場研究樣本與後續實際行情，檢視進場研究模型的歷史表現。參數暫定，結果僅供研究。"],
-  sectors: ["INSTITUTIONAL RANKING", "法人買株", "依產業排名觀察法人資金方向；點選產業查看個股價格與買賣超張數。"],
 };
 
 export function renderPageView({ state, dataset, renderLoadState, updateSegmentedControls }) {
@@ -11,7 +11,8 @@ export function renderPageView({ state, dataset, renderLoadState, updateSegmente
   document.querySelector("#page-title").innerHTML = `${title}<span class="heading-dot">.</span>`;
   document.querySelector("#page-description").textContent = description;
   document.querySelector("#breadcrumb-current").textContent = title;
-  const sectors = state.page === "sectors" || state.page === "backtest";
+  // Only the market list browses past sessions; the other pages read the latest one.
+  const sectors = state.page === "home" || state.page === "backtest";
   const favorites = state.page === "favorites";
   const dateSelect = document.querySelector("#trade-date");
   dateSelect.hidden = sectors || favorites;

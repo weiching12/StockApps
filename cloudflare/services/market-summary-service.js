@@ -6,7 +6,7 @@ import { entryScoreSummary, getEntryScore } from "../../shared/entry-score.js";
 import { entryResearchSummary, evaluateEntryResearch } from "../../shared/entry-research.js";
 import { compareResearchSnapshots, researchConfigId } from "../../shared/research-tracking.js";
 import { REVIEW_HISTORY_LIMIT, reviewEventTimeline } from "../../shared/research-review.js";
-import { getSectorDetail, getSectorOverview, sectorMatches } from "../../shared/sectors.js";
+import { getSectorDetail, getSectorGroupOverview, getSectorOverview, sectorMatches } from "../../shared/sectors.js";
 import { DomainError } from "../../shared/domain-error.js";
 
 const WINDOWS = ["day", "5", "20"];
@@ -74,11 +74,12 @@ export class MarketSummaryService {
         money: { day: { total: getStockInstitutionEstimate(stock, "total", "day", dates) } },
       };
     });
-    const sectors = Object.fromEntries(WINDOWS.map((window) => [window,
-      getSectorOverview(stocks, { window, sort: "net-desc", tradingDates: dates, asOf })
+    const overviews = (overview) => Object.fromEntries(WINDOWS.map((window) => [window,
+      overview(stocks, { window, sort: "net-desc", tradingDates: dates, asOf })
         .map(({ stocks: _stocks, leader, ...sector }) => ({ ...sector,
           leader: leader ? { symbol: leader.symbol, name: leader.name } : null }))]));
-    return { data: { stocks: data, sentiment: calculateMarketSentiment(stocks, asOf, 20, dates, actions), sectors },
+    return { data: { stocks: data, sentiment: calculateMarketSentiment(stocks, asOf, 20, dates, actions),
+      sectors: overviews(getSectorOverview), sectorGroups: overviews(getSectorGroupOverview) },
       meta: { asOf, sourceAsOf: manifest.asOf, generation: manifest.generation,
         rulesVersion: "technical-v1", settings,
         // Daily V1.2 snapshots are no longer saved; "failed" still marks an unstable action window.

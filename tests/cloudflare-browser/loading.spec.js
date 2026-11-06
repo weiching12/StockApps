@@ -3,6 +3,11 @@ import { readFileSync } from "node:fs";
 import { createManifest, marketDay, mergeShard, normalizeCatalog, normalizeFlows, normalizePrices, SHARD_COUNT } from "../../cloudflare/twse.js";
 import { MarketSummaryService } from "../../cloudflare/services/market-summary-service.js";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/twse-20261016.json", import.meta.url)));
 const catalog = normalizeCatalog(fixture.companies);
 const date = "2026-10-16";

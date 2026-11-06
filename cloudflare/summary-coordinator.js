@@ -6,7 +6,7 @@ import { SummaryCache } from "./summary-cache.js";
 
 const SUMMARY_ROUTES = ["/api/v1/market/summary", "/api/v1/favorites/summary"];
 // Bump when the response shape or derived rules change; old Durable Object entries persist across deploys.
-const CACHE_SCHEMA = "entry-research-v3-structure-v13";
+const CACHE_SCHEMA = "entry-research-v3-structure-v14";
 
 export class MarketSummaryCoordinator {
   constructor(ctx, env, cacheOptions) {

@@ -72,6 +72,10 @@ export function getSectorOverview(snapshots, {
   return rankSectors(sectors, sort);
 }
 
+/** The same overview one level up, for the market list's broader sector choices. */
+export const getSectorGroupOverview = (snapshots, options) => getSectorOverview(
+  snapshots.map((stock) => stock.sectorGroup ? { ...stock, sector: stock.sectorGroup } : stock), options);
+
 const sortValue = (sector, sort) => sort === "activity-desc" ? sector.activity?.amount ?? null : sector.estimate.amount;
 
 /** Shared by the model and the API client, which re-sorts the server's net-desc overview. */

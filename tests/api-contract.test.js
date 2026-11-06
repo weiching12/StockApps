@@ -1,3 +1,5 @@
+import { routeApi } from "../cloudflare/api/router.js";
+import { createApplicationServices } from "../cloudflare/composition.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -52,10 +54,15 @@ test("documented market, stock, history and analysis responses match the publish
     const concrete = path.replace("{symbol}", "2330").replace("{generation}", "contract")
       .replace("{index}", String(shardOf("2330"))).replace("{name}", encodeURIComponent(catalog[0].sector)) +
       (path === "/api/v1/favorites/summary" || path === "/api/v1/favorites/research" ? "?symbols=2330" : "");
-    const response = await worker.fetch(new Request(`https://example.test${concrete}`), env);
+    // Research samples and backtests need a session, which routeApi lets a test stand in for.
+    const signedIn = path.startsWith("/api/v1/research/");
+    const send = (init) => signedIn
+      ? routeApi(new Request(`https://example.test${concrete}`, init), env, { ...createApplicationServices(env), signedInUser: async () => ({ user: {} }) })
+      : worker.fetch(new Request(`https://example.test${concrete}`, init), env);
+    const response = await send();
     assert.equal(response.status, 200, concrete);
     check(definition.get.responses[200].content["application/json"].schema, await response.json());
-    const head = await worker.fetch(new Request(`https://example.test${concrete}`, { method: "HEAD" }), env);
+    const head = await send({ method: "HEAD" });
     assert.equal(head.status, 200); assert.equal(await head.text(), "");
   }
   const invalid = await worker.fetch(new Request("https://example.test/api/v1/stocks?limit=201"), env);

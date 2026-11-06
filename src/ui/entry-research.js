@@ -72,10 +72,6 @@ export const RESEARCH_FILTERS = [
 ];
 
 // Short labels for the phone filter row, most useful first; same filters as the desktop menu.
-export const RESEARCH_FILTER_CHIPS = [["candidate", "進場候選"], ["gatePass", "門檻通過"], ["triggered", "訊號觸發"],
-  ["waiting", "等待訊號"], ["priceHigh", "價格過高"], ["pullback", "回踩恢復"], ["breakout", "區間突破"],
-  ["score80", "準備度 80+"], ["score60", "準備度 60～79"]];
-
 export function matchesResearchFilter(stock, filter) {
   if (!filter || filter === "all") return true;
   const summary = researchSummaryOf(stock);

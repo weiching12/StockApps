@@ -3,6 +3,11 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 const researchPath = "/api/v1/favorites/research?symbols=2330&asOf=2026-10-28&period=9&kSmooth=3&dSmooth=3";
 const summaryPath = "/api/v1/market/summary?asOf=2026-10-28&period=9&kSmooth=3&dSmooth=3";
 let server, origin, currentWorker, legacyWorker, legacyCache, useLegacy, revision, requests, dataCacheControl, authUser, authRequests;

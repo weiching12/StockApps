@@ -1,25 +1,30 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 test("research center preserves favorites and opens existing score detail", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "株研追蹤" }).first().click();
-  await expect(page.locator("#page-title")).toContainText("株研追蹤");
+  await page.locator('[data-page="favorites"]').first().click();
+  await expect(page.locator("#page-title")).toContainText("自選");
   await expect(page.locator("#page-description")).toContainText("進場研究");
   await expect(page.locator(".date-control")).toBeHidden();
   await expect(page.locator("#watchlist h2")).toHaveCount(0);
   await expect(page.locator("#legacy-watchlist")).toBeHidden();
-  await expect(page.locator("#research-stats")).toContainText("追蹤股票");
-  await expect(page.locator("#research-stats .research-stat-label")).toHaveText(["追蹤股票", "明日進場候選", "初步門檻通過"]);
+  await expect(page.locator("#research-stats")).toContainText("自選股票");
+  await expect(page.locator("#research-stats .research-stat-label")).toHaveText(["自選股票", "明日進場候選", "初步門檻通過"]);
   await expect(page.locator("#research-stats .research-stat strong").first()).toContainText("檔");
   await expect(page.locator("#research-list table")).toBeVisible();
   // The list shows entry research, not the V1.2 score, and leads with readiness.
   await expect(page.locator("#research-list thead th")).toHaveText(["股票", "準備度", "股價", "進場研究"]);
   await expect(page.locator("#research-sort")).toHaveValue("readiness");
-  const scores = await page.locator(".research-card .research-score-button strong").allTextContents();
+  const scores = await page.locator("#research-list .research-card .research-score-button strong").allTextContents();
   const numeric = scores.map(Number).filter(Number.isFinite);
   expect(numeric).toEqual([...numeric].sort((a, b) => b - a));
   expect(scores.slice(numeric.length).every((value) => value === "—")).toBe(true);
-  const card = page.locator(".research-card").first();
+  const card = page.locator("#research-list .research-card").first();
   await expect(card).toBeVisible();
   await expect(card.locator(".research-gate")).toBeVisible();
   // The research status sits in its own column on desktop and under the name on phones.
@@ -40,16 +45,16 @@ test("research center preserves favorites and opens existing score detail", asyn
 
 test("research table rows open score details across the row", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "株研追蹤" }).first().click();
-  await page.locator(".research-card .research-price").first().click();
+  await page.locator('[data-page="favorites"]').first().click();
+  await page.locator("#research-list .research-card .research-price").first().click();
   await expect(page.locator("#info-dialog .entry-dialog")).toBeVisible();
 });
 
 test("a saved stock opens the same detail from tracking and the market list, without the retired tracking history", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "株研追蹤" }).first().click();
-  const symbol = await page.locator(".research-card").first().getAttribute("data-research-symbol");
-  await page.locator(`.research-card[data-research-symbol="${symbol}"] .research-card-main`).click();
+  await page.locator('[data-page="favorites"]').first().click();
+  const symbol = await page.locator("#research-list .research-card").first().getAttribute("data-research-symbol");
+  await page.locator(`#research-list .research-card[data-research-symbol="${symbol}"] .research-card-main`).click();
   await expect(page.locator("#info-dialog .entry-dialog")).toBeVisible();
   await expect(page.locator("#info-dialog")).not.toContainText("研究追蹤");
   await expect(page.locator(".research-detail, .research-review-detail")).toHaveCount(0);
@@ -57,8 +62,8 @@ test("a saved stock opens the same detail from tracking and the market list, wit
 
 test("pointer clicks do not leave a focus ring but keyboard focus remains visible", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "株研追蹤" }).first().click();
-  const card = page.locator(".research-card-main").first();
+  await page.locator('[data-page="favorites"]').first().click();
+  const card = page.locator("#research-list .research-card-main").first();
   await card.click();
   await page.locator(".info-dialog-handle").click();
   await expect(page.locator("#info-dialog")).toBeHidden();
@@ -73,7 +78,7 @@ test("pointer clicks do not leave a focus ring but keyboard focus remains visibl
 test.use({ viewport: { width: 390, height: 844 } });
 test("phone research cards fit the viewport and remain operable", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "株研追蹤" }).first().click();
+  await page.locator('[data-page="favorites"]').first().click();
   await expect(page.locator("#page-description")).toBeVisible();
   await expect(page.locator("#research-list .research-card").first()).toBeVisible();
   await expect(page.locator('.research-mobile-detail')).toHaveCount(0);
@@ -101,7 +106,7 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
     }));
     expect(bounds.left).toBeGreaterThanOrEqual(0);
     expect(bounds.right).toBeLessThanOrEqual(bounds.width + 1);
-    const scoreAlignment = await page.locator('.research-card').first().evaluate(row => {
+    const scoreAlignment = await page.locator('#research-list .research-card').first().evaluate(row => {
       const table = row.closest('table');
       const textRight = node => { const range = document.createRange(); range.selectNodeContents(node); return range.getBoundingClientRect().right; };
       return { header: textRight(table.querySelector('thead th:nth-child(2)')),
@@ -111,7 +116,7 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
     });
     expect(Math.abs(scoreAlignment.header - scoreAlignment.score)).toBeLessThanOrEqual(1);
     expect(Math.abs(scoreAlignment.scoreTop - scoreAlignment.deltaTop)).toBeLessThanOrEqual(1);
-    const badgeLayout = await page.locator('.research-card > th').first().evaluate(cell => {
+    const badgeLayout = await page.locator('#research-list .research-card > th').first().evaluate(cell => {
       const heading = cell.querySelector('.research-stock-head').getBoundingClientRect();
       const badges = cell.querySelector('.research-stock-badges').getBoundingClientRect();
       const bounds = cell.getBoundingClientRect();
@@ -129,21 +134,21 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
 test("research tracking always compares the latest available trading day", async ({ page }) => {
   await page.goto("/");
   await page.locator("#trade-date").selectOption("2026-10-15");
-  await page.getByRole("button", { name: "株研追蹤" }).first().click();
+  await page.locator('[data-page="favorites"]').first().click();
   await expect(page.locator(".date-control")).toBeHidden();
   await expect(page.locator("#research-date")).toHaveText("交易日 2026-10-16");
-  await expect(page.locator(".research-card").first()).not.toContainText("評分交易日");
+  await expect(page.locator("#research-list .research-card").first()).not.toContainText("評分交易日");
 });
 
 test("reloading the phone keeps the selected main page", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("button", { name: "株研追蹤" }).first().click();
+  await page.locator('[data-page="favorites"]').first().click();
   await page.reload();
-  await expect(page.locator("#page-title")).toContainText("株研追蹤");
-  await page.getByRole("button", { name: "法人買株" }).first().click();
+  await expect(page.locator("#page-title")).toContainText("自選");
+  await page.locator('[data-page="market"]').first().click();
   await page.reload();
-  await expect(page.locator("#page-title")).toContainText("法人買株");
+  await expect(page.locator("#page-title")).toContainText("市場觀察清單");
 });
 
 test("desktop market date label and selector stay on one line", async ({ page }) => {
@@ -161,8 +166,8 @@ test("desktop market date label and selector stay on one line", async ({ page })
 test("phone tracking cards align the code and name and open the detail without overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("button", { name: "株研追蹤" }).first().click();
-  const card = page.locator(".research-card").first();
+  await page.locator('[data-page="favorites"]').first().click();
+  const card = page.locator("#research-list .research-card").first();
   await expect(card.locator(".research-card-review")).toHaveCount(0);
   const alignment = await card.locator(".research-stock-head").evaluate((node) => {
     const code = node.querySelector(".research-code").getBoundingClientRect();
@@ -171,7 +176,7 @@ test("phone tracking cards align the code and name and open the detail without o
   });
   expect(Math.abs(alignment.codeY - alignment.nameY)).toBeLessThan(5);
   expect(alignment.gap).toBeGreaterThanOrEqual(0);
-  await page.locator(".research-card-main").first().click();
+  await page.locator("#research-list .research-card-main").first().click();
   await expect(page.locator("#info-dialog .entry-dialog")).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);

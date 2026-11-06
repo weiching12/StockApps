@@ -106,8 +106,6 @@ export function renderMarketView(context) {
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", active);
   });
-  document.querySelectorAll("[data-research-chip]").forEach((button) =>
-    button.setAttribute("aria-pressed", button.dataset.researchChip === state.research));
   updateSegmentedControl(document.querySelector(".filter-tabs"));
   document
     .querySelectorAll("[data-sort-heading]")

@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 test("market table and research tracking share favorites without the retired card view", async ({ page }) => {
   const requests = [];
   page.on("request", (request) => requests.push(new URL(request.url()).pathname));
@@ -21,6 +26,7 @@ test("market and sector navigation remain usable after opening tracking", async 
   await expect(page.locator("#research-list")).toBeVisible();
   await page.locator('.sidebar [data-page="market"]').click();
   await expect(page.locator("#stock-rows tr").first()).toBeVisible();
-  await page.locator('.sidebar [data-page="sectors"]').click();
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator("#sector-ranking > summary").click();
   await expect(page.locator("#sector-grid .sector-card").first()).toBeVisible();
 });

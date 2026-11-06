@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+// This spec starts on the market list; the app itself opens on the home page.
+test.beforeEach(({ page }) => page.addInitScript(() => {
+  try { if (!sessionStorage.getItem("stock-insight-current-page")) sessionStorage.setItem("stock-insight-current-page", "market"); } catch { /* about:blank */ }
+}));
+
 test.use({ viewport: { width: 390, height: 956 }, hasTouch: true });
 
 async function drag(page, target, dx = 0, dy = 150) {
@@ -23,7 +28,7 @@ test.beforeEach(async ({ page }) => {
     }, true);
   });
   await page.goto('/');
-  await expect(page.locator('#stock-rows .entry-score-button').first()).toBeVisible();
+  await expect(page.locator('#stock-rows tr[data-symbol] .stock-name').first()).toBeVisible();
   await page.evaluate(() => {
     const region = document.createElement('section');
     region.id = 'gesture-region';
@@ -75,7 +80,7 @@ test('short pulls, scrolled containers, inputs and dialogs do not refresh the pa
 
 test('a pull while the document is scrolled only scrolls back toward the top', async ({ page }) => {
   await page.evaluate(() => window.scrollTo(0, 300));
-  await drag(page, page.locator('#stock-rows .entry-score-button').first());
+  await drag(page, page.locator('#stock-rows tr[data-symbol] .stock-name').first());
   expect(await page.evaluate(() => window.refreshCount)).toBe(0);
 });
 

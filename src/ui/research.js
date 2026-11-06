@@ -19,7 +19,7 @@ export function researchCardPrice(period, stock, asOf) {
 }
 
 export const RESEARCH_TRACKING_SORTS = [["readiness", "準備度"], ["nextDay", "明日評估優先"], ["price", "收藏後股價變化"]];
-export const RESEARCH_TRACKING_FILTERS = [["all", "全部追蹤"], ["candidate", "明日進場候選"], ["gatePass", "初步門檻通過"],
+export const RESEARCH_TRACKING_FILTERS = [["all", "全部自選"], ["candidate", "明日進場候選"], ["gatePass", "初步門檻通過"],
   ["triggered", "進場訊號已觸發"], ["waiting", "等待進場訊號"]];
 const number = (value, digits = 2) => Number.isFinite(value)
   ? value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
@@ -49,9 +49,9 @@ export function renderResearchCenter({ favorites, stocks, store, date, sort, fil
   const count = (test) => values.filter(({ summary }) => summary && test(summary)).length;
   const stat = (label, value, note, tone = "") => `<div class="research-stat"><span class="research-stat-label">${label}</span><strong class="${tone}">${value}<small>檔</small></strong><span class="research-stat-note">${note}</span></div>`;
   const candidates = count((summary) => summary.nextDayStatus === "NEXT_DAY_CANDIDATE");
-  return { stats: stat("追蹤股票", favorites.length, `資料日 ${date || "—"}`) +
+  return { stats: stat("自選股票", favorites.length, `資料日 ${date || "—"}`) +
       stat("明日進場候選", candidates, "訊號觸發且價格在計畫內", candidates ? "up" : "") +
-      stat("初步門檻通過", count((summary) => summary.gateStatus === "PASS"), `共 ${favorites.length} 檔追蹤`),
+      stat("初步門檻通過", count((summary) => summary.gateStatus === "PASS"), `共 ${favorites.length} 檔自選`),
     cards: entries ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col">準備度</th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${entries}</tbody></table>`
-      : `<p class="research-muted">${favorites.length ? "此篩選目前沒有股票。" : "尚無追蹤股票。"}</p>` };
+      : `<p class="research-muted">${favorites.length ? "此篩選目前沒有股票。" : "尚無自選股票。"}</p>` };
 }

@@ -17,7 +17,7 @@
     "/api/v1/research/samples": {
       "get": {
         "operationId": "getEntryResearchSamples",
-        "description": "Saved daily entry research samples (one per stock, trading date and model version, never overwritten) with their after-the-fact outcomes. Samples include stocks that failed the gates. Model parameters are provisional and unvalidated. Outcome values are null while PENDING or UNAVAILABLE.",
+        "description": "Requires a signed-in session. Saved daily entry research samples (one per stock, trading date and model version, never overwritten) with their after-the-fact outcomes. Samples include stocks that failed the gates. Model parameters are provisional and unvalidated. Outcome values are null while PENDING or UNAVAILABLE.",
         "parameters": [
           { "name": "model", "in": "query", "schema": { "type": "string", "default": "entry-research-v1" } },
           { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
@@ -46,7 +46,7 @@
     "/api/v1/research/backtest": {
       "get": {
         "operationId": "getEntryResearchBacktest",
-        "description": "Aggregates over saved entry research samples matching the filters: totals, simulated next-open trades (net of costs) and close-to-close forward returns for the chosen horizon, readiness buckets, setup comparison, 5/10/20-session comparison, a staggered equity curve by sample date (the account split into horizon parts, one committed per date), daily sample counts and a trade return histogram. Groups below meta.minimumSamples are flagged insufficient. Parameters are provisional and unvalidated.",
+        "description": "Requires a signed-in session. Aggregates over saved entry research samples matching the filters: totals, simulated next-open trades (net of costs) and close-to-close forward returns for the chosen horizon, readiness buckets, setup comparison, 5/10/20-session comparison, a staggered equity curve by sample date (the account split into horizon parts, one committed per date), daily sample counts and a trade return histogram. Groups below meta.minimumSamples are flagged insufficient. Parameters are provisional and unvalidated.",
         "parameters": [
           { "name": "model", "in": "query", "schema": { "type": "string", "default": "entry-research-v1" } },
           { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
@@ -118,7 +118,7 @@
             "content": { "application/json": { "schema": {
               "type": "object", "required": ["data", "meta"],
               "properties": {
-                "data": { "type": "object", "required": ["stocks", "sentiment", "sectors"] },
+                "data": { "type": "object", "required": ["stocks", "sentiment", "sectors", "sectorGroups"] },
                 "meta": { "type": "object", "required": ["asOf", "generation", "rulesVersion"] }
               }
             } } }
