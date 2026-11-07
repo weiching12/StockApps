@@ -52,6 +52,58 @@ test("iPhone 13 has a native startup image matching the web splash background", 
   await expect(page.locator(".app-splash-brand")).toHaveCSS("animation-name", "splash-brand-in");
 });
 
+test("every iPhone startup image matches the screen its media query selects", async ({ page, request }) => {
+  await page.goto("/");
+  const images = await page.locator('link[rel="apple-touch-startup-image"]').evaluateAll((links) =>
+    links.map((link) => ({ href: link.getAttribute("href"), media: link.getAttribute("media") })));
+  for (const required of ["device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2",
+    "device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3"])
+    expect(images.some((image) => image.media.includes(required))).toBe(true);
+  for (const { href, media } of images) {
+    const [, width, height, ratio] = media.match(/device-width: (\d+)px\) and \(device-height: (\d+)px\) and \(-webkit-device-pixel-ratio: (\d)/);
+    const response = await request.get(href);
+    expect(response.headers()["content-type"]).toContain("image/png");
+    const png = Buffer.from(await response.body());
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([width * ratio, height * ratio]);
+  }
+});
+
+test("the canvas stays dark only while the launch animation plays", async ({ page }) => {
+  const colorScheme = () => page.locator('meta[name="color-scheme"]').getAttribute("content");
+  await page.goto("/");
+  expect(await colorScheme()).toBe("light");
+  await emulateInstalledApp(page);
+  await page.goto("/");
+  await expect(page.locator("#app-splash")).toBeVisible();
+  expect(await colorScheme()).toBe("dark");
+  await expect(page.locator("#app-splash")).toHaveCount(0, { timeout: 5_000 });
+  expect(await colorScheme()).toBe("light");
+  await page.reload();
+  expect(await colorScheme()).toBe("light");
+});
+
+test("loading holds the navy navigation's place before the shell renders", async ({ page }) => {
+  await page.route("**/assets/*.js", (route) => route.abort());
+  const placeholder = () => page.locator("#app > .initial-load").evaluate((node) => {
+    const style = getComputedStyle(node, "::before");
+    return { background: style.backgroundColor, width: style.width, height: style.height };
+  });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  expect(await placeholder()).toMatchObject({ background: "rgb(20, 36, 59)", width: "214px", height: "800px" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const phone = await placeholder();
+  expect(phone).toMatchObject({ background: "rgb(20, 36, 59)", height: "64px" });
+  await page.unroute("**/assets/*.js");
+  await page.reload();
+  await expect(page.locator(".sidebar")).toBeVisible();
+  await expect(page.locator("#app > .initial-load")).toHaveCount(0);
+  // The real navigation takes over exactly where the placeholder stood.
+  const sidebar = await page.locator(".sidebar").boundingBox();
+  expect(`${sidebar.width}px`).toBe(phone.width);
+  expect(sidebar.height).toBe(64);
+});
+
 test("service worker handles market update pushes and notification clicks", async ({ request }) => {
   const response = await request.get("/sw.js");
   expect(response.ok()).toBe(true);

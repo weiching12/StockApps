@@ -18,6 +18,11 @@
 - Cloudflare APNs adapter：ES256 provider token、sandbox/production 分流、每日成功去重、
   暫時失敗重試及失效裝置 token 清理。所有 Apple 私密金鑰只存在 Worker Secrets。
 
+- 啟動畫面全程使用深藍 `#14243b`：LaunchScreen 與 `Splash` 圖、`capacitor.config.json` 的
+  `backgroundColor`（WebView 首次繪製前的底色）及網頁進場動畫一致，避免啟動時閃白。
+  `native` 建置會在 `<html>` 標上 `is-standalone`，一定播放進場動畫。
+  iOS 會快取啟動畫面，更換後需移除 App 再重新安裝才看得到。
+
 原生版本以 CapacitorHttp 呼叫設定的 HTTPS API origin；不使用 Service Worker 或瀏覽器推播，
 也不登記網頁造訪人數。設定頁「檢查資料」只檢查行情，不宣稱可以更新原生 App 二進位檔。
 

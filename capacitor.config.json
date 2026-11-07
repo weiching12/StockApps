@@ -2,6 +2,7 @@
   "appId": "dev.workers.stockinsighttw.app",
   "appName": "株研",
   "webDir": "dist-native",
+  "backgroundColor": "#14243b",
   "plugins": {
     "CapacitorHttp": { "enabled": true }
   }

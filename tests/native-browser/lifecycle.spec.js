@@ -72,6 +72,15 @@ async function openSettings(page) {
   } else await page.locator('.sidebar-bottom > [data-dialog="settings"]').click();
 }
 
+test("launch stays navy from the iOS launch screen through the web animation", async ({ request }) => {
+  const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+  expect(JSON.parse(read("capacitor.config.json")).backgroundColor).toBe("#14243b");
+  const launchScreen = read("ios/App/App/Base.lproj/LaunchScreen.storyboard");
+  expect(launchScreen).not.toContain("systemBackgroundColor");
+  expect(launchScreen).toContain('red="0.078431372549019607" green="0.14117647058823529" blue="0.23137254901960785"');
+  expect(await (await request.get("/")).text()).toContain('<html lang="zh-Hant" class="is-standalone">');
+});
+
 test("iPhone entry hydrates native favorites and settings and leaves web app services unused", async ({ page }) => {
   const { calls } = await setup(page);
   await page.locator('[data-page="market"]').first().click();

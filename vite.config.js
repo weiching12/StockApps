@@ -188,6 +188,15 @@ self.addEventListener("fetch", (event) => {
 `;
 }
 
+// The native shell always plays the launch animation: its launch screen hands over to the same
+// navy, and a WKWebView cannot be relied on to report standalone display.
+function nativeLaunchShell() {
+  return {
+    name: "stock-insight-native-launch",
+    transformIndexHtml: (html) => html.replace('<html lang="zh-Hant">', '<html lang="zh-Hant" class="is-standalone">'),
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const native = mode === "native";
   const apiOrigin = native ? process.env.STOCKAPPS_NATIVE_API_ORIGIN || "https://stock-insight-tw.stock-insight-tw.workers.dev" : "";
@@ -197,7 +206,7 @@ export default defineConfig(({ mode }) => {
       throw new Error("STOCKAPPS_NATIVE_API_ORIGIN must be an HTTPS origin");
   }
   return {
-    plugins: native ? [] : [pwaServiceWorker()],
+    plugins: native ? [nativeLaunchShell()] : [pwaServiceWorker()],
     server: { proxy: {
       ...Object.fromEntries(["/api/v1/auth", "/api/v1/presence", "/api/presence"].map(path => [path, {
         target: "http://127.0.0.1:8787", changeOrigin: true,

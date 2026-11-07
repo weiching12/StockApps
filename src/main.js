@@ -194,6 +194,7 @@ async function finishAppSplashBeforeLoading() {
   splash.classList.add("is-leaving");
   await new Promise((resolve) => window.setTimeout(resolve, 320));
   document.documentElement.classList.add("app-splash-seen");
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", "light");
   splash.remove();
 }
 
