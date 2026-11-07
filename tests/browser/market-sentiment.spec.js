@@ -22,28 +22,29 @@ for (const style of ["gauge", "scale"]) {
       await expect(card.locator(".sentiment-arc")).toBeVisible({ visible: style === "gauge" });
       await expect(card.locator(".sentiment-scale")).toBeVisible({ visible: style === "scale" });
       await expect(card.locator('[data-fact="institutions"]')).toHaveText(/^法人淨買賣\s*[+-]?[\d,.]+ 億\s*(連[買賣] \d+ 日|買賣持平)$/);
-      await expect(card.locator('[data-fact="inflow"]')).toHaveText(/^法人流入\s*\+[\d,.]+ 億\s*\S+$/);
-      await expect(card.locator('[data-fact="outflow"]')).toHaveText(/^法人流出\s*-[\d,.]+ 億\s*\S+$/);
+      await expect(card.locator('[data-fact="flows"] .sentiment-row-label')).toHaveText("資金流向");
+      await expect(card.locator('[data-fact="flows"] .sentiment-chip')).toHaveText([/^\S+ \+[\d,.]+ 億$/, /^\S+ -[\d,.]+ 億$/]);
       // The longest values real data can show still stay inside their own cell.
-      const layout = await card.locator(".sentiment-card").evaluate((button) => {
+      const layout = await card.evaluate((button) => {
         button.querySelector('[data-fact="institutions"] strong').textContent = "-1,246 億";
         button.querySelector('[data-fact="institutions"] small').textContent = "連賣 12 日";
-        button.querySelector('[data-fact="inflow"] strong').textContent = "+1,246 億";
-        button.querySelector('[data-fact="inflow"] small').textContent = "ASIC設計服務與矽智財";
-        button.querySelector('[data-fact="outflow"] strong').textContent = "-1,246 億";
+        const [inflow, outflow] = button.querySelectorAll('[data-fact="flows"] .sentiment-chip');
+        inflow.innerHTML = '<i></i>ASIC設計服務與矽智財 <b>+1,246 億</b>';
+        outflow.querySelector("b").textContent = "-1,246 億";
         const outer = button.getBoundingClientRect(), box = (selector) => button.querySelector(selector).getBoundingClientRect();
         const inside = (element, cell) => { const range = document.createRange(); range.selectNodeContents(element); const rect = range.getBoundingClientRect(); return rect.left >= cell.left - 1 && rect.right <= cell.right + 1; };
-        const clipped = [...button.querySelectorAll(".sentiment-fact")].flatMap((cell) => [...cell.querySelectorAll("strong, small")].filter((part) => !inside(part, cell.getBoundingClientRect())).map((part) => part.textContent));
+        const clipped = [...button.querySelectorAll(".sentiment-row")].flatMap((cell) => [...cell.querySelectorAll("strong, small, .sentiment-chip")].filter((part) => !inside(part, cell.getBoundingClientRect())).map((part) => part.textContent));
         // The amounts line up across the three cells.
-        const tops = [...button.querySelectorAll(".sentiment-fact strong")].map((cell) => cell.getBoundingClientRect().top);
+        // Every row starts with its label at the same left edge.
+        const tops = [...button.querySelectorAll(".sentiment-row-label")].map((label) => Math.round(label.getBoundingClientRect().left));
         return { clipped, oneRow: new Set(tops).size === 1, readoutInside: box(".sentiment-readout").right <= outer.right, breadthLeftOfGauge: box(".sentiment-breadth-bar").right <= box(".sentiment-meter").left,
           scaleAboveBreadth: box(".sentiment-scale").bottom <= box(".sentiment-breadth").top, factsInside: box(".sentiment-facts").bottom <= outer.bottom, overflow: document.documentElement.scrollWidth > innerWidth };
       });
       expect(layout, `${width}px`).toMatchObject({ clipped: [], oneRow: true, readoutInside: true, factsInside: true, overflow: false,
         // Wide cards put either style on the right; only the narrow scale runs above the breadth line.
-        ...(style === "gauge" || width >= 760 ? { breadthLeftOfGauge: true } : { scaleAboveBreadth: true }) });
+        // Wide screens stack the mood card's score above its line; narrow ones keep them side by side.
+        ...(width >= 760 ? {} : style === "gauge" ? { breadthLeftOfGauge: true } : { scaleAboveBreadth: true }) });
       // Injected above: the longest sub-industry name wraps, the tallest a phone card gets.
-      if (width <= 390) expect((await card.boundingBox()).height).toBeLessThan(250);
     }
   });
 }
@@ -130,23 +131,69 @@ test("the market mood card has no composition page to open", async ({ page }) =>
   const card = page.locator("#market-sentiment");
   await expect(card.locator(".sentiment-score")).toHaveText(/^\d+$/);
   await expect(card).not.toContainText("查看組成");
-  await expect(card.locator("button, [data-dialog]")).toHaveCount(0);
+  await expect(card.locator("[data-dialog]")).toHaveCount(0);
   await card.locator(".sentiment-card").click();
   await expect(page.locator("#info-dialog")).not.toBeVisible();
 });
 
-test("on a wide card the larger gauge fills the right side, beside everything else", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 844 });
+test("the home page pairs the mood card on the left with the day's summary on the right, stacked on phones", async ({ page }) => {
+  for (const [width, sideBySide] of [[1280, true], [900, true], [390, false]]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await expect(page.locator("#market-sentiment .sentiment-row").first()).toBeVisible();
+    const layout = await page.locator("#market-sentiment").evaluate((section) => {
+      const box = (selector) => section.querySelector(selector).getBoundingClientRect();
+      const mood = box(".sentiment-card"), summary = box(".sentiment-summary");
+      return { sideBySide: mood.right <= summary.left && Math.abs(mood.top - summary.top) < 1,
+        stacked: summary.top >= mood.bottom, sameHeight: Math.abs(mood.height - summary.height) < 1,
+        moodHolds: [".sentiment-heading", ".sentiment-meter", ".sentiment-breadth"].every((part) => section.querySelector(".sentiment-card").contains(section.querySelector(part))),
+        summaryHolds: [".sentiment-facts", ".sentiment-unusual"].every((part) => section.querySelector(".sentiment-summary").contains(section.querySelector(part))),
+        title: section.querySelector(".sentiment-summary h2").textContent, arcWidth: box(".sentiment-arc").width };
+    });
+    expect(layout.moodHolds && layout.summaryHolds, `${width}px`).toBe(true);
+    expect(layout.title).toBe("今日盤後彙整");
+    if (sideBySide) {
+      expect(layout.sideBySide, `${width}px`).toBe(true);
+      expect(layout.sameHeight, `${width}px`).toBe(true);
+      expect(layout.arcWidth).toBeGreaterThanOrEqual(160);
+    } else expect(layout.stacked, `${width}px`).toBe(true);
+  }
+});
+
+test("unusual institutions show on the home card and open the stock", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.locator("#market-sentiment .sentiment-fact").first()).toBeVisible();
-  const layout = await page.locator("#market-sentiment .sentiment-card").evaluate((card) => {
-    const box = (selector) => card.querySelector(selector).getBoundingClientRect();
-    const meter = box(".sentiment-meter");
-    return { arcWidth: box(".sentiment-arc").width, leftEnd: Math.max(box(".sentiment-heading").right, box(".sentiment-breadth").right, box(".sentiment-facts").right),
-      meterLeft: meter.left, rightGap: card.getBoundingClientRect().right - meter.right, spansFacts: meter.top <= box(".sentiment-heading").top && meter.bottom >= box(".sentiment-facts").bottom };
-  });
-  expect(layout.arcWidth).toBeGreaterThanOrEqual(160);
-  expect(layout.leftEnd).toBeLessThanOrEqual(layout.meterLeft);
-  expect(layout.rightGap).toBeLessThan(40);
-  expect(layout.spansFacts).toBe(true);
+  const row = page.locator('#market-sentiment [data-fact="unusual"]');
+  await expect(row.locator(".sentiment-row-label")).toHaveText("大戶異常");
+  await expect(row.locator(".sentiment-row-label")).toHaveAttribute("title", /近 20 個交易日每日平均金額 2 倍以上/);
+  const chips = row.locator(".sentiment-chip");
+  if (!await chips.count()) {
+    await expect(row.locator(".sentiment-row-none")).toHaveText("今日沒有明顯異常");
+    return;
+  }
+  await expect(chips.first()).toHaveText(/^\S+ [+-][\d,.]+ 億平常 [\d,.]+ 倍$/);
+  const symbol = await chips.first().getAttribute("data-entry-score");
+  await chips.first().click();
+  await expect(page.locator("#info-dialog #dialog-heading")).toContainText(symbol);
+});
+
+test("a flow pill opens that sub-industry's stocks", async ({ page }) => {
+  await page.goto("/");
+  const pill = page.locator('#market-sentiment [data-fact="flows"] .sentiment-chip').first();
+  const name = await pill.getAttribute("data-sector-open");
+  await pill.click();
+  await expect(page.locator("#sector-dialog")).toBeVisible();
+  await expect(page.locator("#sector-dialog-heading")).toHaveText(name);
+});
+
+test("quiet buying lists unusual buying the price did not follow", async ({ page }) => {
+  await page.goto("/");
+  const row = page.locator('#market-sentiment [data-fact="quiet-buying"]');
+  await expect(row.locator(".sentiment-row-label")).toHaveText("買超未漲");
+  await expect(row.locator(".sentiment-row-label")).toHaveAttribute("title", /股價收平或下跌/);
+  const chips = row.locator(".sentiment-chip");
+  const count = await chips.count();
+  expect(count).toBeLessThanOrEqual(3);
+  if (!count) return expect(row.locator(".sentiment-row-none")).toHaveText("今日沒有符合的個股");
+  for (const chip of await chips.all()) await expect(chip).toHaveText(/^\S+ \+[\d,.]+ 億股價 (-[\d.]+|0\.00)%$/);
 });

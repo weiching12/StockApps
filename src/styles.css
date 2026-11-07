@@ -29,14 +29,21 @@ body { background: var(--surface); }
 .market-sentiment { margin: 0 0 18px; }
 .market-sentiment[hidden] { display: none; }
 .market-sentiment { container-type: inline-size; }
-.sentiment-card {
+/* Two cards: market mood on the left, the day's institutional summary on the right; stacked when narrow. */
+.sentiment-board { display: grid; gap: 14px; }
+.sentiment-card, .sentiment-summary {
   --sentiment-tone: #64748b;
-  width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "heading meter" "breadth meter" "facts facts";
-  align-items: center; gap: 12px 22px; padding: 15px 22px; color: var(--ink);
+  min-width: 0; padding: 15px 22px; color: var(--ink);
   border: 1px solid var(--border); border-radius: 12px; background: #fff;
+}
+.sentiment-card {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "heading meter" "breadth meter";
+  align-items: center; gap: 12px 22px;
   position: relative; isolation: isolate; overflow: hidden;
 }
+.sentiment-summary { display: grid; align-content: start; gap: 10px; }
+.sentiment-summary h2 { margin: 0; font-size: var(--text-body); }
 /* A wash of the score's color; below the content, above whichever surface the theme sets. */
 .sentiment-card::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(105deg, color-mix(in srgb, var(--sentiment-tone) 14%, transparent), transparent 60%); }
 .sentiment-heading { grid-area: heading; }
@@ -55,7 +62,7 @@ body { background: var(--surface); }
 .sentiment-scale-marker { position: absolute; top: -3px; left: var(--sentiment-score, 50%); width: 3px; height: 13px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 1px var(--surface); transform: translateX(-50%); }
 .sentiment-scale-ends { display: flex; justify-content: space-between; margin-top: 3px; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; }
 [data-sentiment="unknown"] :is(.sentiment-needle, .sentiment-scale-marker) { display: none; }
-[data-mood-style="scale"] .sentiment-card { grid-template-areas: "heading readout" "scale scale" "breadth breadth" "facts facts"; }
+[data-mood-style="scale"] .sentiment-card { grid-template-areas: "heading readout" "scale scale" "breadth breadth"; }
 [data-mood-style="scale"] .sentiment-meter { display: contents; }
 [data-mood-style="scale"] .sentiment-arc { display: none; }
 [data-mood-style="scale"] .sentiment-scale { display: block; grid-area: scale; min-width: 0; }
@@ -67,16 +74,31 @@ body { background: var(--surface); }
 .sentiment-breadth .up b { color: var(--up); }
 .sentiment-breadth .down b { color: var(--down); }
 /* Below it, three equal cells split by hairlines, each reading label, amount, detail so the amounts line up. */
-.sentiment-facts { grid-area: facts; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 10px; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+/* Below it, rows that each read label then figure or pills; the pills match across rows. */
+.sentiment-facts { display: grid; gap: 8px; font-variant-numeric: tabular-nums; }
 .sentiment-facts:empty { display: none; }
-.sentiment-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-inline: 10px; border-left: 1px solid var(--border); }
-.sentiment-fact:first-child { padding-left: 0; border-left: 0; }
-.sentiment-fact:last-child { padding-right: 0; }
-.sentiment-fact > span { color: var(--muted); font-size: var(--text-meta); line-height: 1.5; white-space: nowrap; }
-.sentiment-fact > strong { color: var(--ink); font-size: var(--text-body); font-weight: 600; line-height: 1.3; white-space: nowrap; }
-.sentiment-fact > small { color: var(--ink); font-size: var(--text-meta); line-height: 1.4; overflow-wrap: anywhere; }
-.sentiment-fact .up { color: var(--up); }
-.sentiment-fact .down { color: var(--down); }
+/* The label keeps its own column, so pills that wrap stay under the first one. */
+.sentiment-row { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); align-items: baseline; gap: 8px; min-width: 0; }
+/* A narrow card puts each label above its figures, leaving the pills the full width. */
+@container (max-width: 340px) { .sentiment-row { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+.sentiment-row-items { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.sentiment-unusual { display: grid; gap: 8px; min-width: 0; padding-top: 8px; border-top: 1px solid var(--border); }
+.sentiment-unusual:empty { display: none; }
+.sentiment-row-label { color: var(--muted); font-size: var(--text-meta); white-space: nowrap; }
+.sentiment-unusual .sentiment-row-label { cursor: help; }
+.sentiment-row-none { color: var(--muted); font-size: var(--text-meta); }
+.sentiment-row-items > strong { color: var(--ink); font-size: var(--text-body); font-weight: 600; white-space: nowrap; }
+.sentiment-row-items > small { font-size: var(--text-meta); }
+.sentiment-row .up { color: var(--up); }
+.sentiment-row .down { color: var(--down); }
+.sentiment-chip { display: inline-flex; align-items: baseline; gap: 5px; min-height: 32px; max-width: 100%; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--ink); font-size: var(--text-meta); white-space: nowrap; cursor: pointer; }
+.sentiment-chip i { align-self: center; flex: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.sentiment-chip.up i, .sentiment-chip.up b { color: var(--up); }
+.sentiment-chip.down i, .sentiment-chip.down b { color: var(--down); }
+.sentiment-chip b { font-size: var(--text-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
+.sentiment-chip small { color: var(--muted); font-size: var(--text-meta); }
+.sentiment-chip:hover { border-color: var(--accent); }
+.sentiment-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sentiment-breadth-bar { flex: 1; display: flex; gap: 2px; min-width: 0; height: 4px; overflow: hidden; border-radius: 2px; background: var(--border); }
 .sentiment-breadth-bar i { flex: 0 1 0; min-width: 0; }
 .sentiment-breadth-bar .up { background: var(--up); }
@@ -87,12 +109,13 @@ body { background: var(--surface); }
 .sentiment-score { font-size: var(--text-title); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .sentiment-band { color: var(--muted); font-size: var(--text-meta); white-space: nowrap; }
 /* A wide card: everything reads down the left, the score large on the right at the card's full height. */
-@container (min-width: 640px) {
-  .sentiment-card, [data-mood-style="scale"] .sentiment-card { grid-template-areas: "heading meter" "breadth meter" "facts meter"; gap: 12px 32px; padding: 18px 24px; }
+@container (min-width: 760px) {
+  .sentiment-board { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: stretch; }
+  .sentiment-card, .sentiment-summary { padding: 18px 24px; }
+  /* The mood card: title, then the score large, then the advance/decline line, all centred. */
+  .sentiment-card, [data-mood-style="scale"] .sentiment-card { grid-template-columns: minmax(0, 1fr); grid-template-areas: "heading" "meter" "breadth"; align-content: center; gap: 14px; }
   .sentiment-heading h2 { margin-top: 0; }
-  .sentiment-meter, [data-mood-style="scale"] .sentiment-meter { display: grid; align-self: stretch; align-content: center; justify-items: center; gap: 6px; padding-left: 32px; border-left: 1px solid var(--border); }
-  .sentiment-meter { width: 212px; }
-  [data-mood-style="scale"] .sentiment-meter { width: 272px; }
+  .sentiment-meter, [data-mood-style="scale"] .sentiment-meter { display: grid; justify-self: center; justify-items: center; gap: 6px; width: min(100%, 272px); }
   .sentiment-arc { width: 180px; height: 99px; }
   .sentiment-readout { gap: 6px; }
   .sentiment-score { font-size: var(--text-page); line-height: 1.1; }
@@ -106,7 +129,7 @@ body { background: var(--surface); }
 .settings-theme h3 { margin: 0; color: var(--accent); font-size: 12px; }
 .settings-theme h3 span { color: var(--muted); font-weight: 400; }
 .form-field select { min-width: 120px; padding: 9px 28px 9px 10px; border: 1px solid var(--border); border-radius: 4px; color: var(--ink); background: var(--surface); }
-[data-theme="dark"] :is(.source-about, .about-goal, .sentiment-card, .panel, #watchlist, dialog, .sector-card, .sector-dialog) { background: #111b2b; color: var(--ink); border-color: var(--border); }
+[data-theme="dark"] :is(.source-about, .about-goal, .sentiment-card, .sentiment-summary, .panel, #watchlist, dialog, .sector-card, .sector-dialog) { background: #111b2b; color: var(--ink); border-color: var(--border); }
 [data-theme="dark"] :is(.topbar, .table-toolbar, .filter-tabs, .sector-sort-tabs, .sector-period, .table-scroll thead th) { background: #111b2b; border-color: var(--border); }
 [data-theme="dark"] :is(input, select, .search-box) { background-color: #0d1726; color: var(--ink); border-color: var(--border); }
 [data-theme="dark"] :is(.stock-name strong, .source-details dd, .guide-item code) { color: var(--ink); }
@@ -1333,6 +1356,7 @@ dialog h2 {
 }
 @media (max-width: 760px) {
   .sentiment-card { gap: 10px 12px; padding: 13px 14px; }
+  .sentiment-summary { padding: 13px 14px; }
   [data-mood-style="scale"] .sentiment-card { row-gap: 8px; }
   .sentiment-heading h2 { margin-top: 0; font-size: 14px; }
   .page-heading {
@@ -1385,7 +1409,7 @@ dialog h2 {
     --sidebar: 0px;
   }
   .market-sentiment { margin-bottom: 12px; }
-  .sentiment-card { border-radius: 9px; }
+  :is(.sentiment-card, .sentiment-summary) { border-radius: 9px; }
   .sidebar {
     position: static;
     width: 100%;
@@ -2248,7 +2272,7 @@ dialog h2 {
 /* Dark theme overrides stay last so responsive and sticky-table rules cannot restore light surfaces. */
 [data-theme="dark"] {
   :is(.workspace, main, .about-page) { color: var(--ink); }
-  :is(.topbar, .about-hero, .about-goal, .panel, #watchlist, .sentiment-card, dialog, dialog.sector-dialog, .sector-stock-scroll, .sector-stock-table thead, .sector-stock-table thead th, .table-scroll thead, .table-scroll thead th, .sector-ranking-head, .table-toolbar, .sector-toolbar, .filter-tabs, .sector-sort-tabs, .sector-period) {
+  :is(.topbar, .about-hero, .about-goal, .panel, #watchlist, .sentiment-card, .sentiment-summary, dialog, dialog.sector-dialog, .sector-stock-scroll, .sector-stock-table thead, .sector-stock-table thead th, .table-scroll thead, .table-scroll thead th, .sector-ranking-head, .table-toolbar, .sector-toolbar, .filter-tabs, .sector-sort-tabs, .sector-period) {
     background: #111b2b;
     color: var(--ink);
     border-color: var(--border);

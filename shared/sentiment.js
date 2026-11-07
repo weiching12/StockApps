@@ -8,6 +8,11 @@ export const INSTITUTION_NEUTRAL_RATIO = 0.05;
 export const MIN_COMPONENT_COVERAGE = 0.8;
 export const MIN_EFFECTIVE_WEIGHT = 0.8;
 export const MIN_EXPANDED_SAMPLE = 5;
+// An institutional day counts as unusual at this many times the stock's average daily size.
+export const UNUSUAL_SESSIONS = 20;
+export const UNUSUAL_MULTIPLE = 2;
+// Quiet buying: an unusual buying day that the price did not follow up, the largest few.
+export const QUIET_BUYING_LIMIT = 3;
 const clamp = (value, min = 0, max = 100) => Math.min(max, Math.max(min, value));
 const sum = (values) => values.reduce((total, value) => total + value, 0);
 const directionScore = (value) => value > 0 ? 1 : value < 0 ? 0 : 0.5;
@@ -157,8 +162,29 @@ function marketFacts(stocks, dates, index) {
     else unchanged++;
   }
   const breadthKnown = enough(advancing + declining + unchanged, expected);
+  // Unusual institutions: today's net amount against the stock's average daily net amount (sign
+  // ignored, so buying and selling days both count as size) over the 20 sessions before it. Any
+  // missing session leaves the stock out rather than shortening its average.
+  const unusual = { buy: null, sell: null }, quietBuying = [];
+  if (index >= UNUSUAL_SESSIONS) for (const { stock, byDate } of rows) {
+    if (!ordinaryListed(stock, date)) continue;
+    const amounts = dates.slice(index - UNUSUAL_SESSIONS, index + 1).map((day) => {
+      const bar = byDate.get(day), net = getInstitutionalNet(bar?.institutions);
+      return validClose(bar) && Number.isFinite(net) ? net * bar.close : null;
+    });
+    if (amounts.some((amount) => amount === null)) continue;
+    const today = amounts.pop(), average = sum(amounts.map(Math.abs)) / amounts.length;
+    if (!today || !average || Math.abs(today) < average * UNUSUAL_MULTIPLE) continue;
+    const side = today > 0 ? "buy" : "sell";
+    const changePercent = byDate.get(date).changePercent;
+    if (side === "buy" && Number.isFinite(changePercent) && changePercent <= 0)
+      quietBuying.push({ symbol: stock.symbol, name: stock.name, amount: today, average, multiple: today / average, changePercent });
+    if (!unusual[side] || Math.abs(today) > Math.abs(unusual[side].amount))
+      unusual[side] = { symbol: stock.symbol, name: stock.name, amount: today, average, multiple: Math.abs(today) / average };
+  }
   return { date, advancing: breadthKnown ? advancing : null, declining: breadthKnown ? declining : null, unchanged: breadthKnown ? unchanged : null,
-    institutionalNet: latest.amount, institutionalStreak: latest.amount === null ? null : streak, inflow, outflow };
+    institutionalNet: latest.amount, institutionalStreak: latest.amount === null ? null : streak, inflow, outflow, unusual,
+    quietBuying: quietBuying.sort((a, b) => b.amount - a.amount).slice(0, QUIET_BUYING_LIMIT) };
 }
 
 export function calculateMarketSentiment(stocks, asOf, days = 20, tradingDates = null, actions = null) {

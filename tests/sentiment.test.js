@@ -27,7 +27,8 @@ test("market figures count ordinary listed stocks and value amounts at the sessi
   ];
   assert.deepEqual(today(stocks).market, { date: last, advancing: 1, declining: 1, unchanged: 1,
     institutionalNet: 500 * 184 - 200 * 116, institutionalStreak: 85,
-    inflow: { sector: "半導體業", amount: 500 * 184 }, outflow: { sector: "航運業", amount: -200 * 116 } });
+    inflow: { sector: "半導體業", amount: 500 * 184 }, outflow: { sector: "航運業", amount: -200 * 116 },
+    unusual: { buy: null, sell: null }, quietBuying: [] });
 });
 
 test("the institutional streak counts sessions on the same side and stops at a flat or unknown one", () => {
@@ -182,4 +183,32 @@ test("last valid score is retained even when older than the visible chart", () =
   assert.equal(result.date, dates.at(-22));
   assert.ok(Number.isFinite(result.score));
   assert.ok(result.series.every((point) => point.score === null));
+});
+
+test("unusual institutions take each side's largest day at twice the stock's usual size or more", () => {
+  const quiet = (symbol) => makeStock(symbol, { close: () => 100, net: (day) => day % 2 ? 100 : -100 });
+  const spike = (symbol, today) => makeStock(symbol, { close: () => 100, net: (day) => day === 84 ? today : (day % 2 ? 100 : -100) });
+  const stocks = [quiet("2001"), spike("2002", 250), spike("2003", 900), spike("2004", -300), spike("2005", 150)];
+  const { unusual } = today(stocks).market;
+  // Usual size is 100 shares × 100 a day; 2003 bought 9 times that, 2004 sold 3 times, 2005's 1.5 times is ordinary.
+  assert.deepEqual(unusual.buy, { symbol: "2003", name: "2003", amount: 90000, average: 10000, multiple: 9 });
+  assert.deepEqual(unusual.sell, { symbol: "2004", name: "2004", amount: -30000, average: 10000, multiple: 3 });
+  assert.deepEqual(today([quiet("2001"), spike("2005", 150)]).market.unusual, { buy: null, sell: null });
+});
+
+test("a stock missing any of its 20 sessions is left out of unusual institutions", () => {
+  const gap = makeStock("2001", { close: () => 100, net: (day) => day === 84 ? 5000 : 100 });
+  gap.history.at(-6).institutions = [];
+  assert.equal(today([gap]).market.unusual.buy, null);
+});
+
+test("quiet buying keeps unusual buying days whose price closed flat or lower, largest first", () => {
+  const usual = (day) => day % 2 ? 100 : -100;
+  const stock = (symbol, today, close) => makeStock(symbol, { close: (day) => day === 84 ? close : 100, net: (day) => day === 84 ? today : usual(day) });
+  const stocks = [stock("2001", 500, 99), stock("2002", 900, 100), stock("2003", 800, 101), stock("2004", 150, 98), stock("2005", 300, 97), stock("2006", 400, 95)];
+  const { quietBuying } = today(stocks).market;
+  // 2003 rose and 2004 bought only 1.5 times its usual, so neither is quiet buying; the rest sort by amount and stop at three.
+  assert.deepEqual(quietBuying.map(({ symbol }) => symbol), ["2002", "2001", "2006"]);
+  assert.equal(quietBuying[0].changePercent, 0);
+  assert.ok(quietBuying[1].changePercent < 0);
 });

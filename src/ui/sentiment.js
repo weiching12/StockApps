@@ -52,11 +52,34 @@ function breadthMarkup({ advancing, unchanged, declining }) {
   return `<span class="up" title="上漲 ${count(advancing)} 檔">漲 <b>${count(advancing)}</b></span><div class="sentiment-breadth-bar" title="上漲 ${count(advancing)}、平盤 ${count(unchanged)}、下跌 ${count(declining)} 檔">${part("up", advancing)}${part("flat", unchanged)}${part("down", declining)}</div><span class="down" title="下跌 ${count(declining)} 檔">跌 <b>${count(declining)}</b></span>`;
 }
 
+/** A pill like the unusual-institution ones: a coloured dot, a name, the amount and an optional note. */
+function chipMarkup({ amount, name, note = "", attributes, label }) {
+  return `<button type="button" class="sentiment-chip ${toneOf(amount)}" ${attributes} aria-label="${escapeText(label)}"><i aria-hidden="true"></i>${escapeText(name)} <b>${factAmountText(amount)}</b>${note ? `<small>${escapeText(note)}</small>` : ""}</button>`;
+}
+
+/** Each row reads the same way: a label, then its figure or its pills. */
 function factsMarkup(market) {
   const { institutionalNet: net, institutionalStreak: streak, inflow, outflow } = market;
-  // Every cell reads the same way down: label, amount, then what the amount is about.
-  const cell = (key, label, amount, detail, detailClass = "") => `<div class="sentiment-fact" data-fact="${key}"><span>${label}</span><strong class="${toneOf(amount)}">${factAmountText(amount)}</strong><small class="${detailClass}">${escapeText(detail)}</small></div>`;
-  return `${cell("institutions", "法人淨買賣", net, streakText(streak), toneOf(streak))}${cell("inflow", "法人流入", inflow?.amount ?? null, inflow?.sector ?? "—")}${cell("outflow", "法人流出", outflow?.amount ?? null, outflow?.sector ?? "—")}`;
+  const flow = (row, side) => row ? chipMarkup({ amount: row.amount, name: row.sector,
+    attributes: `data-sector-open="${escapeText(row.sector)}"`, label: `查看${row.sector}產業個股；法人${side} ${factAmountText(row.amount)}` }) : "";
+  const flows = flow(inflow, "流入") + flow(outflow, "流出");
+  return `<div class="sentiment-row" data-fact="institutions" title="僅計上市普通股，淨買賣股數 × 當日收盤價，屬估算值"><span class="sentiment-row-label">法人淨買賣</span><div class="sentiment-row-items"><strong class="${toneOf(net)}">${factAmountText(net)}</strong><small class="${toneOf(streak)}">${escapeText(streakText(streak))}</small></div></div>`
+    + `<div class="sentiment-row" data-fact="flows" title="依細產業加總的三大法人淨買賣金額，流入、流出各取最大的一個；只代表三大法人"><span class="sentiment-row-label">資金流向</span><div class="sentiment-row-items">${flows || '<small class="sentiment-row-none">—</small>'}</div></div>`;
+}
+
+/** The day's largest unusual buyer and seller, then unusual buying the price did not follow; each pill opens its stock. */
+function unusualMarkup({ unusual, quietBuying } = {}) {
+  if (!unusual) return "";
+  const percent = (value) => `${value > 0 ? "+" : ""}${decimals(value, 2)}%`;
+  const quiet = (quietBuying ?? []).map((row) => chipMarkup({ amount: row.amount, name: row.name, note: `股價 ${percent(row.changePercent)}`,
+    attributes: `data-entry-score="${escapeText(row.symbol)}"`,
+    label: `查看${row.name}進場研究；法人買超 ${factAmountText(row.amount)}，約平常的 ${decimals(row.multiple, 1)} 倍，股價 ${percent(row.changePercent)}` })).join("");
+  const chip = (row) => row ? chipMarkup({ amount: row.amount, name: row.name, note: `平常 ${decimals(row.multiple, 1)} 倍`,
+    attributes: `data-entry-score="${escapeText(row.symbol)}"`,
+    label: `查看${row.name}進場研究；法人${row.amount > 0 ? "買超" : "賣超"} ${factAmountText(row.amount)}，約平常的 ${decimals(row.multiple, 1)} 倍` }) : "";
+  const chips = chip(unusual.buy) + chip(unusual.sell);
+  return `<div class="sentiment-row" data-fact="unusual"><span class="sentiment-row-label" title="今日三大法人淨買賣金額，達近 20 個交易日每日平均金額 2 倍以上的個股，買超、賣超各取金額最大的一檔">大戶異常</span><div class="sentiment-row-items">${chips || '<small class="sentiment-row-none">今日沒有明顯異常</small>'}</div></div>`
+    + `<div class="sentiment-row" data-fact="quiet-buying"><span class="sentiment-row-label" title="今日三大法人買超金額達近 20 個交易日每日平均金額 2 倍以上，但股價收平或下跌的個股，依買超金額取前 3 檔">買超未漲</span><div class="sentiment-row-items">${quiet || '<small class="sentiment-row-none">今日沒有符合的個股</small>'}</div></div>`;
 }
 
 const MOOD_SWEEP_MS = 1400;
@@ -118,4 +141,5 @@ export function renderSentiment(sentiment) {
   // A cached response from before these figures existed simply shows the score alone.
   card.querySelector(".sentiment-breadth").innerHTML = sentiment.market ? breadthMarkup(sentiment.market) : "";
   card.querySelector(".sentiment-facts").innerHTML = sentiment.market ? factsMarkup(sentiment.market) : "";
+  card.querySelector(".sentiment-unusual").innerHTML = unusualMarkup(sentiment.market ?? undefined);
 }

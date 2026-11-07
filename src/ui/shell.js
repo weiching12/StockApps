@@ -42,11 +42,17 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
           <section class="research-center" aria-label="自選股票的進場研究"><div id="research-stats" class="research-stats"></div><div class="research-controls"><label>排序 <select id="research-sort">${RESEARCH_TRACKING_SORTS.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label><label>篩選 <select id="research-filter">${RESEARCH_TRACKING_FILTERS.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label></div><div id="research-list" class="research-list"></div></section>
         </section>
         <section id="market-sentiment" class="market-sentiment" data-page-panel="home" data-sentiment="unknown" aria-labelledby="sentiment-title">
-          <div class="sentiment-card">
-            <div class="sentiment-heading"><h2 id="sentiment-title">台股市場情緒</h2><span class="sentiment-date">${loadingIcon("市場情緒載入中")}</span></div>
-            <div class="sentiment-meter" title="株研建立的觀察指標，不是交易所官方指數">${moodMeterMarkup()}</div>
-            <div class="sentiment-breadth"></div>
-            <div class="sentiment-facts"></div>
+          <div class="sentiment-board">
+            <div class="sentiment-card">
+              <div class="sentiment-heading"><h2 id="sentiment-title">台股市場情緒</h2><span class="sentiment-date">${loadingIcon("市場情緒載入中")}</span></div>
+              <div class="sentiment-meter" title="株研建立的觀察指標，不是交易所官方指數">${moodMeterMarkup()}</div>
+              <div class="sentiment-breadth"></div>
+            </div>
+            <div class="sentiment-summary" aria-labelledby="sentiment-summary-title">
+              <h2 id="sentiment-summary-title">今日盤後彙整</h2>
+              <div class="sentiment-facts"></div>
+              <div class="sentiment-unusual"></div>
+            </div>
           </div>
         </section>
         <section id="home-entry" class="panel home-entry" data-page-panel="home" aria-labelledby="home-entry-title">
