@@ -69,7 +69,10 @@
       }
       html.is-standalone:not(.app-splash-seen) #app { visibility: hidden; }
       /* Holds the navy navigation's place until the shell renders, so loading never jumps to it. */
-      #app > .initial-load { box-sizing: border-box; padding: 32px 32px 32px 246px; }
+      #app > .initial-load { box-sizing: border-box; padding: 32px 32px 32px 246px; color: #64748b; }
+      html[data-theme="dark"] #app > .initial-load { color: #9aabc2; }
+      /* The first paint does not wait for the stylesheet, which brings this link's full rules. */
+      .skip-link { position: fixed; transform: translateY(-180%); }
       #app > .initial-load::before {
         content: "";
         position: fixed;

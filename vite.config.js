@@ -22,6 +22,12 @@ function pwaServiceWorker() {
     name: "stock-insight-pwa",
     apply: "build",
     configResolved(config) { publicDirectory = config.publicDir; },
+    // iOS shows a white frame between its startup image and the first paint, so that paint must not
+    // wait for the stylesheet: index.html inlines what it needs and main.js holds the shell until loaded.
+    transformIndexHtml: {
+      order: "post",
+      handler: (html) => html.replace(/<link rel="stylesheet"([^>]*)>/, `<link id="app-styles" rel="stylesheet"$1 media="print" onload="this.media='all'">`),
+    },
     generateBundle(_, bundle) {
       const files = Object.values(bundle)
         .map((item) => `/${item.fileName}`)

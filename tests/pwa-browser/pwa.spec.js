@@ -82,6 +82,24 @@ test("the canvas stays dark only while the launch animation plays", async ({ pag
   expect(await colorScheme()).toBe("light");
 });
 
+test("the launch animation paints before the stylesheet and the shell waits for it", async ({ page }) => {
+  await emulateInstalledApp(page);
+  let releaseStyles;
+  const stylesHeld = new Promise((resolve) => { releaseStyles = resolve; });
+  await page.route("**/assets/*.css", async (route) => { await stylesHeld; await route.continue(); });
+  await page.goto("/", { waitUntil: "commit" });
+  await expect(page.locator("#app-splash")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => performance.getEntriesByType("paint").length)).toBeGreaterThan(0);
+  await expect(page.locator("#app-styles")).toHaveAttribute("media", "print");
+  // Past the splash's own minimum, the shell must still hold for the missing stylesheet.
+  await expect(page.locator("#app-splash")).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.locator(".sidebar")).toHaveCount(0);
+  releaseStyles();
+  await expect(page.locator(".sidebar")).toBeVisible();
+  await expect(page.locator("#app-styles")).toHaveAttribute("media", "all");
+  expect(await page.locator(".sidebar").evaluate((node) => getComputedStyle(node).backgroundColor)).toBe("rgb(20, 36, 59)");
+});
+
 test("loading holds the navy navigation's place before the shell renders", async ({ page }) => {
   await page.route("**/assets/*.js", (route) => route.abort());
   const placeholder = () => page.locator("#app > .initial-load").evaluate((node) => {

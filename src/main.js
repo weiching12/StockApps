@@ -186,6 +186,16 @@ function toast(message) {
   toastTimer = setTimeout(() => node.classList.remove("visible"), 3000);
 }
 
+// Web builds load the stylesheet without blocking the first paint; the shell still needs it.
+function stylesheetReady() {
+  const link = document.querySelector("#app-styles");
+  if (!link || link.media === "all") return Promise.resolve();
+  return new Promise((resolve) => {
+    link.addEventListener("load", resolve, { once: true });
+    link.addEventListener("error", resolve, { once: true });
+  });
+}
+
 async function finishAppSplashBeforeLoading() {
   const splash = document.querySelector("#app-splash");
   if (!splash || !document.documentElement.classList.contains("is-standalone") ||
@@ -1073,7 +1083,7 @@ async function init() {
   const pendingData = apiMode ? loadMarketSummary(fetch, { settings: state.settings,
     onCacheFallback: () => { usingCachedData = true; renderConnectionState(); } }) : loadDataset();
   pendingData.catch(() => {}); // Failures surface when awaited below, after the splash.
-  await finishAppSplashBeforeLoading();
+  await Promise.all([finishAppSplashBeforeLoading(), stylesheetReady()]);
   const prepare = () => {
     state.date = dataset.info.asOf;
     state.favorites = [...new Set(state.favorites)].filter((symbol) => dataset.stocks.some((stock) => stock.symbol === symbol));

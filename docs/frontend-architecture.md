@@ -31,6 +31,10 @@ Indicator calculations live in `shared/indicators.js`; `src/indicators.js` is a
 compatibility re-export. Server analysis uses the same rules, version `technical-v1`,
 and explicitly reports unadjusted prices. No new strategy or backtest claim is added.
 
+網頁建置的外部樣式表不阻塞首次繪製（`#app-styles`，由 `vite.config.js` 改寫），以縮短 iOS PWA
+從啟動圖交給網頁時的白畫面；首次繪製所需的進場動畫與載入骨架樣式都內嵌在 `index.html`，
+`main.js` 會等樣式表載入後才繪製 shell。原生建置不使用這個方式。
+
 Browser selectors target sidebar navigation explicitly because About content has
 its own navigation buttons. Tests should select the main content panel rather than
 assuming only one market-related section exists.
