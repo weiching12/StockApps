@@ -522,7 +522,7 @@ function openSectorDialog(name, focusHandle = true, stockSymbol = null) {
 function renderTable() { renderMarketView({ state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl }); }
 
 function technicalSignalGuide() {
-  return `<p class="dialog-intro">使用目前 KD (${state.settings.period}, ${state.settings.kSmooth}, ${state.settings.dSmooth}) 設定，僅比較資料日與前一交易日。買賣提示只標示當日新交叉，每日重新判讀。</p>
+  return `<p class="dialog-intro">依資料日 KD 交叉與 MA20 趨勢判讀；${isDemo ? "模擬資料技術提示" : "技術提示僅供觀察"}，需搭配風險控管。使用目前 KD (${state.settings.period}, ${state.settings.kSmooth}, ${state.settings.dSmooth}) 設定，僅比較資料日與前一交易日。買賣提示只標示當日新交叉，每日重新判讀。</p>
     <dl class="signal-rules">
       <div><dt>留意買點</dt><dd>低檔黃金交叉，且收盤價 ≥ MA20、MA20 ≥ 前日 MA20。</dd></div>
       <div><dt>反彈觀察</dt><dd>低檔黃金交叉，但 MA20 趨勢條件未齊備，包含均線資料不足。</dd></div>
@@ -568,8 +568,6 @@ function openDialog(type, focusClose = true) {
       `<h2 id="dialog-heading">個股進場評估</h2><p>找不到這檔股票。</p>`;
   } else if (type === "backtest-sample") {
     content.innerHTML = `<h2 id="dialog-heading">研究樣本說明</h2><div class="backtest-loading">${loadingIcon("樣本說明載入中")}</div>`;
-  } else if (type === "signals") {
-    content.innerHTML = `<h2 id="dialog-heading">KD 技術建議怎麼看？</h2>${technicalSignalGuide()}`;
   } else if (type === "source" && !isDemo && !dataset.info.updatedAt) {
     content.innerHTML = `<h2 id="dialog-heading">關於株研</h2>${sourceAbout()}<section class="source-data" aria-labelledby="source-data-heading"><h3 id="source-data-heading">資料來源與更新規則</h3><p>正在取得資料來源與市場範圍，請稍候。</p></section>`;
   } else if (type === "source" && !isDemo) {
