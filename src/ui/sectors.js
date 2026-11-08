@@ -176,15 +176,13 @@ export function renderSectorDialogView(name, context) {
       }).join("")}</div>
     </section>
     <section class="sector-stock-section" aria-labelledby="sector-stock-heading">
-      <div class="sector-detail-heading"><div><h3 id="sector-stock-heading">產業個股</h3><p>依當日淨買賣超金額排序；金額：億，張數為輔</p><p class="sector-chart-note">5 日柱圖：每日淨額，左舊右新、各股獨立比例尺。法人占量＝當日淨買賣超股數／成交股數。</p></div></div>
+      <div class="sector-detail-heading"><div><h3 id="sector-stock-heading">產業個股</h3><p>依當日淨買賣超金額排序；金額：億，占量為輔</p><p class="sector-chart-note">5 日柱圖：每日淨額，左舊右新、各股獨立比例尺。占量＝區間淨買賣超股數／同期成交股數。</p></div></div>
       <div class="sector-stock-scroll" tabindex="0" role="region" aria-label="${esc(name)}個股股價與法人買賣超">
-        <table class="sector-stock-table"><caption class="sr-only">${esc(name)}各股最新收盤價、日漲跌幅及當日、5 日、20 日法人淨買賣超金額（億）與張數（張）</caption><colgroup><col class="sector-stock-name-column"><col class="sector-stock-price-column">${periods.map(() => '<col class="sector-stock-net-column">').join("")}</colgroup><thead><tr><th scope="col">股票</th><th scope="col">收盤價／日漲跌</th>${periods.map(([, label]) => `<th scope="col">${label}金額／張數</th>`).join("")}</tr></thead><tbody>${members.map(({ stock, periods: values, volumeRatio }) => `<tr data-sector-stock="${stock.symbol}"><th scope="row"><span class="sector-stock-name"><strong>${esc(stock.name)}</strong><small>${stock.symbol}</small></span></th><td class="sector-stock-price"><span class="sector-stock-close">${number(stock.latest?.close, 2)}</span><small class="sector-stock-change ${direction(stock.latest?.changePercent)}">${percent(stock.latest?.changePercent)}</small></td>${periods.map(([key, label]) => {
-          const { shares: value, amount } = values[key];
-          const ratio = key === "day" ? volumeRatio : null;
-          const extra = key === "day"
-            ? `<small class="institution-volume-ratio" data-institution-ratio title="當日三大法人淨買賣超股數 ÷ 當日成交股數 × 100%">${ratio === null ? "" : `法人占量 <span class="${direction(ratio)}">${percent(ratio)}</span>`}</small>`
-            : key === "5" ? institutionSparkline(stock, tradingDates) : "";
-          return `<td class="sector-stock-net" data-sector-net="${key}"><span class="sector-stock-period-label" aria-hidden="true">${label}</span>${institutionalFigures(amount, value)}${extra}</td>`;
+        <table class="sector-stock-table"><caption class="sr-only">${esc(name)}各股最新收盤價、日漲跌幅及當日、5 日、20 日法人淨買賣超金額（億）與占量</caption><colgroup><col class="sector-stock-name-column"><col class="sector-stock-price-column">${periods.map(() => '<col class="sector-stock-net-column">').join("")}</colgroup><thead><tr><th scope="col">股票</th><th scope="col">收盤價／日漲跌</th>${periods.map(([, label]) => `<th scope="col">${label}金額／占量</th>`).join("")}</tr></thead><tbody>${members.map(({ stock, periods: values }) => `<tr data-sector-stock="${stock.symbol}"><th scope="row"><span class="sector-stock-name"><strong>${stock.symbol}</strong><strong>${esc(stock.name)}</strong></span></th><td class="sector-stock-price"><span class="sector-stock-close">${number(stock.latest?.close, 2)}</span><small class="sector-stock-change ${direction(stock.latest?.changePercent)}">${percent(stock.latest?.changePercent)}</small></td>${periods.map(([key, label]) => {
+          const { amount, ratio } = values[key];
+          // The share of traded volume replaces the lot count under each amount.
+          const share = `<small class="institution-lots" data-institution-ratio="${key}" title="${label}三大法人淨買賣超股數 ÷ 同期成交股數 × 100%">${Number.isFinite(ratio) ? `占量 ${percent(ratio)}` : ""}</small>`;
+          return `<td class="sector-stock-net" data-sector-net="${key}"><span class="sector-stock-period-label" aria-hidden="true">${label}</span><strong class="institution-money ${direction(amount)}">${institutionalMoney(amount)}</strong>${share}${key === "5" ? institutionSparkline(stock, tradingDates) : ""}</td>`;
         }).join("")}</tr>`).join("")}</tbody></table>
       </div>
     </section>`;

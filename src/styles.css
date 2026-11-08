@@ -2617,11 +2617,13 @@ dialog.sector-dialog {
 .sector-stock-table td:first-child { text-align: left; }
 .sector-stock-table tbody tr:last-child > * { border-bottom: 0; }
 .sector-stock-table tbody tr:hover { background: #f6f8fa; }
+/* Like the market list: code and name on one line, wrapping only when the name runs long. */
 .sector-stock-name {
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   align-items: baseline;
-  gap: 8px;
+  gap: 2px 6px;
 }
 .sector-stock-name > strong {
   max-width: 100%;
@@ -2640,12 +2642,6 @@ dialog.sector-dialog {
   display: block;
   overflow-wrap: anywhere;
   font-size: var(--text-body);
-}
-.institution-volume-ratio {
-  display: block;
-  margin-top: 5px;
-  color: var(--muted);
-  overflow-wrap: anywhere;
 }
 .institution-sparkline {
   display: block;
@@ -2742,7 +2738,6 @@ dialog.sector-dialog {
   .sector-stock-table td { min-width: 0; padding: 0; border: 0; }
   .sector-stock-table tbody th { grid-column: 1 / span 2; }
   .sector-stock-price { grid-column: 3; }
-  .sector-stock-name { flex-direction: column; align-items: flex-start; gap: 2px; }
   .sector-stock-net { text-align: left !important; }
   .institution-sparkline { margin-inline-start: 0; }
   .sector-stock-period-label { display: block; margin-bottom: 3px; }

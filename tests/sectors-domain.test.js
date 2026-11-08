@@ -103,7 +103,9 @@ test("industry overview/detail match the previous UI algorithm across all window
 function withoutVolumeRatios(detail) {
   if (!detail) return detail;
   return { ...detail, periods: Object.fromEntries(Object.entries(detail.periods).map(([window, { volume, ratio, institutions, ...period }]) =>
-    [window, { ...period, institutions: Object.fromEntries(Object.entries(institutions).map(([name, { ratio: _ratio, ...values }]) => [name, values])) }])) };
+    [window, { ...period, institutions: Object.fromEntries(Object.entries(institutions).map(([name, { ratio: _ratio, ...values }]) => [name, values])) }])),
+    members: detail.members.map((member) => ({ ...member, periods: Object.fromEntries(Object.entries(member.periods)
+      .map(([window, { ratio: _ratio, ...values }]) => [window, values])) })) };
 }
 
 test("both ETF markers are excluded even if an ETF is incorrectly labeled as an industry company", () => {
@@ -180,6 +182,11 @@ test("detail uses daily monetary sorting with name ties and one complete cohort 
   assert.equal(detail.periods.day.institutions.投信.amount, 0);
   assert.equal(detail.members[0].volumeRatio, 1);
   assert.equal(detail.members.at(-1).volumeRatio, null);
+  // Each window's 占量 divides the stock's net shares by its own traded shares over the same sessions.
+  assert.equal(detail.members[0].periods.day.ratio, 1);
+  assert.equal(detail.members[0].periods["5"].ratio, 1);
+  assert.equal(detail.members[0].periods["20"].ratio, 1);
+  assert.equal(detail.members.at(-1).periods.day.ratio, null);
 });
 
 test("activity sort ranks sectors by their share of gross institutional trading, ignoring direction", () => {

@@ -121,6 +121,21 @@ function getSectorCohortVolume(stocks, window, tradingDates) {
 /** Signed net shares as a percentage of the cohort's traded shares, like a stock's 法人占量. */
 const volumeRatio = (shares, volume) => Number.isFinite(shares) && volume ? shares / volume * 100 : null;
 
+/** One stock's traded shares over the window's sessions; any missing session leaves it unknown. */
+function getStockWindowVolume(stock, window, tradingDates) {
+  const days = window === "day" ? 1 : Number(window);
+  const dates = tradingDates.slice(-days);
+  if (dates.length !== days) return null;
+  const history = new Map((stock.history ?? []).map((bar) => [bar.date, bar]));
+  let volume = 0;
+  for (const date of dates) {
+    const traded = history.get(date)?.volume;
+    if (!Number.isFinite(traded)) return null;
+    volume += traded;
+  }
+  return volume > 0 ? volume : null;
+}
+
 /** Detail cohort, shared institution totals and daily-money member ordering.
  * Amounts are closing-price estimates in TWD; share totals remain in shares.
  * No DOM, HTTP, storage or formatted strings enter the research model.
@@ -142,10 +157,15 @@ export function getSectorDetail(snapshots, name, { tradingDates, asOf = tradingD
     }];
   }));
   const members = stocks.map((stock) => {
-    const values = Object.fromEntries(PERIODS.map((window) => [window, {
-      amount: getStockInstitutionEstimate(stock, "total", window, selectedDates),
-      shares: getStockInstitutionValue(stock, "total", window),
-    }]));
+    const values = Object.fromEntries(PERIODS.map((window) => {
+      const shares = getStockInstitutionValue(stock, "total", window);
+      return [window, {
+        amount: getStockInstitutionEstimate(stock, "total", window, selectedDates),
+        shares,
+        // The day keeps the stock's own 法人占量; longer windows divide by the same sessions' volume.
+        ratio: window === "day" ? getInstitutionVolumeRatio(stock.latest) : volumeRatio(shares, getStockWindowVolume(stock, window, selectedDates)),
+      }];
+    }));
     return { stock, net: values.day.amount, periods: values,
       volumeRatio: getInstitutionVolumeRatio(stock.latest) };
   }).sort((a, b) => {

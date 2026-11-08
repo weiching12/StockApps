@@ -40,8 +40,9 @@ test("stock ratios and mini bars distinguish signed, zero and missing values", a
   await loadFixture(page);
   await page.locator('.sector-card').click();
   const row = (symbol) => page.locator(`[data-sector-stock="${symbol}"]`);
-  for (const [symbol, text] of [["9001", "法人占量 +10.00%"], ["9002", "法人占量 -20.00%"], ["9003", "法人占量 0.00%"], ["9004", ""]])
-    await expect(row(symbol).locator('[data-institution-ratio]')).toHaveText(text);
+  for (const [symbol, text] of [["9001", "占量 +10.00%"], ["9002", "占量 -20.00%"], ["9003", "占量 0.00%"], ["9004", ""]])
+    await expect(row(symbol).locator('[data-institution-ratio="day"]')).toHaveText(text);
+  await expect(row("9001").locator('.sector-stock-name')).toHaveText(/^9001\s*每日買賣交錯$/);
   const bars = row("9001").locator('.institution-sparkline rect');
   await expect(bars).toHaveCount(5);
   expect(await bars.evaluateAll((elements) => elements.map((bar) => Number(bar.dataset.flowAmount))))
@@ -64,7 +65,7 @@ test("new institutional information fits phone and desktop layouts", async ({ pa
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.locator('.sector-card').click();
     const issues = await page.locator('.sector-stock-table').evaluate((table) => {
-      const elements = [...table.querySelectorAll('th, td, .institution-sparkline, .institution-volume-ratio')];
+      const elements = [...table.querySelectorAll('th, td, .institution-sparkline, [data-institution-ratio]')];
       return elements.filter((element) => element.scrollWidth > element.clientWidth + 1)
         .map((element) => element.className || element.tagName);
     });
