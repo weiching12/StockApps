@@ -939,6 +939,11 @@ html:is([data-input-mode="touch"], [data-input-mode="pointer"]) .table-scroll tb
   color: #94a1b4;
   margin-left: 8px;
 }
+/* As on phones, the list names a stock by code and name on one line; its sector sits muted below. */
+.table-scroll .stock-name { flex-flow: row wrap; align-items: baseline; gap: 4px 6px; }
+.table-scroll .stock-name > span { color: var(--ink); font-size: var(--text-body); font-weight: 600; letter-spacing: 0; line-height: var(--leading-heading); }
+.table-scroll .stock-name .sector-inline { flex-basis: 100%; margin-left: 0; }
+[data-theme="dark"] .table-scroll .stock-name > span { color: var(--ink); }
 .position-tag {
   padding: 3px 5px;
   border-radius: 3px;
