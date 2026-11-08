@@ -2544,6 +2544,7 @@ dialog.sector-dialog {
   font-size: var(--text-secondary);
   white-space: nowrap;
 }
+.sector-summary-labels > .sector-summary-unit { font-size: var(--text-meta); }
 .sector-summary-labels > span:nth-child(2) { color: var(--ink); font-weight: 600; }
 .sector-summary-labels > span:nth-child(2),
 .sector-summary-values { background: color-mix(in srgb, var(--accent) 5%, transparent); }

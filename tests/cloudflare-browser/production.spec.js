@@ -135,10 +135,10 @@ test("partial sector totals exclude missing data and leave unavailable constitue
       const result = expected(sector, days);
       const summary = page.locator(`#sector-dialog [data-sector-period="${key}"]`);
       await expect(summary.locator('[data-sector-ratio="total"]')).toHaveText(result.ratios[0]);
-      await expect(summary.locator('[data-sector-money="total"]')).toHaveText(money(result.money));
+      await expect(summary.locator('[data-sector-money="total"]')).toHaveText(money(result.money).replace(/ 億$/, ""));
       for (const [i, name] of ["外資", "投信", "自營商"].entries()) {
         await expect(summary.locator(`[data-sector-ratio="${name}"]`)).toHaveText(result.ratios[i + 1]);
-        await expect(summary.locator(`[data-sector-money="${name}"]`)).toHaveText(money(result.cash[i]));
+        await expect(summary.locator(`[data-sector-money="${name}"]`)).toHaveText(money(result.cash[i]).replace(/ 億$/, ""));
       }
       await expect(summary.locator("[data-sector-coverage]")).toHaveCount(0);
     }

@@ -14,7 +14,7 @@ for (const width of [320, 375, 390, 1440]) {
     await page.locator('#sector-grid .sector-card').first().click();
     await expect(page.locator('#sector-dialog')).toBeVisible();
     const grid = page.locator('#sector-dialog .sector-summary-grid');
-    await expect(grid.locator('.sector-summary-labels span')).toHaveText(['', '合計', '外資', '投信', '自營商']);
+    await expect(grid.locator('.sector-summary-labels span')).toHaveText(['單位：億', '合計', '外資', '投信', '自營商']);
     await expect(grid.locator('.sector-summary-period h4')).toHaveText(['當日', '5 日', '20 日']);
     const layout = await grid.evaluate((node) => {
       const periods = [...node.querySelectorAll('.sector-summary-period')];
