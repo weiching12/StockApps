@@ -7,7 +7,8 @@ test("the app opens on home with the mood and only today's next-day candidates",
   await expect(page.locator("#page-title")).toContainText("主頁面");
   await expect(page.locator("#market-sentiment")).toBeVisible();
   await expect(page.locator(".stocks-panel")).toBeHidden();
-  await expect(page.locator("#trade-date")).toBeHidden();
+  await expect(page.locator("#trade-date")).toBeVisible();
+  await expect(page.locator("#update-countdown")).toBeAttached();
   // The demo session has no candidates, and stocks that only cleared the gates are not listed.
   await expect(page.locator("#home-count")).toHaveText("明日候選 0 檔");
   await expect(page.locator("#home-list")).toContainText("本日沒有明日進場候選");
@@ -40,13 +41,34 @@ test("home fits a phone and the phone bar has no ranking page", async ({ page })
   await expect(page.locator("#home-count")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
   await expect(page.locator('[data-page="sectors"]')).toHaveCount(0);
-  await expect(page.locator(".nav-item[data-page] >> visible=true")).toHaveCount(3);
+  await expect(page.locator(".nav-item[data-page] >> visible=true")).toHaveCount(4);
 });
 
-test("a saved ranking page reopens as the market list", async ({ page }) => {
+test("a saved ranking page reopens as the market page's ranking view", async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem("stock-insight-current-page", "sectors"));
   await page.goto("/");
-  await expect(page.locator("#page-title")).toContainText("市場觀察清單");
+  await expect(page.locator('[data-market-view-choice="sectors"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#sector-page")).toBeVisible();
+});
+
+test("the market page's title is a switch between the list and the ranking, each on its own panel", async ({ page }) => {
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  const views = page.locator(".market-views button");
+  await expect(views).toHaveText(["市場觀察清單", "產業資金排行"]);
+  await expect(page.locator("#page-title")).toHaveClass(/sr-only/);
+  await expect(page.locator(".stocks-panel")).toBeVisible();
+  await expect(page.locator("#sector-page")).toBeHidden();
+  await expect(page.locator(".stocks-panel #sector-page")).toHaveCount(0);
+  await views.nth(1).click();
+  await expect(page.locator("#sector-page")).toBeVisible();
+  await expect(page.locator("#sector-page")).toHaveClass(/panel/);
+  await expect(page.locator(".stocks-panel")).toBeHidden();
+  await expect(page.locator("#page-description")).toContainText("非買進訊號");
+  await expect(page.locator("#sector-grid .sector-card").first()).toBeVisible();
+  await page.locator('[data-page="home"]').first().click();
+  await expect(page.locator("#page-title")).not.toHaveClass(/sr-only/);
+  await expect(page.locator(".market-views")).toBeHidden();
 });
 
 test("choosing a sector narrows the list and shows that level's institutional flows", async ({ page }) => {
@@ -56,13 +78,11 @@ test("choosing a sector narrows the list and shows that level's institutional fl
   await expect(list.first()).toBeVisible();
   await expect(page.locator("#sector-flow")).toBeHidden();
   await expect(page.locator("#sub-sector-chips")).toBeHidden();
-  await expect(page.locator("#sector-ranking")).toBeVisible();
 
   await page.locator('#sector-chips [data-sector-chip="半導體"]').click();
   await expect(page.locator('#stock-rows tr[data-symbol="2330"]')).toBeVisible();
   await expect(page.locator('#stock-rows tr[data-symbol="2454"]')).toBeVisible();
   await expect(page.locator('#stock-rows tr[data-symbol="2308"]')).toHaveCount(0);
-  await expect(page.locator("#sector-ranking")).toBeHidden();
   const flow = page.locator("#sector-flow");
   await expect(flow.locator("h3")).toHaveText("半導體 法人動向");
   await expect(flow).toContainText("非買進訊號");
@@ -84,7 +104,6 @@ test("choosing a sector narrows the list and shows that level's institutional fl
   await expect(page.locator('#stock-rows tr[data-symbol="0050"]')).toBeVisible();
   await expect(flow).toBeHidden();
   await page.locator('#sector-chips [data-sector-chip="all"]').click();
-  await expect(page.locator("#sector-ranking")).toBeVisible();
   await expect(flow).toBeHidden();
 });
 
@@ -95,7 +114,10 @@ test("flows follow the market list's selected session", async ({ page }) => {
   const amount = page.locator("#sector-flow .sector-flow-period strong").first();
   const latest = await amount.textContent();
   const options = page.locator("#trade-date option");
+  // The trading-day choice lives on home.
+  await page.locator('[data-page="home"]').first().click();
   await page.locator("#trade-date").selectOption(await options.nth(3).getAttribute("value"));
+  await page.locator('[data-page="market"]').first().click();
   await expect(amount).not.toHaveText(latest);
 });
 
@@ -152,4 +174,31 @@ test.describe("backtest needs an account", () => {
     await expect(page.locator(".account-identity").first()).toBeVisible();
     await expect(page.locator('[data-page="backtest"]')).toBeHidden();
   });
+});
+
+test("the trading day is chosen on home and the market list follows it", async ({ page }) => {
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await expect(page.locator(".date-control")).toBeHidden();
+  await page.locator('[data-page="home"]').first().click();
+  await expect(page.locator(".date-control")).toBeVisible();
+  const older = await page.locator("#trade-date option").nth(2).getAttribute("value");
+  await page.locator("#trade-date").selectOption(older);
+  await page.locator('[data-page="market"]').first().click();
+  await expect(page.locator("#table-summary")).toContainText(older);
+  await page.locator('[data-page="home"]').first().click();
+  await expect(page.locator("#trade-date")).toHaveValue(older);
+});
+
+test("search suggests the session's most traded stocks and a tap searches it", async ({ page }) => {
+  await page.goto("/");
+  await page.locator('[data-page="search"]').first().click();
+  const chips = page.locator("[data-search-suggestion]");
+  await expect(page.locator("#search-suggestions h3")).toContainText("熱門查詢");
+  await expect(chips).toHaveCount(8);
+  const symbol = await chips.first().getAttribute("data-search-suggestion");
+  await chips.first().click();
+  await expect(page.locator("#stock-search")).toHaveValue(symbol);
+  await expect(page.locator("#search-results tr.research-card").first()).toHaveAttribute("data-research-symbol", symbol);
+  await expect(page.locator("#search-suggestions")).toBeHidden();
 });

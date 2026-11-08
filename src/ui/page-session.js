@@ -1,11 +1,11 @@
 const KEY = "stock-insight-current-page";
-const PAGES = new Set(["home", "market", "favorites", "backtest"]);
+const PAGES = new Set(["home", "market", "favorites", "search", "backtest"]);
 
 export function restorePage(state, storage) {
   try {
     const page = (storage ?? globalThis.sessionStorage)?.getItem(KEY);
     // The institutional ranking page now lives inside the market list.
-    if (page === "sectors") state.page = "market";
+    if (page === "sectors") { state.page = "market"; state.marketView = "sectors"; }
     else if (PAGES.has(page)) state.page = page;
   } catch { /* Session storage may be disabled. */ }
 }

@@ -133,7 +133,10 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
 
 test("research tracking always compares the latest available trading day", async ({ page }) => {
   await page.goto("/");
+  // The trading-day choice lives on home.
+  await page.locator('[data-page="home"]').first().click();
   await page.locator("#trade-date").selectOption("2026-10-15");
+  await page.locator('[data-page="market"]').first().click();
   await page.locator('[data-page="favorites"]').first().click();
   await expect(page.locator(".date-control")).toBeHidden();
   await expect(page.locator("#research-date")).toHaveText("交易日 2026-10-16");
@@ -151,9 +154,10 @@ test("reloading the phone keeps the selected main page", async ({ page }) => {
   await expect(page.locator("#page-title")).toContainText("市場觀察清單");
 });
 
-test("desktop market date label and selector stay on one line", async ({ page }) => {
+test("desktop date label and selector stay on one line", async ({ page }) => {
   await page.setViewportSize({ width: 830, height: 956 });
   await page.goto("/");
+  await page.locator('[data-page="home"]').first().click();
   const positions = await page.locator(".date-control").evaluate((control) => {
     const label = control.querySelector("label").getBoundingClientRect();
     const select = control.querySelector("select").getBoundingClientRect();

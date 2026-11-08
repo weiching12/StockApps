@@ -77,6 +77,8 @@ try {
     await page.locator('.sidebar [data-page="market"], [data-page="market"]').first().click();
     await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "false");
     if (width <= 700) {
+      // The trading-day control is on home.
+      await page.locator('[data-page="home"]').first().click();
       for (const phoneWidth of [390, 320]) {
         await page.setViewportSize({ width: phoneWidth, height: 900 });
         const heading = await page.locator('.page-heading').boundingBox();
@@ -94,12 +96,13 @@ try {
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       }
       await page.setViewportSize({ width, height: 900 });
+      await page.locator('[data-page="market"]').first().click();
     }
     assert.equal(apiRequests.filter((path) => path.includes("/shards/")).length, 0);
     assert.equal(apiRequests.filter((path) => path === "/api/v1/market/summary").length, width === 1440 ? 1 : 2,
       JSON.stringify({ apiRequests, errors, serverErrors }));
     assert.equal(apiRequests.filter((path) => path === "/api/v1/favorites/summary").length, previousFavoriteRequests);
-    await page.locator('#sector-ranking > summary').click();
+    await page.locator('[data-market-view-choice="sectors"]').click();
     for (const window of ["day", "5", "20"]) {
       await page.locator(`[data-sector-window="${window}"]`).click();
       const expected = getSectorOverview(snapshots, { window, sort: "activity-desc", tradingDates: dataset.dates, asOf: date });
@@ -121,6 +124,7 @@ try {
     await page.locator(width <= 520 ? "#sector-dialog .sector-dialog-handle" : "#close-sector-dialog").click();
     await expect(page.locator("#sector-dialog")).toBeHidden();
     await page.locator('.sidebar [data-page="market"]').click();
+    await page.locator('[data-market-view-choice="list"]').click();
     const star = page.locator('#stock-rows [data-favorite="2330"]');
     const selected = await star.getAttribute("aria-pressed");
     await star.click();

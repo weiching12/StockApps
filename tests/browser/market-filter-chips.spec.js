@@ -7,7 +7,7 @@ test.beforeEach(({ page }) => page.addInitScript(() => {
 
 const rows = (page) => page.locator("#stock-rows tr[data-symbol]");
 
-test("phone filters are sector chips, search, one sideways chip row, then sort", async ({ page }) => {
+test("phone filters are sector chips, one sideways chip row, then sort", async ({ page }) => {
   for (const width of [320, 390, 700]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
@@ -15,9 +15,8 @@ test("phone filters are sector chips, search, one sideways chip row, then sort",
     await expect(page.locator("#market-research-filter")).toBeHidden();
     await expect(page.locator("[data-research-chip]")).toHaveCount(0);
     const box = (selector) => page.locator(selector).boundingBox();
-    const [sectors, search, tabs, sort] = await Promise.all(["#sector-chips", "#stock-search", ".filter-tabs", "#market-sort"].map(box));
-    expect(sectors.y, `${width}: sectors first`).toBeLessThan(search.y);
-    expect(search.y, `${width}: search above chips`).toBeLessThan(tabs.y);
+    const [sectors, tabs, sort] = await Promise.all(["#sector-chips", ".filter-tabs", "#market-sort"].map(box));
+    expect(sectors.y, `${width}: sectors first`).toBeLessThan(tabs.y);
     expect(tabs.y + tabs.height, `${width}: chips above sort`).toBeLessThanOrEqual(sort.y + 1);
     const layout = await page.locator(".filter-tabs").evaluate((row) => ({
       oneLine: new Set([...row.querySelectorAll("button")].map((button) => Math.round(button.getBoundingClientRect().top))).size === 1,

@@ -176,7 +176,7 @@ test("page buttons check on interaction and settings can check immediately", asy
   await page.locator('[data-page="favorites"]').click();
   await expect.poll(() => page.evaluate(() => window.__pwaUpdateChecks)).toBe(1);
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking > summary").click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
   await expect.poll(() => page.evaluate(() => window.__pwaUpdateChecks)).toBe(1);
   await openSettings(page);
   await page.getByRole("button", { name: "檢查更新" }).click();

@@ -20,10 +20,10 @@ import { shellMarkup } from "./ui/shell.js";
 import { renderPageView } from "./ui/navigation.js";
 import { renderSectorDialogView, renderSectorNavView, renderSectorOverviewView } from "./ui/sectors.js";
 import { renderHomeView } from "./ui/home.js";
+import { renderSearchView } from "./ui/search.js";
 import { bindInputMode, bindPullToRefresh } from "./ui/gestures.js";
 import { createControlsController } from "./ui/controls.js";
 import { createDialogController } from "./ui/dialogs.js";
-import { bindResponsiveSearchOrder } from "./ui/responsive-layout.js";
 import { bindKeyboardNavigation } from "./ui/keyboard.js";
 import { createTableBatchController } from "./ui/table-batches.js";
 import { calculateMarketSentiment } from "../shared/sentiment.js";
@@ -238,8 +238,8 @@ function refreshData() {
   if (apiMode) {
     latestSnapshots = latestSummary?.data.stocks ?? [];
     snapshots = selectedSummary?.data.stocks ?? [];
-    if (latestSummary?.data.sentiment) renderSentiment(latestSummary.data.sentiment);
-    renderTable(); renderSectorOverview(); renderHome(); renderPage(); renderResearch();
+    if (selectedSummary?.data.sentiment) renderSentiment(selectedSummary.data.sentiment);
+    renderTable(); renderSectorOverview(); renderHome(); renderSearch(); renderPage(); renderResearch();
     return;
   }
   const forDisplay = (stock, date) => {
@@ -265,10 +265,11 @@ function refreshData() {
   latestSnapshots = cached(dataset.info.asOf, latestCache);
   snapshots = state.date === dataset.info.asOf ? latestSnapshots
     : cached(state.date, historicalCache);
-  renderSentiment(calculateMarketSentiment(latestSnapshots, dataset.info.asOf, 20, dataset.dates));
+  renderSentiment(calculateMarketSentiment(snapshots, state.date, 20, dataset.dates));
   renderTable();
   renderSectorOverview();
   renderHome();
+  renderSearch();
   renderPage();
   renderResearch();
 }
@@ -447,7 +448,7 @@ async function refreshWithVersionCheck() {
 /** Home and 自選 read the latest session, so open a stock's dialog with its data rather than a browsed one. */
 function showLatestPage(page) {
   state.page = page;
-  if (["home", "favorites"].includes(page) && state.date !== dataset.info.asOf) {
+  if (["favorites", "search"].includes(page) && state.date !== dataset.info.asOf) {
     state.date = dataset.info.asOf;
     void selectSummary(state.date).catch((error) => toast(error.message));
   }
@@ -463,8 +464,19 @@ function renderPage() {
 const updateSegmentedControl = controls.updateSegmented;
 const updateSegmentedControls = controls.updateSegmentedAll;
 
+function renderSearch() {
+  renderSearchView({ query: state.searchQuery, stocks: latestSnapshots, loading, asOf: dataset.info.asOf, loadingIcon, esc, number, percent, direction });
+}
+
+/** Search reads the latest session and takes the keyboard straight away. */
+function openSearch() {
+  closeEntryDrawer();
+  showLatestPage("search");
+  document.querySelector("#stock-search").focus();
+}
+
 function renderHome() {
-  renderHomeView({ state, stocks: latestSnapshots, loading, loadFailed, asOf: dataset.info.asOf, loadingIcon, esc, number, percent, direction });
+  renderHomeView({ state, stocks: snapshots, loading, loadFailed, asOf: state.date, loadingIcon, esc, number, percent, direction });
 }
 
 function sectorContext() { return { state, dataset, loading, loadFailed, latestSnapshots,
@@ -476,6 +488,9 @@ function sectorContext() { return { state, dataset, loading, loadFailed, latestS
   loadingIcon, stockMoney, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures, institutionalMoney, isDemo, number, institutionSparkline }; }
 function renderSectorOverview() { renderSectorOverviewView(sectorContext()); renderSectorNavView(sectorContext()); }
 function renderSectorDialog(name) { renderSectorDialogView(name, sectorContext()); }
+
+// Up to tablet width the sector detail is a pull-down sheet with no close button.
+const SECTOR_SHEET = "(max-width: 899px)";
 
 function openSectorDialog(name, focusHandle = true, stockSymbol = null) {
   const dialog = document.querySelector("#sector-dialog");
@@ -514,6 +529,7 @@ function openSectorDialog(name, focusHandle = true, stockSymbol = null) {
     focus: focusHandle,
     mobileTarget: ".sector-dialog-handle",
     desktopTarget: "#close-sector-dialog",
+    sheetQuery: SECTOR_SHEET,
   });
   locateStock();
 }
@@ -656,7 +672,6 @@ function resetFilters() {
   state.research = "all";
   state.sort = "";
   state.sortDirection = -1;
-  document.querySelector("#stock-search").value = "";
   document.querySelector("#market-research-filter").value = "all";
   renderTable(); renderSectorOverview();
 }
@@ -824,7 +839,6 @@ function bindEvents() {
   });
   tableBatches.observe();
   controls.bind();
-  bindResponsiveSearchOrder();
   bindInputMode((touch) => { touchInteraction = touch; });
   matchMedia("(min-width: 900px)").addEventListener("change", closeEntryDrawer);
   bindPullToRefresh(document.querySelector("#pull-refresh"));
@@ -832,7 +846,7 @@ function bindEvents() {
     event.preventDefault();
     void refreshWithVersionCheck();
   });
-  bindKeyboardNavigation({ getPage: () => state.page, onSectorDetails: openSectorDialog });
+  bindKeyboardNavigation({ onSearch: openSearch, onSectorDetails: openSectorDialog });
   document.addEventListener("click", (event) => {
     const home = event.target.closest("[data-home]");
     if (home) {
@@ -855,7 +869,7 @@ function bindEvents() {
       void openEntryScoreDialog(stockRow.dataset.symbol, !touchInteraction);
       return;
     }
-    const researchRow = event.target.closest(":is(#research-list, #home-list) tr.research-card[data-entry-score]");
+    const researchRow = event.target.closest(":is(#research-list, #home-list, #search-results) tr.research-card[data-entry-score]");
     if (researchRow && !event.target.closest("button, a, input, select, textarea")) {
       void openEntryScoreDialog(researchRow.dataset.entryScore, !touchInteraction);
       return;
@@ -892,6 +906,7 @@ function bindEvents() {
       if (!stock?.sector || isEtf(stock)) { toast("目前沒有可查看的產業法人資料"); return; }
       document.querySelector("#info-dialog").close();
       state.page = "market";
+      state.marketView = "list";
       state.sector = stock.sector;
       renderPage(); renderTable(); renderSectorOverview();
       openSectorDialog(stock.sector, !touchInteraction, symbol);
@@ -900,6 +915,16 @@ function bindEvents() {
       if (button.dataset.dialog) openDialog(button.dataset.dialog, !touchInteraction);
     if (button.dataset.entryScore) void openEntryScoreDialog(button.dataset.entryScore, !touchInteraction,
       state.page === "favorites" && Boolean(button.closest("#research-list")));
+    if (button.dataset.searchSuggestion) {
+      const input = document.querySelector("#stock-search");
+      input.value = state.searchQuery = button.dataset.searchSuggestion;
+      renderSearch();
+      input.focus({ preventScroll: true });
+    }
+    if (button.dataset.marketViewChoice) {
+      state.marketView = button.dataset.marketViewChoice;
+      renderPage(); renderSectorOverview();
+    }
     if (button.dataset.sectorChip) {
       state.sector = button.dataset.sectorChip;
       renderTable(); renderSectorOverview();
@@ -922,8 +947,8 @@ function bindEvents() {
       renderSectorOverview();
     }
     if (button.dataset.page) {
-      closeEntryDrawer();
-      showLatestPage(button.dataset.page);
+      if (button.dataset.page === "search") openSearch();
+      else { closeEntryDrawer(); showLatestPage(button.dataset.page); }
           window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
     }
     if (button.id === "close-sector-dialog")
@@ -995,8 +1020,8 @@ function bindEvents() {
     }
   });
   document.querySelector("#stock-search").addEventListener("input", (event) => {
-    state.query = event.target.value;
-    renderTable();
+    state.searchQuery = event.target.value;
+    renderSearch();
   });
   document.querySelector("#market-research-filter").addEventListener("change", (event) => {
     setResearchFilter(event.target.value);
@@ -1054,7 +1079,7 @@ function bindEvents() {
   dialogs.bindBackdropDismiss();
   dialogs.bindMobileDismiss(document.querySelector("#info-dialog"), ".info-dialog-handle");
   const sectorDialog = document.querySelector("#sector-dialog");
-  dialogs.bindMobileDismiss(sectorDialog, ".sector-dialog-handle");
+  dialogs.bindMobileDismiss(sectorDialog, ".sector-dialog-handle", { sheetQuery: SECTOR_SHEET });
   sectorDialog.addEventListener("close", () => {
     const name = state.sectorName;
     state.sectorName = null;

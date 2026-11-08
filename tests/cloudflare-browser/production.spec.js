@@ -12,7 +12,8 @@ test("2031 comparison follows the selected market date", async ({ page, request 
     JSON.stringify({ favorites: ["2031"], catalogVersion: 2, settings: { period: 9, kSmooth: 3, dSmooth: 3 } })));
   await page.goto("/");
   await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "false");
-  await page.locator("#stock-search").fill("2031");
+  // 2031 is the only favorite, so the market list's 自選 view shows just its row.
+  await page.locator('[data-view="favorites"]').click();
   const row = page.locator('#stock-rows [data-symbol="2031"]');
   for (const date of [manifest.asOf, manifest.dates.at(-2)]) {
     const response = await request.get(`/api/v1/market/summary?asOf=${date}&${settings}`);
@@ -20,7 +21,10 @@ test("2031 comparison follows the selected market date", async ({ page, request 
     const stock = (await response.json()).data.stocks.find((stock) => stock.symbol === "2031");
     expect(Number.isFinite(stock.entryScore.finalScore)).toBe(true);
     expect("entryScoreChange" in stock).toBe(false);
+    // The trading-day choice lives on home.
+    await page.locator('[data-page="home"]').first().click();
     await page.locator("#trade-date").selectOption(date);
+    await page.locator('[data-page="market"]').first().click();
     // The list and the dialog show entry research only.
     const readiness = stock.entryResearch.score;
     await expect(row.locator(".entry-score-button strong")).toHaveText(Number.isFinite(readiness) ? String(Math.round(readiness)) : "—");
@@ -65,10 +69,11 @@ test("full-market phone table and sector detail remain usable", async ({ page },
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.locator('[data-page="market"]').click();
+    // The market page remembers its view, so come back to the list each round.
+    await page.locator('[data-market-view-choice="list"]').click();
     await expect(page.locator("#stock-rows tr").first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
+    await page.locator('[data-market-view-choice="sectors"]').click();
     await page.locator(".sector-card").first().click();
     await expect(page.locator("#sector-dialog")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`market-sector-${width}.png`) });
@@ -111,7 +116,7 @@ test("partial sector totals exclude missing data and leave unavailable constitue
   const unpriced = manifest.stocks.find((stock) => manifest.coverage.inactive.includes(stock.symbol) && stock.sector !== "ETF");
   const sectors = [...new Set(["連接器與線材", unpriced?.sector].filter(Boolean))];
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
+  await page.locator('[data-market-view-choice="sectors"]').click();
   // The ranking opens on its top rows; the rest of the sub-industries are one tap away.
   await expect(page.locator("#sector-grid .sector-card")).toHaveCount(10);
   await page.locator("[data-sector-expand]").click();

@@ -2,9 +2,11 @@ import { DEFAULT_SETTINGS } from "../../shared/indicators.js";
 export const createState = () => ({
   date: "",
   page: "home",
+  marketView: "list",
   view: "all",
   sector: "all",
   query: "",
+  searchQuery: "",
   sort: "",
   research: "all",
   sortDirection: -1,

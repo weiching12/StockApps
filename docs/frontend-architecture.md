@@ -20,7 +20,7 @@ clients; view modules never call `fetch` directly.
 - `ui/dialogs.js`: common dialog opening, backdrop dismissal and mobile drag dismissal.
 - `ui/gestures.js`: input-mode tracking, pull-to-refresh and drag gesture primitives.
 - `ui/keyboard.js`: sector-card and search keyboard navigation.
-- `ui/responsive-layout.js`: responsive search DOM order.
+- `ui/search.js`: the search page: code and name matching over the latest session, shown as research rows.
 - `ui/table-batches.js`: viewport-driven progressive table rendering.
 - `about.js`: purpose, current capabilities and future goals.
 

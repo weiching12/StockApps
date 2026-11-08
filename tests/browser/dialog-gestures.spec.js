@@ -84,7 +84,7 @@ test('entry preview supports keyboard controls and a full pull can close directl
 test('phone sector content supports pull-down while scrolled content stays readable', async ({ page }) => {
   await page.goto('/');
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking > summary").click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
   await page.locator('.sector-card').first().click();
   const dialog = page.locator('#sector-dialog');
   await expect(dialog).toBeVisible();
@@ -98,4 +98,33 @@ test('phone sector content supports pull-down while scrolled content stays reada
   await page.mouse.move(box.x + 25, box.y + 240, { steps: 6 });
   await page.mouse.up();
   await expect(dialog).toBeVisible();
+});
+
+test("the sector detail closes by pulling down on tablets too, without a close button", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1000 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
+  await page.locator("#sector-grid .sector-card").first().click();
+  const dialog = page.locator("#sector-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(page.locator("#close-sector-dialog")).toBeHidden();
+  const handle = page.locator(".sector-dialog-handle");
+  await expect(handle).toBeVisible();
+  const box = await handle.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + 260, { steps: 8 });
+  await page.mouse.up();
+  await expect(dialog).toBeHidden();
+});
+
+test("desktop keeps the sector detail's close button", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
+  await page.locator("#sector-grid .sector-card").first().click();
+  await expect(page.locator("#close-sector-dialog")).toBeVisible();
+  await expect(page.locator(".sector-dialog-handle")).toBeHidden();
 });

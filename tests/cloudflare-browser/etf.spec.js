@@ -65,7 +65,7 @@ test("ETF search and favorites work while every industry ranking and detail excl
   })));
   await page.goto("/"); await ready();
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
+  await page.locator('[data-market-view-choice="sectors"]').click();
   const before = {};
   for (const window of ["day", "5", "20"]) {
     await page.locator(`[data-sector-window="${window}"]`).click(); before[window] = await sectorValues();
@@ -75,7 +75,6 @@ test("ETF search and favorites work while every industry ranking and detail excl
   await page.locator('.sidebar [data-page="market"]').click();
   await page.locator('#sector-chips [data-sector-chip="ETF"]').click();
   await expect(page.locator("#stock-rows tr")).toHaveCount(3);
-  await page.locator("#stock-search").fill("00632R");
   await expect(page.locator('#stock-rows [data-symbol="00632R"] .stock-close')).not.toHaveText("");
   await expect(page.locator('#stock-rows [data-symbol="00632R"] .signal-cell')).toContainText("資料不足");
   await page.locator('#stock-rows [data-favorite="00632R"]').click();
@@ -83,7 +82,7 @@ test("ETF search and favorites work while every industry ranking and detail excl
   await expect(page.locator('#research-list .research-card[data-research-symbol="00632R"]')).toBeVisible();
   await page.locator('[data-page="market"]').first().click();
   await page.locator('#sector-chips [data-sector-chip="all"]').click();
-  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
+  await page.locator('[data-market-view-choice="sectors"]').click();
   for (const window of ["day", "5", "20"]) {
     await page.locator(`[data-sector-window="${window}"]`).click();
     expect(await sectorValues()).toEqual(before[window]);

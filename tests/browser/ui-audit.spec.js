@@ -31,13 +31,6 @@ test("market batches remain reachable and reset correctly after a large filtered
     await expect(page.locator("#stock-rows tr")).toHaveCount(count);
   }
   await expect(page.locator("#table-load-trigger")).toBeHidden();
-  await page.locator("#stock-search").fill("測試股票1");
-  await expect(page.locator("#stock-rows tr")).toHaveCount(30);
-  await page.locator("#table-load-trigger").scrollIntoViewIfNeeded();
-  await expect(page.locator("#stock-rows tr")).toHaveCount(60);
-  await page.locator("#table-load-trigger").scrollIntoViewIfNeeded();
-  await expect(page.locator("#stock-rows tr")).toHaveCount(61);
-  await expect(page.locator("#table-load-trigger")).toBeHidden();
 });
 
 test("batch loading fills a tall viewport until the trigger moves below it", async ({ page }) => {
@@ -59,22 +52,6 @@ test("phone filter labels fit inside every button", async ({ page }) => {
       return text.left < rect.left || text.right > rect.right ? [button.textContent] : [];
     }));
     expect(clipped, `Filter text at ${width}px`).toEqual([]);
-  }
-});
-
-test("filter keyboard order follows the visible order at phone and desktop widths", async ({ page }) => {
-  await page.goto("/");
-  for (const width of [390, 1440, 390]) {
-    await page.setViewportSize({ width, height: 844 });
-    const first = page.locator("#stock-search");
-    const second = page.locator(width <= 700 ? '[data-view="all"]' : "#market-research-filter");
-    await first.focus();
-    await page.keyboard.press("Tab");
-    await expect(second).toBeFocused();
-    const firstRect = await first.boundingBox(), secondRect = await second.boundingBox();
-    // Phones stack search above the filter row; desktop keeps them side by side.
-    if (width <= 700) expect(firstRect.y).toBeLessThan(secondRect.y);
-    else expect(firstRect.x).toBeLessThan(secondRect.x);
   }
 });
 
@@ -122,10 +99,11 @@ test("market filters and empty results keep page and column widths stable with n
         await page.locator(`[data-view="${view}"]`).click();
         await check(view);
       }
-      await page.locator('#stock-search').fill('no-matching-stock');
+      await page.locator('[data-view="favorites"]').click();
+      await page.evaluate(() => document.querySelectorAll('#stock-rows [data-favorite][aria-pressed="true"]').forEach((star) => star.click()));
       await expect(page.locator('#table-empty')).toBeVisible();
       await check('empty results');
-      await page.locator('#stock-search').fill('');
+      await page.locator('[data-view="all"]').click();
       await check('restored results');
     }
   } finally { await browser.close(); }
@@ -183,7 +161,7 @@ test("phone sector identity stays compact while amounts and percentages align fo
   }));
   await page.goto("/");
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking > summary").click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
   // 產業 (activity) omits the TOP1 line; 買超 keeps it between the name and the breadth.
   for (const sort of ["activity-desc", "net-desc"]) for (const width of [320, 360, 390, 700]) {
     await page.locator(`[data-sector-sort="${sort}"]`).click();
@@ -227,7 +205,7 @@ test("sector estimated billions follow each selected period's daily prices and n
   await page.goto("/");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking > summary").click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
   const sector = data.stocks[0].sector;
   const stocks = data.stocks.filter((stock) => stock.sector === sector);
   const estimate = page.locator(`[data-sector-name="${sector}"] [data-sector-amount]`);

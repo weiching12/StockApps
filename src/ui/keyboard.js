@@ -1,4 +1,4 @@
-export function bindKeyboardNavigation({ getPage, onSectorDetails }) {
+export function bindKeyboardNavigation({ onSearch, onSectorDetails }) {
   document.addEventListener("keydown", (event) => {
     const sectorCard = event.target.closest?.("#sector-grid [data-sector-details]");
     if (sectorCard && (event.key === "Enter" || event.key === " ")) {
@@ -7,10 +7,11 @@ export function bindKeyboardNavigation({ getPage, onSectorDetails }) {
       return;
     }
 
-    if (event.key === "/" && getPage() === "market" && !document.querySelector("dialog[open]") &&
+    // "/" opens search from any page.
+    if (event.key === "/" && !document.querySelector("dialog[open]") &&
       !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {
       event.preventDefault();
-      document.querySelector("#stock-search").focus();
+      onSearch();
     }
   });
 }

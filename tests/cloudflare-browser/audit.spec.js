@@ -57,9 +57,15 @@ test("cached date selection clears loading and ignores a late failure", async ({
     return true;
   });
   try {
+    // The trading-day choice lives on home.
+    await page.locator('[data-page="home"]').first().click();
     await page.locator("#trade-date").selectOption(oldDate);
+    await page.locator('[data-page="market"]').first().click();
     await entered.promise;
+    // The trading-day choice lives on home.
+    await page.locator('[data-page="home"]').first().click();
     await page.locator("#trade-date").selectOption(manifest.asOf);
+    await page.locator('[data-page="market"]').first().click();
     await expect(page.locator("#date-loading")).toBeHidden();
     await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "false");
     waiting.resolve();
@@ -95,10 +101,13 @@ test("industry page and detail retain the latest session after historical market
     if (url.pathname.startsWith("/api/v1/sectors/")) requested.push(url.searchParams.get("asOf"));
     return false;
   });
+  // The trading-day choice lives on home.
+  await page.locator('[data-page="home"]').first().click();
   await page.locator("#trade-date").selectOption(demo.dates.at(-2));
+  await page.locator('[data-page="market"]').first().click();
   await expect(page.locator("#table-summary")).toContainText(demo.dates.at(-2));
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
+  await page.locator('[data-market-view-choice="sectors"]').click();
   await page.locator(".sector-card").first().click();
   await expect(page.locator("#sector-dialog-meta")).toContainText(manifest.asOf);
   expect(requested).toEqual([manifest.asOf]);
@@ -114,10 +123,19 @@ test("switching back to an in-flight date shares one summary request", async ({ 
     return true;
   });
   try {
+    // The trading-day choice lives on home.
+    await page.locator('[data-page="home"]').first().click();
     await page.locator("#trade-date").selectOption(oldDate);
+    await page.locator('[data-page="market"]').first().click();
     await entered.promise;
+    // The trading-day choice lives on home.
+    await page.locator('[data-page="home"]').first().click();
     await page.locator("#trade-date").selectOption(manifest.asOf);
+    await page.locator('[data-page="market"]').first().click();
+    // The trading-day choice lives on home.
+    await page.locator('[data-page="home"]').first().click();
     await page.locator("#trade-date").selectOption(oldDate);
+    await page.locator('[data-page="market"]').first().click();
     waiting.resolve();
     await expect(page.locator("#table-summary")).toContainText(oldDate);
     await expect(page.locator("#date-loading")).toBeHidden();
@@ -161,7 +179,7 @@ test("reopening a sector shares a pending request and retries after failure", as
   });
   try {
     await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking").evaluate((ranking) => { ranking.open = true; });
+  await page.locator('[data-market-view-choice="sectors"]').click();
     await page.locator(".sector-card").first().click();
     await entered.promise;
     await page.locator("#close-sector-dialog").click();

@@ -10,7 +10,7 @@ for (const width of [320, 375, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
     await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking > summary").click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
     await page.locator('#sector-grid .sector-card').first().click();
     await expect(page.locator('#sector-dialog')).toBeVisible();
     const grid = page.locator('#sector-dialog .sector-summary-grid');

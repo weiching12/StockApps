@@ -67,7 +67,7 @@ export function bindPullToRefresh(pullRefresh) {
   }, true);
 }
 
-export function bindMobileDragDismiss(dialog, handle, { previewSelector } = {}) {
+export function bindMobileDragDismiss(dialog, handle, { previewSelector, sheetQuery = "(max-width: 520px)" } = {}) {
   if (previewSelector) handle.setAttribute("aria-label", "關閉個股明細；下拉收合，再拉關閉，上拉展開");
   let drag = null;
   let suppressClickUntil = 0;
@@ -81,7 +81,7 @@ export function bindMobileDragDismiss(dialog, handle, { previewSelector } = {}) 
   };
   const reset = () => { drag = null; dialog.classList.remove("is-dragging"); dialog.style.removeProperty("--mobile-drag-y"); };
   const canStart = (target) => {
-    if (!dialog.open || dialog.hasAttribute("data-mandatory-update") || !matchMedia("(max-width: 520px)").matches) return false;
+    if (!dialog.open || dialog.hasAttribute("data-mandatory-update") || !matchMedia(sheetQuery).matches) return false;
     if (handle.contains(target)) return true;
     if (!handle.contains(target) && target.closest("button,a,input,select,textarea,summary,[role=slider],.table-scroll")) return false;
     for (let node = target; node && dialog.contains(node); node = node.parentElement)

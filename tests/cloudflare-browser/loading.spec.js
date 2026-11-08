@@ -43,8 +43,9 @@ test("market shell waits for one backend summary and never requests history shar
     await expect(page.locator("#stock-rows tr")).toHaveCount(manifest.coverage.traded);
     expect(paths.filter((path) => path.includes("/shards/"))).toEqual([]);
     expect(paths.filter((path) => path === "/api/v1/market/summary")).toHaveLength(1);
+    await page.locator('[data-page="search"]').first().click();
     await page.locator("#stock-search").fill("2330");
-    await expect(page.locator("#stock-rows tr")).toHaveCount(1);
+    await expect(page.locator("#search-results tr.research-card")).toHaveCount(1);
   } finally { waiting.resolve(); }
 });
 
@@ -123,13 +124,19 @@ test("switching dates fetches that date once and reuses the result", async ({ pa
   });
   await page.goto("/");
   await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "false");
+  // The trading-day choice lives on home.
+  await page.locator('[data-page="home"]').first().click();
   await page.locator("#trade-date").selectOption(date);
+  await page.locator('[data-page="market"]').first().click();
   await expect(page.locator("#date-loading")).toBeVisible();
   await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "true");
   historicalResponse.resolve();
   await expect(page.locator("#table-summary")).toContainText(date);
   await expect(page.locator("#date-loading")).toBeHidden();
+  // The trading-day choice lives on home.
+  await page.locator('[data-page="home"]').first().click();
   await page.locator("#trade-date").selectOption(next);
+  await page.locator('[data-page="market"]').first().click();
   await expect(page.locator("#table-summary")).toContainText(next);
   expect(datesRequested).toEqual([next, date]);
 });

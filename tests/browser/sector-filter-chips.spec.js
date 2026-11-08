@@ -8,7 +8,7 @@ test.beforeEach(({ page }) => page.addInitScript(() => {
 const openSectors = async (page) => {
   await page.goto("/");
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking > summary").click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
   await expect(page.locator("#sector-page")).toBeVisible();
 };
 

@@ -25,7 +25,7 @@ async function loadFixture(page) {
       }` }));
   await page.goto("/");
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking > summary").click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
 }
 
 test("sector breadth follows the selected complete monetary window", async ({ page }) => {

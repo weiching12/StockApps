@@ -27,6 +27,6 @@ test("market and sector navigation remain usable after opening tracking", async 
   await page.locator('.sidebar [data-page="market"]').click();
   await expect(page.locator("#stock-rows tr").first()).toBeVisible();
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#sector-ranking > summary").click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
   await expect(page.locator("#sector-grid .sector-card").first()).toBeVisible();
 });

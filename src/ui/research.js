@@ -52,7 +52,7 @@ export function renderResearchCenter({ favorites, stocks, store, date, previousD
   const count = (test) => values.filter(({ summary }) => summary && test(summary)).length;
   const stat = (label, value, note, tone = "") => `<div class="research-stat"><span class="research-stat-label">${label}</span><strong class="${tone}">${value}<small>檔</small></strong><span class="research-stat-note">${note}</span></div>`;
   const candidates = count((summary) => summary.nextDayStatus === "NEXT_DAY_CANDIDATE");
-  return { stats: stat("自選股票", favorites.length, `資料日 ${date || "—"}`) +
+  return { stats: stat("自選股票", favorites.length, "點選股票查看完整研究") +
       stat("明日進場候選", candidates, "訊號觸發且價格在計畫內", candidates ? "up" : "") +
       stat("今日候選失效", count((summary) => lapsedToday(summary, previousDate)), "昨日訊號已不成立"),
     cards: entries ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col">準備度</th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${entries}</tbody></table>`
