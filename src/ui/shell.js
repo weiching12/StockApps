@@ -92,7 +92,7 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
             )
             .join(
               "",
-            )}</tr></thead><tbody id="stock-rows"></tbody></table></div><div id="table-load-trigger" class="table-load-trigger" aria-hidden="true" hidden></div><div id="table-empty" class="empty-state" hidden>${icon("search")}<h3>沒有符合條件的股票</h3><p>試試其他關鍵字，或清除篩選條件。</p><button class="outline-button" id="reset-filters">清除篩選</button></div><div class="table-footer"><span id="table-summary"></span><span>點選星號，即時更新我的自選 ${icon("star")}</span></div>
+            )}</tr></thead><tbody id="stock-rows"></tbody></table><div id="table-load-trigger" class="table-load-trigger" aria-hidden="true" hidden></div></div><div id="table-empty" class="empty-state" hidden>${icon("search")}<h3>沒有符合條件的股票</h3><p>試試其他關鍵字，或清除篩選條件。</p><button class="outline-button" id="reset-filters">清除篩選</button></div><div class="table-footer"><span id="table-summary"></span><span>點選星號，即時更新我的自選 ${icon("star")}</span></div>
         </section>
         <section id="sector-page" class="sector-page panel" data-page-panel="market" data-market-view="sectors" aria-label="產業資金排行" hidden>
           <div class="sector-ranking-head" aria-hidden="true"><span>產業排名</span><span id="sector-change-label">當日平均漲跌</span><span>法人淨買賣超金額</span></div>

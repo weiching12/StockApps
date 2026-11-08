@@ -3428,5 +3428,8 @@ dialog.sector-dialog {
   html.market-fitted .page-footer { display: none; }
   .stocks-panel.is-fitted { display: flex; flex-direction: column; height: var(--market-panel-height, auto); margin-bottom: 0; }
   .stocks-panel.is-fitted > :not(.table-scroll) { flex: none; }
-  .stocks-panel.is-fitted .table-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .stocks-panel.is-fitted .table-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .stocks-panel.is-fitted .table-scroll::-webkit-scrollbar { display: none; }
+  /* Rows scrolled out of the list skip layout and paint, so a long list stays smooth. */
+  .stocks-panel.is-fitted #stock-rows > tr { content-visibility: auto; contain-intrinsic-size: auto 138px; }
 }

@@ -245,3 +245,22 @@ test("only home shows the trading day and the update countdown, at every width",
     await expect(page.locator("#update-countdown")).toBeHidden();
   }
 });
+
+test("opening the app builds home only; the market list renders when it is opened", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#home-count")).toContainText("檔");
+  await expect(page.locator("#stock-rows tr")).toHaveCount(0);
+  await expect(page.locator("#sector-chips button")).toHaveCount(0);
+  await expect(page.locator("#favorite-count")).not.toBeEmpty();
+  await page.locator('[data-page="market"]').first().click();
+  await expect(page.locator("#stock-rows tr[data-symbol]").first()).toBeVisible();
+  await expect(page.locator("#sector-chips button").first()).toBeVisible();
+});
+
+test("the phone list hides its scrollbar", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('[data-market-view-choice="list"]').click();
+  expect(await page.locator(".table-scroll").evaluate((table) => getComputedStyle(table).scrollbarWidth)).toBe("none");
+});

@@ -127,12 +127,13 @@ test("switching dates fetches that date once and reuses the result", async ({ pa
   // The trading-day choice lives on home.
   await page.locator('[data-page="home"]').first().click();
   await page.locator("#trade-date").selectOption(date);
-  await page.locator('[data-page="market"]').first().click();
+  // The loading icon sits beside the trading-day choice on home.
   await expect(page.locator("#date-loading")).toBeVisible();
   await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "true");
   historicalResponse.resolve();
-  await expect(page.locator("#table-summary")).toContainText(date);
   await expect(page.locator("#date-loading")).toBeHidden();
+  await page.locator('[data-page="market"]').first().click();
+  await expect(page.locator("#table-summary")).toContainText(date);
   // The trading-day choice lives on home.
   await page.locator('[data-page="home"]').first().click();
   await page.locator("#trade-date").selectOption(next);

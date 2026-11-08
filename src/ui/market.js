@@ -3,27 +3,27 @@ import { compareResearchStocks, matchesResearchFilter, researchListCells, resear
 
 export function renderMarketView(context) {
   const { state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl } = context;
-  const visibleStocks = filterStocks(snapshots, state).filter((stock) => matchesResearchFilter(stock, state.research));
-  if (["all", "favorites"].includes(state.view) && (!state.research || state.research === "all")) {
-    const query = state.query.trim().toLocaleLowerCase();
-    visibleStocks.push(...snapshots.filter((stock) => pendingSymbols.has(stock.symbol) &&
-      (state.sector === "all" || stock.sector === state.sector || stock.sectorGroup === state.sector) &&
-      (state.view !== "favorites" || state.favorites.includes(stock.symbol)) &&
-      (!query || `${stock.symbol} ${stock.name}`.toLocaleLowerCase().includes(query))));
+  // Loading the next batch keeps the same list: reuse it instead of filtering and sorting every stock again.
+  const listKey = [state.date, state.view, state.sector, state.research, state.query, state.sort, state.sortDirection,
+    state.favorites.join(","), pendingSymbols.size, loading].join("|");
+  if (tableState.listSource !== snapshots || tableState.listKey !== listKey) {
+    tableState.list = sortedMarketList(context);
+    tableState.listSource = snapshots;
+    tableState.listKey = listKey;
   }
-  if (state.sort === "symbol") visibleStocks.sort((a, b) => a.symbol.localeCompare(b.symbol) * state.sortDirection);
-  else if (state.sort)
-    visibleStocks.sort((a, b) => {
-      if (!a.latest) return b.latest ? 1 : 0;
-      if (!b.latest) return -1;
-      const value = (stock) => state.sort === "readiness" ? researchSummaryOf(stock)?.score ?? null :
-        state.sort === "institutionalNet" ? stockMoney(stock, "total", "day") : stock.latest[state.sort] ?? null;
-      const av = value(a), bv = value(b);
-      if (av === null) return bv === null ? 0 : 1;
-      if (bv === null) return -1;
-      return (av - bv) * state.sortDirection;
-    });
-  else visibleStocks.sort(compareResearchStocks);
+  const visibleStocks = tableState.list;
+  const finishBatch = (shown, total) => {
+    const trigger = document.querySelector("#table-load-trigger");
+    trigger.hidden = shown >= total;
+    // A tall viewport may still contain the trigger after one batch. Recheck its
+    // position after layout instead of waiting for it to leave and re-enter view.
+    if (tableState.observer) {
+      tableState.observer.unobserve(trigger);
+      if (!trigger.hidden) tableState.observer.observe(trigger);
+    }
+    document.querySelector("#table-summary").textContent =
+      `顯示 ${shown} / ${total} 檔${isDemo ? "示範" : "觀察"}標的 · ${state.date}`;
+  };
   const sortSelect = document.querySelector("#market-sort");
   if (sortSelect) sortSelect.value = [...sortSelect.options].some((option) => option.value === state.sort) ? state.sort : "";
   const nextViewKey = [state.date, state.view, state.sector, state.research, state.query, state.sort, state.sortDirection].join("|");
@@ -33,13 +33,9 @@ export function renderMarketView(context) {
   }
   const renderedStocks = visibleStocks.slice(0, tableState.visibleLimit);
   const body = document.querySelector("#stock-rows");
-  const rows = new Map([...body.children].map((row) => [row.dataset.symbol, row]));
-  const visible = new Set(renderedStocks.map((stock) => stock.symbol));
-  for (const [symbol, row] of rows) if (!visible.has(symbol)) row.remove();
-  let cursor = body.firstElementChild;
-  renderedStocks.forEach((stock) => {
+  const drawRow = (stock, existing) => {
     const favorite = state.favorites.includes(stock.symbol);
-    let row = rows.get(stock.symbol);
+    let row = existing;
     const cached = row && tableRowCache.get(row);
     if (!stock.latest) {
       if (!cached || cached.stock !== stock || cached.favorite !== favorite || cached.loading !== loading) {
@@ -84,23 +80,34 @@ export function renderMarketView(context) {
     row.setAttribute("aria-busy", String(!stock.latest && loading));
     row.tabIndex = 0;
     row.setAttribute("aria-label", `查看${stock.name}進場研究`);
+    return row;
+  };
+  // The next batch of the same list only adds rows: skip revisiting every row already drawn.
+  const drawn = tableState.drawn;
+  if (drawn && drawn.listKey === tableState.listKey && drawn.source === snapshots && drawn.count < renderedStocks.length &&
+      body.children.length === drawn.count && body.lastElementChild?.dataset.symbol === renderedStocks[drawn.count - 1]?.symbol) {
+    const added = document.createDocumentFragment();
+    for (const stock of renderedStocks.slice(drawn.count)) added.append(drawRow(stock));
+    body.append(added);
+    drawn.count = renderedStocks.length;
+    finishBatch(renderedStocks.length, visibleStocks.length);
+    return;
+  }
+  const rows = new Map([...body.children].map((row) => [row.dataset.symbol, row]));
+  const visible = new Set(renderedStocks.map((stock) => stock.symbol));
+  for (const [symbol, row] of rows) if (!visible.has(symbol)) row.remove();
+  let cursor = body.firstElementChild;
+  for (const stock of renderedStocks) {
+    const row = drawRow(stock, rows.get(stock.symbol));
     if (row === cursor) cursor = cursor.nextElementSibling;
     else body.insertBefore(row, cursor);
-  });
+  }
+  tableState.drawn = loading ? null : { listKey: tableState.listKey, source: snapshots, count: renderedStocks.length };
   if (loading && !dataset.stocks.length) body.innerHTML = `<tr class="initial-field-row" aria-busy="true"><td></td><th scope="row">股票資料</th>${Array.from({ length: 11 }, () => `<td>${loadingIcon()}</td>`).join("")}</tr>`;
   document.querySelector("#table-empty").hidden = visibleStocks.length !== 0 || loading || loadFailed;
   document.querySelector("#favorite-count").textContent =
     state.favorites.length;
-  const trigger = document.querySelector("#table-load-trigger");
-  trigger.hidden = renderedStocks.length >= visibleStocks.length;
-  // A tall viewport may still contain the trigger after one batch. Recheck its
-  // position after layout instead of waiting for it to leave and re-enter view.
-  if (tableState.observer) {
-    tableState.observer.unobserve(trigger);
-    if (!trigger.hidden) tableState.observer.observe(trigger);
-  }
-  document.querySelector("#table-summary").textContent =
-    `顯示 ${renderedStocks.length} / ${visibleStocks.length} 檔${isDemo ? "示範" : "觀察"}標的 · ${state.date}`;
+  finishBatch(renderedStocks.length, visibleStocks.length);
   document.querySelectorAll("[data-view]").forEach((button) => {
     const active = button.dataset.view === state.view;
     button.classList.toggle("active", active);
@@ -121,3 +128,27 @@ export function renderMarketView(context) {
     );
 }
 
+function sortedMarketList({ state, snapshots, pendingSymbols, stockMoney }) {
+  const visibleStocks = filterStocks(snapshots, state).filter((stock) => matchesResearchFilter(stock, state.research));
+  if (["all", "favorites"].includes(state.view) && (!state.research || state.research === "all")) {
+    const query = state.query.trim().toLocaleLowerCase();
+    visibleStocks.push(...snapshots.filter((stock) => pendingSymbols.has(stock.symbol) &&
+      (state.sector === "all" || stock.sector === state.sector || stock.sectorGroup === state.sector) &&
+      (state.view !== "favorites" || state.favorites.includes(stock.symbol)) &&
+      (!query || `${stock.symbol} ${stock.name}`.toLocaleLowerCase().includes(query))));
+  }
+  if (state.sort === "symbol") visibleStocks.sort((a, b) => a.symbol.localeCompare(b.symbol) * state.sortDirection);
+  else if (state.sort)
+    visibleStocks.sort((a, b) => {
+      if (!a.latest) return b.latest ? 1 : 0;
+      if (!b.latest) return -1;
+      const value = (stock) => state.sort === "readiness" ? researchSummaryOf(stock)?.score ?? null :
+        state.sort === "institutionalNet" ? stockMoney(stock, "total", "day") : stock.latest[state.sort] ?? null;
+      const av = value(a), bv = value(b);
+      if (av === null) return bv === null ? 0 : 1;
+      if (bv === null) return -1;
+      return (av - bv) * state.sortDirection;
+    });
+  else visibleStocks.sort(compareResearchStocks);
+  return visibleStocks;
+}

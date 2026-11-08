@@ -160,7 +160,29 @@ function readPreferences() { loadPreferences(state, appStorage()); }
 function savePreferences() { persistPreferences(state, toast, appStorage()); }
 function saveResearch() { return persistResearchStore(appStorage(), researchStore); }
 
+/**
+ * Each page's views render only while that page shows: opening the app builds home alone, and
+ * the market list, 自選 and search catch up from the latest data when they are opened.
+ */
+const staleViews = new Set();
+function shownOrStale(page, view) {
+  if (state.page === page) { staleViews.delete(view); return true; }
+  staleViews.add(view);
+  return false;
+}
+
+function renderStaleViews() {
+  for (const view of [...staleViews]) {
+    if (view === "table" && state.page === "market") renderTable();
+    if (view === "sectors" && state.page === "market") renderSectorOverview();
+    if (view === "research" && state.page === "favorites") renderResearch();
+    if (view === "search" && state.page === "search") renderSearch();
+    if (view === "home" && state.page === "home") renderHome();
+  }
+}
+
 function renderResearch() {
+  if (!shownOrStale("favorites", "research")) return;
   if (!researchStore || !document.querySelector("#research-list")) return;
   const result = renderResearchCenter({ favorites: state.favorites, stocks: snapshots,
     store: researchStore, date: state.date, previousDate: dataset.dates[dataset.dates.indexOf(state.date) - 1] ?? null,
@@ -457,6 +479,7 @@ function showLatestPage(page) {
 
 function renderPage() {
   renderPageView({ state, dataset, renderLoadState, updateSegmentedControls });
+  renderStaleViews();
   if (state.page === "backtest") backtest.show();
   rememberPage(state.page, nativeMode ? nativeStorage : undefined);
   fitMarketPanel();
@@ -472,6 +495,7 @@ function fitMarketPanel() {
   const fit = matchMedia("(max-width: 700px)").matches && state.page === "market" && state.marketView === "list";
   panel.classList.toggle("is-fitted", fit);
   document.documentElement.classList.toggle("market-fitted", fit);
+  tableBatches.sync();
   if (!fit) return;
   if (window.scrollY) window.scrollTo(0, 0);
   const top = panel.getBoundingClientRect().top;
@@ -483,6 +507,7 @@ const updateSegmentedControl = controls.updateSegmented;
 const updateSegmentedControls = controls.updateSegmentedAll;
 
 function renderSearch() {
+  if (!shownOrStale("search", "search")) return;
   renderSearchView({ query: state.searchQuery, stocks: latestSnapshots, loading, asOf: dataset.info.asOf, loadingIcon, esc, number, percent, direction });
 }
 
@@ -494,6 +519,7 @@ function openSearch() {
 }
 
 function renderHome() {
+  if (!shownOrStale("home", "home")) return;
   renderHomeView({ state, stocks: snapshots, loading, loadFailed, asOf: state.date, loadingIcon, esc, number, percent, direction });
 }
 
@@ -504,7 +530,10 @@ function sectorContext() { return { state, dataset, loading, loadFailed, latestS
   sectorGroupOverviews: apiMode ? selectedSummary?.data.sectorGroups : null,
   sectorDetail: apiMode ? sectorDetailCache.get(`${summaryKey(dataset.info.asOf)}:${state.sectorName}`) : null,
   loadingIcon, stockMoney, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures, institutionalMoney, isDemo, number, institutionSparkline }; }
-function renderSectorOverview() { renderSectorOverviewView(sectorContext()); renderSectorNavView(sectorContext()); fitMarketPanel(); }
+function renderSectorOverview() {
+  if (!shownOrStale("market", "sectors")) return;
+  renderSectorOverviewView(sectorContext()); renderSectorNavView(sectorContext()); fitMarketPanel();
+}
 function renderSectorDialog(name) { renderSectorDialogView(name, sectorContext()); }
 
 // Up to tablet width the sector detail is a pull-down sheet with no close button.
@@ -553,7 +582,11 @@ function openSectorDialog(name, focusHandle = true, stockSymbol = null) {
 }
 
 
-function renderTable() { renderMarketView({ state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl }); }
+function renderTable() {
+  // The nav's 自選 count shows on every page, so it stays current even while the list waits.
+  if (!shownOrStale("market", "table")) { const count = document.querySelector("#favorite-count"); if (count) count.textContent = state.favorites.length; return; }
+  renderMarketView({ state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl });
+}
 
 function technicalSignalGuide() {
   return `<p class="dialog-intro">依資料日 KD 交叉與 MA20 趨勢判讀；${isDemo ? "模擬資料技術提示" : "技術提示僅供觀察"}，需搭配風險控管。使用目前 KD (${state.settings.period}, ${state.settings.kSmooth}, ${state.settings.dSmooth}) 設定，僅比較資料日與前一交易日。買賣提示只標示當日新交叉，每日重新判讀。</p>
