@@ -3356,8 +3356,6 @@ dialog.sector-dialog {
 .sector-flow-period strong { font-size: var(--text-body); font-variant-numeric: tabular-nums; }
 .sector-flow-period strong.up { color: var(--up); }
 .sector-flow-period strong.down { color: var(--down); }
-.sector-flow-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin-top: 10px; color: var(--muted); }
-.sector-flow-foot small { flex: 1 1 14rem; font-size: var(--text-meta); }
 @media (max-width: 700px) {
   .home-entry { padding: 12px; }
   .sector-nav { padding: 8px 8px 0; }

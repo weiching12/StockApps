@@ -53,8 +53,7 @@ export function sectorFlowMarkup(context) {
     return `<div class="sector-flow-period" data-flow-period="${label}"><span>${label}</span><strong class="${direction(amount)}">${amount === null ? "資料不足" : institutionalMoney(amount)}</strong><small>${breadth}</small></div>`;
   }).join("");
   const detail = isGroup ? "" : `<button type="button" class="text-button" data-sector-open="${esc(name)}">查看個股法人明細</button>`;
-  // The constituent link sits at the top right; the not-a-buy-signal note joins the method note below.
-  return `<div class="sector-flow-head"><h3>${esc(name)} 法人動向</h3>${detail}</div><div class="sector-flow-periods">${cells}</div><div class="sector-flow-foot"><small>金額依各股每日法人淨買賣股數 × 當日收盤價累計；資金流向非買進訊號。</small></div>`;
+  return `<div class="sector-flow-head"><h3>${esc(name)} 法人動向</h3>${detail}</div><div class="sector-flow-periods">${cells}</div>`;
 }
 
 /**

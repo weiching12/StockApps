@@ -89,7 +89,7 @@ test("choosing a sector narrows the list and shows that level's institutional fl
   await expect(page.locator('#stock-rows tr[data-symbol="2308"]')).toHaveCount(0);
   const flow = page.locator("#sector-flow");
   await expect(flow.locator("h3")).toHaveText("半導體 法人動向");
-  await expect(flow).toContainText("非買進訊號");
+  await expect(flow.locator(".sector-flow-foot")).toHaveCount(0);
   await expect(flow.locator(".sector-flow-period")).toHaveCount(3);
   await expect(flow.locator("[data-sector-open]")).toHaveCount(0);
   const whole = await flow.locator(".sector-flow-period strong").first().textContent();
