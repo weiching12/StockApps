@@ -3349,7 +3349,7 @@ dialog.sector-dialog {
 .sector-flow[hidden] { display: none; }
 .sector-flow-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
 .sector-flow-head h3 { margin: 0; font-size: var(--text-body); }
-.sector-flow-head span { color: var(--muted); font-size: var(--text-meta); }
+.sector-flow-head .text-button { min-height: 32px; margin: -6px -6px -6px auto; }
 .sector-flow-periods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .sector-flow-period { display: grid; gap: 2px; min-width: 0; }
 .sector-flow-period span, .sector-flow-period small { color: var(--muted); font-size: var(--text-meta); }
