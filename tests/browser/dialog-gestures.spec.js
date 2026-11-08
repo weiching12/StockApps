@@ -184,3 +184,27 @@ test("an iOS bounce past the top closes the sector detail even when the touch we
   await bounce(-90);
   await expect(dialog).toBeHidden();
 });
+
+test("a quick pull on the price chart moves the stock sheet, while a held scrub stays on the chart", async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#stock-rows tr[data-symbol] .stock-name').first().click();
+  const dialog = page.locator('#info-dialog');
+  const plot = page.locator('.entry-chart-plot');
+  await expect(plot).toBeVisible();
+  // Held first: the finger scrubs trading days and the sheet stays put.
+  const box = await plot.boundingBox();
+  const x = box.x + box.width / 2, y = box.y + box.height / 2;
+  const client = await page.context().newCDPSession(page);
+  await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  await page.waitForTimeout(700);
+  for (let i = 1; i <= 6; i++) await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - i * 10, y: y + i * 20 }] });
+  await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await client.detach();
+  await expect(dialog).toBeVisible();
+  await expect(dialog).not.toHaveAttribute('data-mobile-sheet', 'preview');
+  // A quick pull from the chart behaves like a pull anywhere else on the sheet.
+  await swipe(page, plot);
+  await expect(dialog).toHaveAttribute('data-mobile-sheet', 'preview');
+  await swipe(page, plot);
+  await expect(dialog).toBeHidden();
+});

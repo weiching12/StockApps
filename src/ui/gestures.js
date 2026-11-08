@@ -95,7 +95,8 @@ export function bindMobileDragDismiss(dialog, handle, { previewSelector, sheetQu
   const canStart = (target, { touch = false } = {}) => {
     if (!dialog.open || dialog.hasAttribute("data-mandatory-update") || !matchMedia(sheetQuery).matches) return false;
     if (handle.contains(target)) return true;
-    if (target.closest(touch ? "input,select,textarea,[role=slider],[contenteditable]:not([contenteditable='false'])"
+    // The price chart is a slider only after a hold; a quick swipe on it is a pull like anywhere else.
+    if (target.closest(touch ? "input,select,textarea,[role=slider]:not(.entry-chart-plot),[contenteditable]:not([contenteditable='false'])"
       : "button,a,input,select,textarea,summary,[role=slider],.table-scroll")) return false;
     return touch || !scrolledAbove(target).length;
   };
@@ -150,7 +151,8 @@ export function bindMobileDragDismiss(dialog, handle, { previewSelector, sheetQu
     drag = { x: touch.clientX, y: touch.clientY, scrolled: scrolled.length ? scrolled : null };
   }, { passive: true });
   dialog.addEventListener("touchmove", (event) => {
-    if (event.touches.length !== 1) { reset(); return; }
+    // A control that claimed the touch (the chart's held scrub) keeps it.
+    if (event.touches.length !== 1 || (event.defaultPrevented && !dialog.classList.contains("is-dragging"))) { reset(); return; }
     move(event.touches[0].clientX, event.touches[0].clientY, event);
   }, { passive: false });
   dialog.addEventListener("touchend", finish);
