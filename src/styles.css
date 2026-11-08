@@ -2416,7 +2416,19 @@ dialog h2 {
     grid-row: 1;
     align-self: baseline;
   }
-  .sector-ranking .sector-total i { display: none; }
+  /* Phones draw the net-flow share as a hairline along the row's foot, like the constituent list. */
+  .sector-ranking .sector-card { position: relative; }
+  .sector-ranking .sector-main { padding-bottom: 12px; }
+  .sector-ranking .sector-total i {
+    position: absolute;
+    bottom: 5px;
+    left: var(--sector-line-start, 44px);
+    width: calc((100% - var(--sector-line-start, 44px) - 6px) * var(--sector-share, 0));
+    min-width: 6px;
+    height: 3px;
+    border-radius: 999px;
+    opacity: .85;
+  }
   .sector-change { grid-column: 4; grid-row: 2; align-self: start; }
 }
 
@@ -2429,6 +2441,7 @@ dialog h2 {
     grid-template-columns: 17px 8px minmax(0, 1fr) minmax(82px, max-content);
     padding-inline: 4px;
   }
+  .sector-ranking .sector-card { --sector-line-start: 41px; }
 }
 
 @media (max-width: 360px) {
