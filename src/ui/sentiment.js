@@ -52,9 +52,13 @@ function breadthMarkup({ advancing, unchanged, declining }) {
   return `<span class="up" title="上漲 ${count(advancing)} 檔">漲 <b>${count(advancing)}</b></span><div class="sentiment-breadth-bar" title="上漲 ${count(advancing)}、平盤 ${count(unchanged)}、下跌 ${count(declining)} 檔">${part("up", advancing)}${part("flat", unchanged)}${part("down", declining)}</div><span class="down" title="下跌 ${count(declining)} 檔">跌 <b>${count(declining)}</b></span>`;
 }
 
-/** A pill like the unusual-institution ones: a coloured dot, a name, the amount and an optional note. */
+// Inflow points up and outflow down; a flat or unknown amount gets a level line.
+const CHIP_ARROWS = { up: "M8 13V3M3.5 7.5 8 3l4.5 4.5", down: "M8 3v10M3.5 8.5 8 13l4.5-4.5" };
+const chipArrow = (tone) => `<svg class="sentiment-chip-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${CHIP_ARROWS[tone] ?? "M3.5 8h9"}"/></svg>`;
+
+/** A pill like the unusual-institution ones: a direction arrow, a name, the amount and an optional note. */
 function chipMarkup({ amount, name, note = "", attributes, label }) {
-  return `<button type="button" class="sentiment-chip ${toneOf(amount)}" ${attributes} aria-label="${escapeText(label)}"><i aria-hidden="true"></i>${escapeText(name)} <b>${factAmountText(amount)}</b>${note ? `<small>${escapeText(note)}</small>` : ""}</button>`;
+  return `<button type="button" class="sentiment-chip ${toneOf(amount)}" ${attributes} aria-label="${escapeText(label)}">${chipArrow(toneOf(amount))}${escapeText(name)} <b>${factAmountText(amount)}</b>${note ? `<small>${escapeText(note)}</small>` : ""}</button>`;
 }
 
 /** Each row reads the same way: a label, then its figure or its pills. */

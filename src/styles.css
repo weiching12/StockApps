@@ -92,9 +92,9 @@ body { background: var(--surface); }
 .sentiment-row .up { color: var(--up); }
 .sentiment-row .down { color: var(--down); }
 .sentiment-chip { display: inline-flex; align-items: baseline; gap: 5px; min-height: 32px; max-width: 100%; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--ink); font-size: var(--text-meta); white-space: nowrap; cursor: pointer; }
-.sentiment-chip i { align-self: center; flex: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.sentiment-chip.up i, .sentiment-chip.up b { color: var(--up); }
-.sentiment-chip.down i, .sentiment-chip.down b { color: var(--down); }
+.sentiment-chip-icon { align-self: center; flex: none; width: 12px; height: 12px; color: var(--muted); }
+.sentiment-chip.up .sentiment-chip-icon, .sentiment-chip.up b { color: var(--up); }
+.sentiment-chip.down .sentiment-chip-icon, .sentiment-chip.down b { color: var(--down); }
 .sentiment-chip b { font-size: var(--text-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
 .sentiment-chip small { color: var(--muted); font-size: var(--text-meta); }
 .sentiment-chip:hover { border-color: var(--accent); }
