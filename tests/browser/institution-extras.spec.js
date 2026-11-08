@@ -43,14 +43,17 @@ test("stock ratios and flow bars distinguish signed, zero and missing values", a
   for (const [symbol, text] of [["9001", "+10.00%"], ["9002", "-20.00%"], ["9003", "0.00%"], ["9004", ""]])
     await expect(row(symbol).locator('[data-institution-ratio="day"]')).toHaveText(text);
   await expect(row("9001").locator('.sector-stock-name')).toHaveText(/^9001\s*每日買賣交錯$/);
-  // Each period draws one bar; a missing amount leaves an empty track, and lengths share the sector's scale.
+  // Each period draws one bar; a missing amount leaves an empty track, and lengths use the stock's own scale.
   for (const symbol of ["9001", "9002", "9003", "9004"])
     await expect(row(symbol).locator('.sector-stock-bar')).toHaveCount(3);
   await expect(row("9004").locator('[data-sector-net="5"] .institution-money')).toHaveText("");
   await expect(row("9004").locator('[data-sector-net="5"] .sector-stock-bar i')).toHaveCount(0);
   await expect(page.locator('.institution-sparkline')).toHaveCount(0);
-  const shares = await page.locator('[data-sector-net="day"] .sector-stock-bar i').evaluateAll((bars) => bars.map((bar) => Number(bar.style.getPropertyValue("--share"))));
-  expect(Math.max(...shares)).toBe(1);
+  // Each stock's own largest period fills its bar.
+  for (const symbol of ["9001", "9002"]) {
+    const shares = await row(symbol).locator('.sector-stock-bar i').evaluateAll((bars) => bars.map((bar) => Number(bar.style.getPropertyValue("--share"))));
+    expect(Math.max(...shares)).toBe(1);
+  }
 });
 
 test("new institutional information fits phone and desktop layouts", async ({ page }, testInfo) => {
