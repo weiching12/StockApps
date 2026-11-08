@@ -264,3 +264,31 @@ test("the phone list hides its scrollbar", async ({ page }) => {
   await page.locator('[data-market-view-choice="list"]').click();
   expect(await page.locator(".table-scroll").evaluate((table) => getComputedStyle(table).scrollbarWidth)).toBe("none");
 });
+
+test("choosing a chip keeps each chip row where it was scrolled", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('[data-market-view-choice="list"]').click();
+  const first = page.locator("#sector-chips");
+  await first.evaluate((row) => { row.scrollLeft = row.scrollWidth; });
+  const left = await first.evaluate((row) => row.scrollLeft);
+  expect(left).toBeGreaterThan(0);
+  await first.locator("button").last().click();
+  expect(await first.evaluate((row) => row.scrollLeft)).toBe(left);
+  await page.locator('#sector-chips [data-sector-chip="半導體"]').click();
+  const second = page.locator("#sub-sector-chips");
+  await second.evaluate((row) => { row.scrollLeft = row.scrollWidth; });
+  const subLeft = await second.evaluate((row) => row.scrollLeft);
+  await second.locator("button").last().click();
+  await expect(second.locator("button").last()).toHaveAttribute("aria-pressed", "true");
+  expect(await second.evaluate((row) => row.scrollLeft)).toBe(subLeft);
+});
+
+test("the market header sits right under the phone bar", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  const gap = await page.evaluate(() => document.querySelector(".market-header").getBoundingClientRect().top - document.querySelector(".sidebar").getBoundingClientRect().bottom);
+  expect(gap).toBeLessThanOrEqual(12);
+});

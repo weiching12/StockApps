@@ -3408,7 +3408,10 @@ dialog.sector-dialog {
 .market-views button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 700px) {
   /* The view switch takes the title's row at full width; the date stays beside the eyebrow. */
-  .page-heading .market-header { grid-column: 1 / -1; grid-row: 2; min-width: 0; margin-top: 4px; }
+  /* Nothing else shows in the market page's heading, so its panel sits right under the bar. */
+  .page-heading .market-header { grid-column: 1 / -1; grid-row: 1; min-width: 0; margin: 0; }
+  main:has(.market-header:not([hidden])) { padding-top: 10px; }
+  .page-heading:has(.market-header:not([hidden])) { row-gap: 0; margin-bottom: 10px; }
   .page-heading:has(.market-header:not([hidden])) .date-control { grid-row: 1; margin-top: 0; transform: none; align-self: center; }
   .page-heading:has(.market-header:not([hidden])) .eyebrow { display: none; }
   /* Nothing sits beside the view switch, so the spacer that holds the date's column goes. */

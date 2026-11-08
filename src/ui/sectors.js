@@ -56,15 +56,30 @@ export function sectorFlowMarkup(context) {
   return `<div class="sector-flow-head"><h3>${esc(name)} 法人動向</h3><span>非買進訊號</span></div><div class="sector-flow-periods">${cells}</div><div class="sector-flow-foot"><small>金額依各股每日法人淨買賣股數 × 當日收盤價累計。</small>${detail}</div>`;
 }
 
+/**
+ * Choosing a chip only moves the highlight, so the row keeps where it was scrolled sideways; only a
+ * different set of chips (another sector's sub-industries) redraws the row and starts it at the left.
+ */
+function syncChipRow(row, markup) {
+  const chips = markup.replace(/ aria-pressed="(true|false)"/g, "");
+  if (row.dataset.chips === chips) {
+    const pressed = [...markup.matchAll(/aria-pressed="(true|false)"/g)].map((match) => match[1]);
+    row.querySelectorAll("button").forEach((button, index) => button.setAttribute("aria-pressed", pressed[index]));
+    return;
+  }
+  row.innerHTML = markup;
+  row.dataset.chips = chips;
+  row.scrollLeft = 0;
+}
+
 export function renderSectorNavView(context) {
   const { state, dataset, esc } = context;
   const first = document.querySelector("#sector-chips");
   if (!first) return;
   const second = document.querySelector("#sub-sector-chips");
   const markup = sectorChipsMarkup(dataset.stocks, state.sector, esc);
-  // Rewriting a row would throw away how far it was scrolled sideways.
-  if (first.dataset.markup !== markup.first) { const left = first.scrollLeft; first.innerHTML = markup.first; first.dataset.markup = markup.first; first.scrollLeft = left; }
-  if (second.dataset.markup !== markup.second) { second.innerHTML = markup.second; second.dataset.markup = markup.second; second.scrollLeft = 0; }
+  syncChipRow(first, markup.first);
+  syncChipRow(second, markup.second);
   second.hidden = !markup.second;
   const flow = sectorFlowMarkup(context), block = document.querySelector("#sector-flow");
   block.innerHTML = flow;
