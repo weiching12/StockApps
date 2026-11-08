@@ -24,6 +24,14 @@ function arcSegment(index) {
   return `M${point(180 - 36 * index - 1)}A50 50 0 0 1 ${point(180 - 36 * (index + 1) + 1)}`;
 }
 
+/** Settings choice for the score style, each option drawn as a small picture of how it looks. */
+export const moodStyleChoices = (current) => {
+  const gauge = `<svg viewBox="0 0 120 66" aria-hidden="true">${bandTones.map((tone, index) => `<path d="${arcSegment(index)}" stroke="${tone}" stroke-width="10" fill="none"/>`).join("")}<line x1="60" y1="60" x2="78" y2="26" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="60" cy="60" r="5" fill="currentColor"/></svg>`;
+  const scale = `<svg viewBox="0 0 120 66" aria-hidden="true">${bandTones.map((tone, index) => `<rect x="${6 + index * 22}" y="28" width="20" height="10" rx="3" fill="${tone}"/>`).join("")}<rect x="76" y="20" width="4" height="26" rx="2" fill="currentColor"/></svg>`;
+  const choice = (value, label, picture) => `<label class="mood-style-choice"><input type="radio" name="moodStyle" value="${value}"${current === value ? " checked" : ""}/><span class="mood-style-picture">${picture}</span><span>${label}</span></label>`;
+  return `<fieldset class="mood-style-choices"><legend>情緒分數圖示</legend>${choice("gauge", "半圓儀表", gauge)}${choice("scale", "橫向刻度", scale)}</fieldset>`;
+};
+
 /** Both score styles; the moodStyle setting shows one through CSS, so switching needs no re-render. */
 export const moodMeterMarkup = () => `<svg class="sentiment-arc" viewBox="0 0 120 66" aria-hidden="true">${bandTones.map((tone, index) => `<path d="${arcSegment(index)}" stroke="${tone}"/>`).join("")}<line class="sentiment-needle" x1="60" y1="60" x2="60" y2="20"/><circle cx="60" cy="60" r="4"/></svg>
   <div class="sentiment-scale" aria-hidden="true"><div class="sentiment-scale-track">${bandTones.map((tone) => `<i style="background:${tone}"></i>`).join("")}<span class="sentiment-scale-marker"></span></div><div class="sentiment-scale-ends"><span>恐懼</span><span>貪婪</span></div></div>

@@ -3430,6 +3430,18 @@ dialog.sector-dialog {
   .stocks-panel.is-fitted > :not(.table-scroll) { flex: none; }
   .stocks-panel.is-fitted .table-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   .stocks-panel.is-fitted .table-scroll::-webkit-scrollbar { display: none; }
-  /* Rows scrolled out of the list skip layout and paint, so a long list stays smooth. */
-  .stocks-panel.is-fitted #stock-rows > tr { content-visibility: auto; contain-intrinsic-size: auto 138px; }
+  /* Only the rows in view are drawn, so every card keeps one measured height and a one-line name. */
+  .stocks-panel.is-fitted #stock-rows > tr[data-symbol] { box-sizing: border-box; height: var(--market-row-height, auto); overflow: hidden; }
+  .stocks-panel.is-fitted #stock-rows .stock-name { min-width: 0; overflow: hidden; }
+  .stocks-panel.is-fitted #stock-rows .stock-name > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 }
+
+/* Settings: the mood score style is picked from two small pictures. */
+.mood-style-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; padding: 0; border: 0; }
+.mood-style-choices legend { margin-bottom: 8px; padding: 0; font-size: var(--text-secondary); font-weight: 600; }
+.mood-style-choice { display: grid; justify-items: center; gap: 6px; padding: 10px 8px; border: 1px solid var(--border); border-radius: 10px; color: var(--muted); font-size: var(--text-secondary); cursor: pointer; }
+.mood-style-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.mood-style-picture { display: block; width: 100%; max-width: 120px; color: var(--ink); }
+.mood-style-picture svg { display: block; width: 100%; height: auto; }
+.mood-style-choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.mood-style-choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }

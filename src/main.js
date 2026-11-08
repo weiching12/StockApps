@@ -34,7 +34,7 @@ import { renderResearchCenter } from "./ui/research.js";
 import { dailyCloseSeries } from "../shared/price-history.js";
 import { priceBaseline } from "../shared/research-review.js";
 import { entryScoreDialogMarkup, selectEntryChartPoint, restoreEntryChartTitle } from "./ui/entry-score.js";
-import { renderSentiment } from "./ui/sentiment.js";
+import { moodStyleChoices, renderSentiment } from "./ui/sentiment.js";
 import { createBacktestController } from "./ui/backtest.js";
 import {
   DEFAULT_SETTINGS,
@@ -493,14 +493,21 @@ function fitMarketPanel() {
   const panel = document.querySelector(".stocks-panel");
   if (!panel) return;
   const fit = matchMedia("(max-width: 700px)").matches && state.page === "market" && state.marketView === "list";
+  const changed = panel.classList.contains("is-fitted") !== fit;
   panel.classList.toggle("is-fitted", fit);
   document.documentElement.classList.toggle("market-fitted", fit);
   tableBatches.sync();
-  if (!fit) return;
-  if (window.scrollY) window.scrollTo(0, 0);
-  const top = panel.getBoundingClientRect().top;
-  // Below a few rows of room (a short phone with a sector's flows open) the page scrolls instead.
-  panel.style.setProperty("--market-panel-height", `${Math.max(220, Math.floor(window.innerHeight - top - 12))}px`);
+  let resized = false;
+  if (fit) {
+    if (window.scrollY) window.scrollTo(0, 0);
+    const top = panel.getBoundingClientRect().top;
+    // Below a few rows of room (a short phone with a sector's flows open) the page scrolls instead.
+    const height = `${Math.max(220, Math.floor(window.innerHeight - top - 12))}px`;
+    resized = panel.style.getPropertyValue("--market-panel-height") !== height;
+    panel.style.setProperty("--market-panel-height", height);
+  }
+  // The box must have its height before the list works out which rows are in view.
+  if (changed || resized) renderTable();
 }
 
 const updateSegmentedControl = controls.updateSegmented;
@@ -620,7 +627,7 @@ function openDialog(type, focusClose = true) {
     const updateStatus = document.querySelector("#update-check-status");
     updateStatus.hidden = true;
     updateStatus.textContent = "";
-    content.innerHTML = `<h2 id="dialog-heading">設定</h2><p class="dialog-intro">顯示設定選擇後立即套用；KD 指標需按「指標儲存」。</p><section class="settings-theme" aria-labelledby="settings-theme-heading"><h3 id="settings-theme-heading">顯示 <span>選擇後立即套用</span></h3><div class="form-field"><label for="theme">色彩主題</label><select id="theme" name="theme"><option value="light"${state.theme === "light" ? " selected" : ""}>淺色</option><option value="dark"${state.theme === "dark" ? " selected" : ""}>深色</option></select></div><div class="form-field"><label for="mood-style">情緒分數圖示</label><select id="mood-style" name="moodStyle"><option value="gauge"${state.moodStyle === "gauge" ? " selected" : ""}>半圓儀表</option><option value="scale"${state.moodStyle === "scale" ? " selected" : ""}>橫向刻度</option></select></div></section><form id="settings-form"><fieldset class="settings-group"><legend>KD 指標</legend><div class="form-field"><label for="period">RSV 回溯週期</label><div><input id="period" name="period" type="number" min="1" max="60" value="${state.settings.period}" required/><span>個交易日</span></div></div><div class="form-field"><label for="kSmooth">K 平滑係數</label><input id="kSmooth" name="kSmooth" type="number" min="1" max="20" value="${state.settings.kSmooth}" required/></div><div class="form-field"><label for="dSmooth">D 平滑係數</label><input id="dSmooth" name="dSmooth" type="number" min="1" max="20" value="${state.settings.dSmooth}" required/></div></fieldset><p class="helper-text">預設 KD (9, 3, 3)。季線固定為 60 個交易日的收盤價平均。</p><div class="dialog-buttons"><button class="outline-button" type="button" id="default-settings">恢復預設</button><button class="primary-button" type="submit">${icon("check")} 指標儲存</button></div></form>`;
+    content.innerHTML = `<h2 id="dialog-heading">設定</h2><p class="dialog-intro">顯示設定選擇後立即套用；KD 指標需按「指標儲存」。</p><section class="settings-theme" aria-labelledby="settings-theme-heading"><h3 id="settings-theme-heading">顯示 <span>選擇後立即套用</span></h3><div class="form-field"><label for="theme">色彩主題</label><select id="theme" name="theme"><option value="light"${state.theme === "light" ? " selected" : ""}>淺色</option><option value="dark"${state.theme === "dark" ? " selected" : ""}>深色</option></select></div>${moodStyleChoices(state.moodStyle)}</section><form id="settings-form"><fieldset class="settings-group"><legend>KD 指標</legend><div class="form-field"><label for="period">RSV 回溯週期</label><div><input id="period" name="period" type="number" min="1" max="60" value="${state.settings.period}" required/><span>個交易日</span></div></div><div class="form-field"><label for="kSmooth">K 平滑係數</label><input id="kSmooth" name="kSmooth" type="number" min="1" max="20" value="${state.settings.kSmooth}" required/></div><div class="form-field"><label for="dSmooth">D 平滑係數</label><input id="dSmooth" name="dSmooth" type="number" min="1" max="20" value="${state.settings.dSmooth}" required/></div></fieldset><p class="helper-text">預設 KD (9, 3, 3)。季線固定為 60 個交易日的收盤價平均。</p><div class="dialog-buttons"><button class="outline-button" type="button" id="default-settings">恢復預設</button><button class="primary-button" type="submit">${icon("check")} 指標儲存</button></div></form>`;
     if (!nativeMode) {
       content.querySelector(".dialog-intro").insertAdjacentHTML("afterend",
         `<section class="settings-account" aria-labelledby="settings-account-heading"><h3 id="settings-account-heading">帳號</h3><div id="settings-account-menu" class="account-menu"></div></section>`);
@@ -898,6 +905,12 @@ function bindEvents() {
     void refreshWithVersionCheck();
   });
   bindKeyboardNavigation({ onSearch: openSearch, onSectorDetails: openSectorDialog });
+  // Phone list: draw the rows that scroll into view, at most once a frame.
+  let listFrame = 0;
+  document.querySelector(".table-scroll").addEventListener("scroll", () => {
+    if (listFrame || !document.querySelector(".stocks-panel.is-fitted")) return;
+    listFrame = requestAnimationFrame(() => { listFrame = 0; renderTable(); });
+  }, { passive: true });
   // The header above the list changes height with the sector flows and the phone's toolbars.
   window.addEventListener("resize", fitMarketPanel);
   new ResizeObserver(() => fitMarketPanel()).observe(document.querySelector(".page-heading"));
@@ -1101,7 +1114,7 @@ function bindEvents() {
   document.addEventListener("change", (event) => {
     if (event.target.id === "research-sort") { researchSort = event.target.value; renderResearch(); return; }
     if (event.target.id === "research-filter") { researchFilter = event.target.value; renderResearch(); return; }
-    if (event.target.id !== "theme" && event.target.id !== "mood-style") return;
+    if (event.target.id !== "theme" && event.target.name !== "moodStyle") return;
     if (event.target.id === "theme") state.theme = event.target.value === "dark" ? "dark" : "light";
     else state.moodStyle = event.target.value === "scale" ? "scale" : "gauge";
     applyTheme();

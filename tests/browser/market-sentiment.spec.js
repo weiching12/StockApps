@@ -114,16 +114,17 @@ test("settings switches the mood style at once and remembers it", async ({ page 
   const card = page.locator("#market-sentiment");
   await expect(card.locator(".sentiment-arc")).toBeVisible();
   await page.locator('.sidebar-bottom > [data-dialog="settings"]').click();
-  const select = page.locator("#mood-style");
-  await expect(select).toHaveValue("gauge");
-  await expect(select.locator("option")).toHaveText(["半圓儀表", "橫向刻度"]);
-  await select.selectOption("scale");
+  const choices = page.locator(".mood-style-choice");
+  await expect(choices).toHaveText(["半圓儀表", "橫向刻度"]);
+  await expect(choices.locator("svg")).toHaveCount(2);
+  await expect(page.locator('input[name="moodStyle"][value="gauge"]')).toBeChecked();
+  await choices.nth(1).click();
   await expect(card.locator(".sentiment-scale")).toBeVisible();
   await expect(card.locator(".sentiment-arc")).toBeHidden();
   await page.reload();
   await expect(card.locator(".sentiment-scale")).toBeVisible();
   await page.locator('.sidebar-bottom > [data-dialog="settings"]').click();
-  await expect(page.locator("#mood-style")).toHaveValue("scale");
+  await expect(page.locator('input[name="moodStyle"][value="scale"]')).toBeChecked();
 });
 
 test("the market mood card has no composition page to open", async ({ page }) => {

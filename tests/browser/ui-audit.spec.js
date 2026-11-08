@@ -220,3 +220,29 @@ test("sector estimated billions follow each selected period's daily prices and n
   }
   await expect(page.locator(".sector-note")).toContainText("非實際成交金額");
 });
+
+test("the phone list draws only the rows in view and reaches every stock", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 760 });
+  await loadMarket(page, 150, 0);
+  const table = page.locator(".table-scroll");
+  await expect(page.locator("#stock-rows tr[data-symbol]").first()).toBeVisible();
+  await expect(page.locator("#table-summary")).toContainText("150 / 150");
+  const drawn = await page.locator("#stock-rows tr").count();
+  expect(drawn).toBeLessThan(30);
+  const check = () => table.evaluate((scroller) => {
+    const rows = [...scroller.querySelectorAll("#stock-rows tr")].map((row) => row.getBoundingClientRect());
+    return { rows: rows.length, gaps: rows.slice(1).filter((rect, index) => Math.abs(rect.top - rows[index].bottom) > 1).length,
+      pageScroll: window.scrollY };
+  });
+  for (const top of [2000, 6000, 999999]) {
+    await table.evaluate((scroller, value) => { scroller.scrollTop = value; }, top);
+    await page.waitForTimeout(100);
+    const state = await check();
+    expect(state.rows).toBeLessThan(30);
+    expect(state.gaps).toBe(0);
+    expect(state.pageScroll).toBe(0);
+  }
+  await expect(page.locator('#stock-rows tr[data-symbol="1149"]')).toBeVisible();
+  await page.locator('#stock-rows tr[data-symbol="1149"] .stock-name').click();
+  await expect(page.locator("#dialog-heading")).toContainText("1149");
+});

@@ -27,9 +27,12 @@ export function renderMarketView(context) {
   const sortSelect = document.querySelector("#market-sort");
   if (sortSelect) sortSelect.value = [...sortSelect.options].some((option) => option.value === state.sort) ? state.sort : "";
   const nextViewKey = [state.date, state.view, state.sector, state.research, state.query, state.sort, state.sortDirection].join("|");
+  // On phones the list scrolls inside its own box and only the rows in view are drawn.
+  const scroller = document.querySelector(".stocks-panel.is-fitted .table-scroll");
   if (nextViewKey !== tableState.viewKey) {
     tableState.viewKey = nextViewKey;
     tableState.visibleLimit = TABLE_BATCH_SIZE;
+    if (scroller) scroller.scrollTop = 0;
   }
   const renderedStocks = visibleStocks.slice(0, tableState.visibleLimit);
   const body = document.querySelector("#stock-rows");
@@ -82,32 +85,38 @@ export function renderMarketView(context) {
     row.setAttribute("aria-label", `查看${stock.name}進場研究`);
     return row;
   };
-  // The next batch of the same list only adds rows: skip revisiting every row already drawn.
-  const drawn = tableState.drawn;
-  if (drawn && drawn.listKey === tableState.listKey && drawn.source === snapshots && drawn.count < renderedStocks.length &&
-      body.children.length === drawn.count && body.lastElementChild?.dataset.symbol === renderedStocks[drawn.count - 1]?.symbol) {
-    const added = document.createDocumentFragment();
-    for (const stock of renderedStocks.slice(drawn.count)) added.append(drawRow(stock));
-    body.append(added);
-    drawn.count = renderedStocks.length;
-    finishBatch(renderedStocks.length, visibleStocks.length);
-    return;
+  if (scroller) {
+    drawVisibleRows({ list: visibleStocks, body, scroller, drawRow, tableState });
+    tableState.drawn = null;
+  } else {
+    body.style.removeProperty("padding-top"); body.style.removeProperty("padding-bottom"); body.style.removeProperty("--market-row-height");
+    // The next batch of the same list only adds rows: skip revisiting every row already drawn.
+    const drawn = tableState.drawn;
+    if (drawn && drawn.listKey === tableState.listKey && drawn.source === snapshots && drawn.count < renderedStocks.length &&
+        body.children.length === drawn.count && body.lastElementChild?.dataset.symbol === renderedStocks[drawn.count - 1]?.symbol) {
+      const added = document.createDocumentFragment();
+      for (const stock of renderedStocks.slice(drawn.count)) added.append(drawRow(stock));
+      body.append(added);
+      drawn.count = renderedStocks.length;
+      finishBatch(renderedStocks.length, visibleStocks.length);
+      return;
+    }
+    const rows = new Map([...body.children].map((row) => [row.dataset.symbol, row]));
+    const visible = new Set(renderedStocks.map((stock) => stock.symbol));
+    for (const [symbol, row] of rows) if (!visible.has(symbol)) row.remove();
+    let cursor = body.firstElementChild;
+    for (const stock of renderedStocks) {
+      const row = drawRow(stock, rows.get(stock.symbol));
+      if (row === cursor) cursor = cursor.nextElementSibling;
+      else body.insertBefore(row, cursor);
+    }
+    tableState.drawn = loading ? null : { listKey: tableState.listKey, source: snapshots, count: renderedStocks.length };
   }
-  const rows = new Map([...body.children].map((row) => [row.dataset.symbol, row]));
-  const visible = new Set(renderedStocks.map((stock) => stock.symbol));
-  for (const [symbol, row] of rows) if (!visible.has(symbol)) row.remove();
-  let cursor = body.firstElementChild;
-  for (const stock of renderedStocks) {
-    const row = drawRow(stock, rows.get(stock.symbol));
-    if (row === cursor) cursor = cursor.nextElementSibling;
-    else body.insertBefore(row, cursor);
-  }
-  tableState.drawn = loading ? null : { listKey: tableState.listKey, source: snapshots, count: renderedStocks.length };
   if (loading && !dataset.stocks.length) body.innerHTML = `<tr class="initial-field-row" aria-busy="true"><td></td><th scope="row">股票資料</th>${Array.from({ length: 11 }, () => `<td>${loadingIcon()}</td>`).join("")}</tr>`;
   document.querySelector("#table-empty").hidden = visibleStocks.length !== 0 || loading || loadFailed;
   document.querySelector("#favorite-count").textContent =
     state.favorites.length;
-  finishBatch(renderedStocks.length, visibleStocks.length);
+  finishBatch(scroller ? visibleStocks.length : renderedStocks.length, visibleStocks.length);
   document.querySelectorAll("[data-view]").forEach((button) => {
     const active = button.dataset.view === state.view;
     button.classList.toggle("active", active);
@@ -151,4 +160,47 @@ function sortedMarketList({ state, snapshots, pendingSymbols, stockMoney }) {
     });
   else visibleStocks.sort(compareResearchStocks);
   return visibleStocks;
+}
+
+const OVERSCAN_ROWS = 6, ROW_POOL_LIMIT = 300;
+
+/**
+ * Phone list virtualisation: rows share one measured height, so the rows in view follow from the
+ * scroll position; padding above and below stands in for the rest. Rows that scroll out are kept
+ * in a small pool and reused when they come back.
+ */
+function drawVisibleRows({ list, body, scroller, drawRow, tableState }) {
+  if (tableState.rowWidth !== scroller.clientWidth) {
+    // A new width can change the card's height: measure again from a natural row.
+    tableState.rowWidth = scroller.clientWidth;
+    tableState.rowHeight = null;
+    body.style.removeProperty("--market-row-height");
+  }
+  const rowHeight = tableState.rowHeight ?? 140;
+  const bodyTop = body.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+  const first = Math.max(0, Math.min(list.length, Math.floor((scroller.scrollTop - bodyTop) / rowHeight)) - OVERSCAN_ROWS);
+  const last = Math.min(list.length, first + Math.ceil(scroller.clientHeight / rowHeight) + OVERSCAN_ROWS * 2);
+  const wanted = list.slice(first, last), wantedSymbols = new Set(wanted.map((stock) => stock.symbol));
+  const pool = tableState.rowPool ??= new Map();
+  const current = new Map();
+  for (const row of [...body.children]) {
+    if (row.dataset.symbol && wantedSymbols.has(row.dataset.symbol)) { current.set(row.dataset.symbol, row); continue; }
+    row.remove();
+    if (row.dataset.symbol) { pool.delete(row.dataset.symbol); pool.set(row.dataset.symbol, row); }
+  }
+  while (pool.size > ROW_POOL_LIMIT) pool.delete(pool.keys().next().value);
+  let cursor = body.firstElementChild;
+  for (const stock of wanted) {
+    const row = drawRow(stock, current.get(stock.symbol) ?? pool.get(stock.symbol));
+    pool.delete(stock.symbol);
+    if (row === cursor) cursor = cursor.nextElementSibling;
+    else body.insertBefore(row, cursor);
+  }
+  body.style.paddingTop = `${first * rowHeight}px`;
+  body.style.paddingBottom = `${(list.length - last) * rowHeight}px`;
+  if (!tableState.rowHeight && body.firstElementChild?.dataset.symbol) {
+    tableState.rowHeight = Math.max(1, body.firstElementChild.getBoundingClientRect().height);
+    body.style.setProperty("--market-row-height", `${tableState.rowHeight}px`);
+    if (Math.abs(tableState.rowHeight - rowHeight) > 1) drawVisibleRows({ list, body, scroller, drawRow, tableState });
+  }
 }
