@@ -2116,6 +2116,8 @@ dialog h2 {
   text-align: right;
 }
 .sector-ranking-head span:first-child { text-align: left; }
+/* The column heading names the unit while it shows; phones hide the heading, so their amounts keep it. */
+@media (min-width: 701px) { .sector-ranking .money-unit { display: none; } }
 .sector-ranking {
   display: block;
   padding: 0;
@@ -2159,13 +2161,19 @@ dialog h2 {
 .sector-marker.down { background: var(--down); clip-path: polygon(0 0, 100% 0, 50% 100%); }
 .sector-identity { min-width: 0; }
 .sector-activity { display: block; margin-top: 2px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.sector-breadth {
-  display: block;
-  margin-top: 3px;
-  color: var(--muted);
-  overflow-wrap: anywhere;
+/* The breadth count sits beside the sector name on its line. */
+.sector-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin-bottom: 4px;
 }
-.sector-identity h3 { margin: 0 0 7px; }
+.sector-breadth {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sector-identity h3 { margin: 0; }
 .sector-identity p {
   margin: 0;
   overflow: hidden;
@@ -2253,7 +2261,6 @@ dialog h2 {
   .sector-ranking {
     padding: 0 8px 12px;
   }
-  .sector-ranking .sector-total strong { font-size: 14px; }
   .sector-identity h3 { white-space: normal; overflow-wrap: anywhere; }
 }
 
@@ -2399,7 +2406,7 @@ dialog h2 {
     min-height: 64px;
     padding: 6px;
   }
-  .sector-identity h3 { margin-bottom: 3px; }
+  .sector-title { margin-bottom: 2px; }
   .sector-ranking .sector-rank,
   .sector-marker { grid-row: 1 / span 2; align-self: center; }
   .sector-identity { grid-column: 3; grid-row: 1 / span 2; align-self: start; }

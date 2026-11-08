@@ -8,7 +8,7 @@ const pageCopy = {
 
 const marketCopy = {
   list: pageCopy.market,
-  sectors: ["INSTITUTIONAL RANKING", "產業資金排行", "依細產業排名法人資金方向，點選產業查看個股；資金流向僅供觀察，非買進訊號。"],
+  sectors: ["INSTITUTIONAL RANKING", "法人買株", "依細產業排名法人資金方向，點選產業查看個股；資金流向僅供觀察，非買進訊號。"],
 };
 
 export function renderPageView({ state, dataset, renderLoadState, updateSegmentedControls }) {

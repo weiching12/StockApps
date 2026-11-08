@@ -170,6 +170,7 @@ test("phone sector identity stays compact while amounts and percentages align fo
       await page.locator(`[data-sector-window="${period}"]`).click();
       const issues = await page.locator("#sector-grid .sector-card").evaluateAll((cards, sort) => cards.flatMap((card) => {
         const name = card.querySelector(".sector-identity h3").getBoundingClientRect();
+        const title = card.querySelector(".sector-title").getBoundingClientRect();
         const identity = card.querySelector(".sector-identity");
         const leader = card.querySelector(".sector-identity p");
         const note = leader ? leader.getBoundingClientRect() : name;
@@ -181,18 +182,17 @@ test("phone sector identity stays compact while amounts and percentages align fo
           return range.getBoundingClientRect();
         };
         const lots = textBounds(amount), percentage = textBounds(change), bounds = card.getBoundingClientRect();
-        const estimate = textBounds(card.querySelector("[data-sector-lots]"));
         return [
           sort === "activity-desc" && leader && "產業 ordering still shows the TOP1 line",
           sort !== "activity-desc" && !leader && "net ordering lost the TOP1 line",
-          leader && (note.top - name.bottom < 0 || note.top - name.bottom > 4) && "TOP1 does not follow the industry name compactly",
-          (breadth.top - note.bottom < 0 || breadth.top - note.bottom > 4) && "breadth does not follow TOP1 compactly",
+          leader && (note.top - title.bottom < 0 || note.top - title.bottom > 6) && "TOP1 does not follow the industry name compactly",
+          // The breadth sits beside the name, wrapping right under it only when a long name fills the line.
+          (breadth.bottom <= name.top || breadth.top - name.bottom > 4) && "breadth does not sit beside or right under the industry name",
+          card.querySelector("[data-sector-lots]") && "the ranking still shows lots",
           identity.scrollWidth > identity.clientWidth + 1 && "industry information extends outside its column",
           Math.abs(lots.right - percentage.right) > 1 && "amount and percentage do not share the right edge",
           lots.left < name.right && "amount overlaps the sector name",
           lots.right > bounds.right && "amount extends outside the card",
-          estimate.left < name.right && "estimate overlaps the sector name",
-          estimate.right > bounds.right && "estimate extends outside the card",
         ].filter(Boolean).map((issue) => `${card.dataset.sectorName}: ${issue}`);
       }), sort);
       expect(issues, `Sector numbers at ${width}px / ${period} / ${sort}`).toEqual([]);

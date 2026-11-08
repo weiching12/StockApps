@@ -126,7 +126,7 @@ test("partial sector totals exclude missing data and leave unavailable constitue
       const result = expected(sector, days);
       await page.locator(`[data-sector-window="${key}"]`).click();
       const card = page.locator(`[data-sector-details="${sector}"]`);
-      await expect(card.locator("[data-sector-lots]")).toHaveText(amount(result.total, true));
+      await expect(card.locator("[data-sector-lots]")).toHaveCount(0);
       await expect(card.locator("[data-sector-amount]")).toHaveText(money(result.money));
       await expect(card.locator("[data-sector-coverage]")).toHaveCount(0);
     }

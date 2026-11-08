@@ -99,8 +99,6 @@ const institutionalMoney = (value) => value === null ? "" : `${signed(value / 10
 const stockMoney = (stock, name, window, asOf = state.date) => apiMode
   ? stock?.money?.[window]?.[name] ?? null : getStockInstitutionEstimate(stock, name, window,
   dataset.dates.filter((date) => date <= asOf));
-const institutionalFigures = (amount, shares, moneyAttribute = "", sharesAttribute = "") =>
-  `<strong class="institution-money ${direction(amount)}" ${moneyAttribute}>${institutionalMoney(amount)}</strong><small class="institution-lots" ${sharesAttribute}>${institutionalAmount(shares)}</small>`;
 const state = createState();
 const controls = createControlsController();
 const dialogs = createDialogController();
@@ -530,7 +528,7 @@ function sectorContext() { return { state, dataset, loading, loadFailed, latestS
   sectorOverviews: apiMode ? selectedSummary?.data.sectors : null,
   sectorGroupOverviews: apiMode ? selectedSummary?.data.sectorGroups : null,
   sectorDetail: apiMode ? sectorDetailCache.get(`${summaryKey(dataset.info.asOf)}:${state.sectorName}`) : null,
-  loadingIcon, stockMoney, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures, institutionalMoney, isDemo, number, icon }; }
+  loadingIcon, stockMoney, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalMoney, isDemo, number, icon }; }
 function renderSectorOverview() {
   if (!shownOrStale("market", "sectors")) return;
   renderSectorOverviewView(sectorContext()); renderSectorNavView(sectorContext()); fitMarketPanel();

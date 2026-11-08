@@ -64,7 +64,7 @@ test("ETF search and favorites work while every industry ranking and detail excl
   const ready = () => expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "false");
   const sectorValues = () => page.locator("#sector-grid .sector-card").evaluateAll((cards) => cards.map((card) => ({
     name: card.dataset.sectorName, amount: card.querySelector("[data-sector-amount]").textContent,
-    lots: card.querySelector("[data-sector-lots]").textContent, breadth: card.querySelector("[data-sector-breadth]").textContent,
+    breadth: card.querySelector("[data-sector-breadth]").textContent,
   })));
   await page.goto("/"); await ready();
   await page.locator('[data-page="market"]').first().click();

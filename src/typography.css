@@ -81,7 +81,8 @@ tbody td {
   font-weight: 400;
 }
 .stock-name strong,
-.sector-stock-name > strong {
+.sector-stock-name > strong,
+.sector-identity h3 {
   font-size: var(--text-body);
   font-weight: 600;
   line-height: var(--leading-heading);
@@ -169,11 +170,8 @@ thead th button,
 .eyebrow {
   letter-spacing: 0.1em;
 }
-.sector-card h3 {
-  font-size: var(--text-title);
-}
 .sector-total strong {
-  font-size: var(--text-section);
+  font-size: var(--text-body);
   font-weight: 600;
   line-height: var(--leading-heading);
   letter-spacing: -0.02em;
