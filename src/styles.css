@@ -2660,7 +2660,10 @@ dialog.sector-dialog {
   html,
   body {
     touch-action: manipulation;
-    overscroll-behavior-y: contain;
+    /* No rubber band on the page itself: pulling past the top would drag the bar down over a blank
+       gap (most visibly on the fitted market list, whose page does not scroll). The app's own
+       pull-to-refresh is drawn by script and does not need it. */
+    overscroll-behavior-y: none;
   }
   .pull-refresh {
     position: fixed;

@@ -99,3 +99,13 @@ test('cancelling a ready pull clears it and the next pull still works', async ({
   await drag(page, target);
   expect(await page.evaluate(() => window.refreshCount)).toBe(1);
 });
+
+test('the page never rubber-bands on phones, and a pull on the fitted list at its top still refreshes', async ({ page }) => {
+  await page.evaluate(() => document.querySelector('#gesture-region').remove());
+  expect(await page.evaluate(() => [document.documentElement, document.body].map((node) => getComputedStyle(node).overscrollBehaviorY)))
+    .toEqual(['none', 'none']);
+  await expect(page.locator('.stocks-panel')).toHaveClass(/is-fitted/);
+  expect(await page.locator('.stocks-panel .table-scroll').evaluate((node) => node.scrollTop)).toBe(0);
+  await drag(page, page.locator('#stock-rows tr[data-symbol]').first());
+  await expect.poll(() => page.evaluate(() => window.refreshCount)).toBe(1);
+});
