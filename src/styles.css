@@ -725,11 +725,11 @@ h1 {
   #info-dialog[data-entry-drawer="true"] .dialog-top { position: absolute; inset: 0 0 auto; z-index: 2; }
   #info-dialog[data-entry-drawer="true"] #dialog-content {
     height: 100%;
-    padding: 64px 28px 32px;
+    padding: 14px 28px 32px;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  #info-dialog[data-entry-drawer="true"] .entry-dialog-header { --entry-header-inset: 28px; --entry-header-top: 64px; }
+  #info-dialog[data-entry-drawer="true"] .entry-dialog-header { --entry-header-inset: 28px; --entry-header-top: 14px; }
   @keyframes entry-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
 }
 .entry-dialog-sector { grid-column: 2; margin: 0; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; }
