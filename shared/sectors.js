@@ -1,6 +1,7 @@
 import { isEtf } from "./market-codec.js";
 import {
   getDirectionalLeader,
+  getInstitutionalNet,
   getInstitutionVolumeRatio,
   getSectorInstitutionEstimate,
   getSectorInstitutionSummary,
@@ -36,6 +37,20 @@ export function getSectorStockReturn(stock, window, tradingDates) {
     ? ((stock.latest.close - previous.close) / previous.close) * 100 : null;
 }
 
+/** Consecutive sessions of three-institution net buying (positive) or selling (negative), ending at the
+ * selected session. A missing session, a flat day or a direction change ends the run; no data gives 0.
+ */
+export function getStockInstitutionStreak(stock, tradingDates) {
+  const history = new Map((stock?.history ?? []).map((bar) => [bar.date, bar]));
+  let streak = 0;
+  for (let at = tradingDates.length - 1; at >= 0; at--) {
+    const net = getInstitutionalNet(history.get(tradingDates[at])?.institutions);
+    if (!Number.isFinite(net) || net === 0 || (streak && Math.sign(net) !== Math.sign(streak))) break;
+    streak += Math.sign(net);
+  }
+  return streak;
+}
+
 /** Pure industry overview shared by UI, future HTTP resources and research jobs.
  * Snapshots and tradingDates must describe the same selected market session.
  * Price averages require every currently priced member's return. Flow aggregates
@@ -62,6 +77,7 @@ export function getSectorOverview(snapshots, {
         ? returns.reduce((sum, value) => sum + value, 0) / returns.length : null,
       leader, leaderValue,
       leaderChange: leader ? getSectorStockReturn(leader, window, tradingDates) : null,
+      leaderStreak: leader ? getStockInstitutionStreak(leader, selectedDates) : 0,
     };
   });
   // Each sector's share of all listed-company institutional trading (ETFs are already excluded).

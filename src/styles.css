@@ -2174,6 +2174,19 @@ dialog h2 {
   white-space: nowrap;
 }
 .sector-identity h3 { margin: 0; }
+.sector-identity .sector-streak {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: var(--text-meta);
+  line-height: 18px;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+.sector-identity .sector-streak.up { color: var(--up); background: color-mix(in srgb, var(--up) 8%, transparent); }
+.sector-identity .sector-streak.down { color: var(--down); background: color-mix(in srgb, var(--down) 8%, transparent); }
 .sector-identity p {
   margin: 0;
   overflow: hidden;

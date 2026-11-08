@@ -91,7 +91,7 @@ test("industry overview/detail match the previous UI algorithm across all window
     const snapshots = dataset.stocks.map((stock) => getSnapshot(stock, asOf));
     for (const window of ["day", "5", "20"]) for (const sort of ["net-desc", "net-asc", "name-asc"]) {
       const config = { window, sort, tradingDates, asOf };
-      assert.deepEqual(getSectorOverview(snapshots, config).map(({ activity: _activity, ...sector }) => sector),
+      assert.deepEqual(getSectorOverview(snapshots, config).map(({ activity: _activity, leaderStreak: _streak, ...sector }) => sector),
         legacyOverview(snapshots, config), `${asOf}/${window}/${sort}`);
     }
     for (const sector of new Set(snapshots.map((stock) => stock.sector)))
@@ -251,4 +251,17 @@ test("sector models are read-only and handle empty or unknown industries without
   assert.deepEqual(getSectorOverview([], options()), []);
   assert.equal(getSectorDetail(stocks, "不存在", options()), null);
   assert.equal(getSectorDetail([], "半導體", options()), null);
+});
+
+test("the leader's institution streak counts consecutive net sessions up to the selected date", async () => {
+  const { getStockInstitutionStreak } = await import("../shared/sectors.js");
+  const dates = ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16"];
+  const bar = (date, net) => ({ date, institutions: net === null ? [] : [
+    { name: "外資", buy: Math.max(net, 0), sell: Math.max(-net, 0) }, { name: "投信", buy: 0, sell: 0 }, { name: "自營商", buy: 0, sell: 0 }] });
+  const stock = (nets) => ({ history: dates.map((date, index) => bar(date, nets[index])) });
+  assert.equal(getStockInstitutionStreak(stock([-5, 3, 4, 2, 9]), dates), 4);
+  assert.equal(getStockInstitutionStreak(stock([1, 1, -2, -3, -1]), dates), -3);
+  assert.equal(getStockInstitutionStreak(stock([1, 1, 1, null, 4]), dates), 1);
+  assert.equal(getStockInstitutionStreak(stock([1, 1, 1, 1, 0]), dates), 0);
+  assert.equal(getStockInstitutionStreak(stock([2, 2, 2, 2, 2]), dates.slice(0, 3)), 3);
 });

@@ -141,11 +141,15 @@ export function renderSectorOverviewView(context) {
   document.querySelector("#sector-grid").innerHTML = shown.map((sector, index) => {
     const { leader, leaderValue, leaderChange } = sector;
     const periodLabel = days === 1 ? "" : `${days} 日 `;
-    const leaderText = leaderValue === null ? "" : `TOP1·${leader.name}`;
+    const leaderText = leaderValue === null ? "" : leader.name;
+    // A run of two or more sessions of net buying or selling earns a badge beside the leading stock.
+    const streak = leaderValue === null ? 0 : sector.leaderStreak ?? 0;
+    const streakBadge = Math.abs(streak) >= 2
+      ? ` <span class="sector-streak ${streak > 0 ? "up" : "down"}" data-sector-streak="${streak}" title="三大法人合計連續${streak > 0 ? "淨買超" : "淨賣超"}的交易日數">${streak > 0 ? "連買" : "連賣"} ${Math.abs(streak)} 日</span>` : "";
     const ranked = Number.isFinite(sector.estimate.amount);
-    // The 產業 ordering is about trading share, so the net-flow TOP1 line is left out there.
+    // The 產業 ordering is about trading share, so the net-flow leader line is left out there.
     const leaderLine = state.sectorSort === "activity-desc" ? ""
-      : `<p>${periodLabel}<span>${esc(leaderText)}</span> <span class="${direction(leaderChange)}">${leader ? percent(leaderChange) : ""}</span></p>`;
+      : `<p>${periodLabel}<span>${esc(leaderText)}</span> <span class="${direction(leaderChange)}">${leader ? percent(leaderChange) : ""}</span>${streakBadge}</p>`;
     const share = ranked ? Math.max(4, Math.round((Math.abs(sector.estimate.amount) / maxAmount) * 100)) : 0;
     const bar = ranked ? `<i class="${direction(sector.estimate.amount)}" style="--sector-bar:${share}%;--sector-share:${share / 100};--i:${Math.min(index, 12)}"></i>` : "";
     return `<article class="sector-card" data-sector-name="${esc(sector.name)}" data-sector-details="${esc(sector.name)}" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="sector-dialog" aria-label="查看${esc(sector.name)}產業個股與法人買賣超"><div class="sector-main"><span class="sector-rank">${sector.rank ?? ""}</span><span class="sector-marker ${direction(sector.estimate.amount)}"></span><div class="sector-identity"><div class="sector-title"><h3>${esc(sector.name)}</h3><small class="sector-breadth" data-sector-breadth title="所選區間淨買賣超金額為正的家數／金額資料完整的有效家數">${sector.estimate.available ? `買超 ${sector.estimate.buying}／${sector.estimate.available} 檔` : ""}</small></div>${leaderLine}${state.sectorSort === "activity-desc" ? `<small class="sector-activity" data-sector-activity title="法人買進＋賣出金額占全市場法人交易的比重">${Number.isFinite(sector.activity?.share) ? `法人交易占 ${sector.activity.share.toFixed(1)}%` : "法人交易資料不足"}</small>` : ""}</div><strong class="sector-change ${direction(sector.change)}">${percent(sector.change)}</strong><div class="sector-total"><strong class="institution-money ${direction(sector.estimate.amount)}" data-sector-amount>${institutionalMoney(sector.estimate.amount).replace(" 億", '<span class="money-unit"> 億</span>')}</strong>${bar}</div></div></article>`;

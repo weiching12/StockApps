@@ -37,6 +37,11 @@ functions without constructing a UI context or supplying formatting callbacks.
 - TOP1 selects the largest monetary buyer for a positive/zero industry net flow,
   or the largest monetary seller for a negative net flow. Changing display sort
   does not change the leader. Equal candidates retain their original order.
+- The ranking row names the leader without a "TOP1" prefix. When the leader's
+  three-institution net amount has the same sign for two or more consecutive
+  sessions ending at the selected date, a badge shows 連買／連賣 N 日
+  (`leaderStreak`, positive for buying). A missing session or a flat day ends
+  the run; the summary cache schema was bumped when this field was added.
 - Detail members always sort by daily net monetary amount descending, then name;
   missing values follow known values. Period values remain in TWD and shares,
   leaving units and localized formatting to the caller.
