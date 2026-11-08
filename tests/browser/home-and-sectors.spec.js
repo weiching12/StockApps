@@ -228,3 +228,20 @@ test("on phones the market list fills the screen to its footer and only its rows
   await page.setViewportSize({ width: 1280, height: 800 });
   await expect(page.locator(".stocks-panel")).not.toHaveClass(/is-fitted/);
 });
+
+test("only home shows the trading day and the update countdown, at every width", async ({ page }) => {
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/");
+    await page.locator('[data-page="home"]').first().click();
+    await expect(page.locator("#trade-date")).toBeVisible();
+    for (const target of ["market", "favorites", "search"]) {
+      await page.locator(`[data-page="${target}"]`).first().click();
+      await expect(page.locator(".date-control"), `${width}px ${target}`).toBeHidden();
+      await expect(page.locator("#update-countdown"), `${width}px ${target}`).toBeHidden();
+    }
+    await page.locator('[data-page="market"]').first().click();
+    await page.locator('[data-market-view-choice="sectors"]').click();
+    await expect(page.locator("#update-countdown")).toBeHidden();
+  }
+});

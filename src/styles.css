@@ -526,6 +526,8 @@ h1 {
   width: calc(100% - 38px);
 }
 .date-status { display: contents; }
+/* The date control lives on home only; its own display rules must not reveal it elsewhere. */
+.date-control[hidden] { display: none !important; }
 .date-notification-button { position: absolute; right: 0; bottom: 0; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 7px; color: var(--muted); }
 .date-notification-button:hover { color: var(--accent); background: var(--accent-soft); }
 .date-notification-button .icon { width: 17px; height: 17px; }
