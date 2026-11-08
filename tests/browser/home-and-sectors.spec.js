@@ -100,7 +100,7 @@ test("choosing a sector narrows the list and shows that level's institutional fl
   await expect(flow.locator("h3")).toHaveText("IC設計 法人動向");
   await expect(flow.locator(".sector-flow-period strong").first()).not.toHaveText(whole);
   await expect(page.locator('#sector-chips [data-sector-chip="半導體"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(flow.locator(".sector-flow-head [data-sector-open]")).toHaveText("查看個股法人明細");
+  await expect(flow.locator(".sector-flow-head [data-sector-open]")).toHaveText("查看明細");
   await flow.locator("[data-sector-open]").click();
   await expect(page.locator("#sector-dialog-heading")).toHaveText("IC設計");
   await page.locator("#close-sector-dialog").click();

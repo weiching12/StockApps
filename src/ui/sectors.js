@@ -52,7 +52,7 @@ export function sectorFlowMarkup(context) {
     const breadth = sector?.estimate?.available ? `買超 ${sector.estimate.buying}／${sector.estimate.available} 檔` : "";
     return `<div class="sector-flow-period" data-flow-period="${label}"><span>${label}</span><strong class="${direction(amount)}">${amount === null ? "資料不足" : institutionalMoney(amount)}</strong><small>${breadth}</small></div>`;
   }).join("");
-  const detail = isGroup ? "" : `<button type="button" class="text-button" data-sector-open="${esc(name)}">查看個股法人明細</button>`;
+  const detail = isGroup ? "" : `<button type="button" class="text-button" data-sector-open="${esc(name)}" aria-label="查看${esc(name)}個股法人明細">查看明細</button>`;
   return `<div class="sector-flow-head"><h3>${esc(name)} 法人動向</h3>${detail}</div><div class="sector-flow-periods">${cells}</div>`;
 }
 
