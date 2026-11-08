@@ -48,7 +48,7 @@ test("desktop keeps its tabs and research menu, and a menu choice cannot move th
   await expect(rows(page).first()).toBeVisible();
   await expect(page.locator("#market-research-filter")).toBeVisible();
   const above = page.locator('[data-view="above"]');
-  await page.locator("#market-research-filter").selectOption("gatePass");
+  await page.locator("#market-research-filter").selectOption("candidate");
   await above.click();
   const aligned = await page.locator(".filter-tabs").evaluate((group) => {
     const target = group.querySelector('[data-view="above"]').getBoundingClientRect();
@@ -59,5 +59,5 @@ test("desktop keeps its tabs and research menu, and a menu choice cannot move th
   await above.click();
   await expect(above).toHaveAttribute("aria-pressed", "true");
   await page.locator('[data-view="all"]').click();
-  await expect(page.locator("#market-research-filter")).toHaveValue("gatePass");
+  await expect(page.locator("#market-research-filter")).toHaveValue("candidate");
 });

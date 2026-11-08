@@ -64,14 +64,13 @@ export function researchListCells(stock, esc, number) {
   return { readiness, research };
 }
 
+/** The market menu: one choice per research stage, none containing another. Readiness bands are left
+ * to the readiness sort; gatePass and triggered remain for the favorites page's own menu. */
 export const RESEARCH_FILTERS = [
-  ["all", "全部研究狀態"], ["gatePass", "初步門檻通過"], ["triggered", "進場訊號已觸發"],
-  ["waiting", "等待進場訊號"], ["candidate", "明日進場候選"], ["priceHigh", "價格超出容許範圍"],
-  ["pullback", "順勢回踩恢復"], ["breakout", "整理區間向上突破"], ["score80", "進場準備度 80 以上"],
-  ["score60", "進場準備度 60～79"],
+  ["all", "全部研究狀態"], ["candidate", "明日進場候選"], ["priceHigh", "價格超出容許範圍"],
+  ["waiting", "等待進場訊號"], ["gateFail", "未通過初步門檻"],
 ];
 
-// Short labels for the phone filter row, most useful first; same filters as the desktop menu.
 export function matchesResearchFilter(stock, filter) {
   if (!filter || filter === "all") return true;
   const summary = researchSummaryOf(stock);
@@ -82,10 +81,7 @@ export function matchesResearchFilter(stock, filter) {
     case "waiting": return summary.status === "WAIT_TRIGGER";
     case "candidate": return summary.nextDayStatus === "NEXT_DAY_CANDIDATE";
     case "priceHigh": return summary.nextDayStatus === "PRICE_TOO_HIGH";
-    case "pullback": return summary.setupType === "PULLBACK_RECOVERY";
-    case "breakout": return summary.setupType === "RANGE_BREAKOUT";
-    case "score80": return summary.score >= 80;
-    case "score60": return summary.score >= 60 && summary.score < 80;
+    case "gateFail": return summary.gateStatus === "FAIL";
     default: return true;
   }
 }

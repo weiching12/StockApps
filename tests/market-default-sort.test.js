@@ -32,10 +32,14 @@ test("research filters match the compact summary without treating UNKNOWN as a p
   assert.equal(matchesResearchFilter(candidate, "gatePass"), true);
   assert.equal(matchesResearchFilter(unknown, "gatePass"), false);
   assert.equal(matchesResearchFilter(candidate, "candidate"), true);
-  assert.equal(matchesResearchFilter(candidate, "breakout"), true);
-  assert.equal(matchesResearchFilter(candidate, "pullback"), false);
-  assert.equal(matchesResearchFilter(candidate, "score80"), true);
-  assert.equal(matchesResearchFilter(candidate, "score60"), false);
+  assert.equal(matchesResearchFilter(candidate, "gateFail"), false);
+  assert.equal(matchesResearchFilter(unknown, "gateFail"), false);
+  assert.equal(matchesResearchFilter(stock("F"), "gateFail"), true);
+  // The market menu's stages never overlap.
+  const stages = ["candidate", "priceHigh", "waiting", "gateFail"];
+  for (const each of [candidate, unknown, stock("F"), stock("H", { gate: "PASS", status: "TRIGGERED", next: "PRICE_TOO_HIGH" }),
+    stock("W", { gate: "PASS", status: "WAIT_TRIGGER", next: "WAIT_TRIGGER" })])
+    assert.ok(stages.filter((stage) => matchesResearchFilter(each, stage)).length <= 1, each.symbol);
   assert.equal(matchesResearchFilter({ symbol: "X" }, "triggered"), false);
   assert.equal(matchesResearchFilter({ symbol: "X" }, "all"), true);
 });
