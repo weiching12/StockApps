@@ -2194,6 +2194,11 @@ dialog h2 {
   border-radius: 999px;
   background: #94a3b8;
 }
+/* The bar sits right-aligned under the amount on wide screens, so it grows in from the right. */
+.sector-ranking .sector-total i { transform-origin: right center; }
+@media (prefers-reduced-motion: no-preference) {
+  .sector-ranking .sector-total i { animation: sector-line-grow .7s cubic-bezier(.22, 1, .36, 1) calc(var(--i, 0) * 45ms) both; }
+}
 .sector-ranking .sector-total i.up { background: var(--up); }
 .sector-ranking .sector-total i.down { background: var(--down); }
 .online-count { display: inline-flex; align-items: center; gap: 6px; color: #456b5b; white-space: nowrap; }
