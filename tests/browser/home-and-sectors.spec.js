@@ -57,7 +57,8 @@ test("the market page's title is a switch between the list and the ranking, each
   const views = page.locator(".market-views button");
   await expect(views).toHaveText(["市場觀察清單", "產業資金排行"]);
   await expect(page.locator("#page-title")).toHaveClass(/sr-only/);
-  await expect(page.locator(".market-views")).toHaveClass(/panel/);
+  await expect(page.locator(".market-header")).toHaveClass(/panel/);
+  await expect(page.locator(".market-header #sector-chips")).toBeVisible();
   await expect(page.locator(".stocks-panel")).toBeVisible();
   await expect(page.locator("#sector-page")).toBeHidden();
   await expect(page.locator(".stocks-panel #sector-page")).toHaveCount(0);
@@ -66,10 +67,12 @@ test("the market page's title is a switch between the list and the ranking, each
   await expect(page.locator("#sector-page")).toHaveClass(/panel/);
   await expect(page.locator(".stocks-panel")).toBeHidden();
   await expect(page.locator("#page-description")).toContainText("非買進訊號");
+  await expect(page.locator(".market-header .sector-toolbar")).toBeVisible();
+  await expect(page.locator(".market-header .sector-nav")).toBeHidden();
   await expect(page.locator("#sector-grid .sector-card").first()).toBeVisible();
   await page.locator('[data-page="home"]').first().click();
   await expect(page.locator("#page-title")).not.toHaveClass(/sr-only/);
-  await expect(page.locator(".market-views")).toBeHidden();
+  await expect(page.locator(".market-header")).toBeHidden();
 });
 
 test("choosing a sector narrows the list and shows that level's institutional flows", async ({ page }) => {
@@ -202,4 +205,26 @@ test("search suggests the session's most traded stocks and a tap searches it", a
   await expect(page.locator("#stock-search")).toHaveValue(symbol);
   await expect(page.locator("#search-results tr.research-card").first()).toHaveAttribute("data-research-symbol", symbol);
   await expect(page.locator("#search-suggestions")).toBeHidden();
+});
+
+test("on phones the market list fills the screen to its footer and only its rows scroll", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('[data-market-view-choice="list"]').click();
+  const footer = page.locator(".table-footer");
+  await expect(footer).toBeVisible();
+  const layout = await page.evaluate(() => {
+    const footerBottom = document.querySelector(".table-footer").getBoundingClientRect().bottom, table = document.querySelector(".table-scroll");
+    return { footerInView: footerBottom <= innerHeight && footerBottom > innerHeight - 40, pageScroll: document.documentElement.scrollHeight - innerHeight, tableScrolls: table.scrollHeight > table.clientHeight,
+      pageFooter: getComputedStyle(document.querySelector(".page-footer")).display };
+  });
+  expect(layout).toEqual({ footerInView: true, pageScroll: 0, tableScrolls: true, pageFooter: "none" });
+  await page.locator(".table-scroll").evaluate((table) => { table.scrollTop = 400; });
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  // Choosing a sector grows the header; the list shrinks so the footer stays on screen.
+  await page.locator('#sector-chips [data-sector-chip="半導體"]').click();
+  await expect.poll(() => page.evaluate(() => document.querySelector(".table-footer").getBoundingClientRect().bottom <= innerHeight)).toBe(true);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(page.locator(".stocks-panel")).not.toHaveClass(/is-fitted/);
 });

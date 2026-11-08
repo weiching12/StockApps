@@ -31,7 +31,7 @@ export function renderSearchView({ query, stocks, loading, asOf, loadingIcon, es
   if (!query.trim()) {
     const popular = popularStocks(stocks);
     summary.textContent = "輸入代碼或名稱，例如 2330 或 台積電。";
-    suggestions.innerHTML = popular.length ? `<h3>熱門查詢 <small>依成交金額</small></h3><div class="sector-chip-row">${popular.map((stock) => `<button type="button" data-search-suggestion="${esc(stock.symbol)}">${esc(stock.symbol)} ${esc(stock.name)}</button>`).join("")}</div>` : "";
+    suggestions.innerHTML = popular.length ? `<h3>熱門查詢</h3><div class="sector-chip-row">${popular.map((stock) => `<button type="button" data-search-suggestion="${esc(stock.symbol)}">${esc(stock.symbol)} ${esc(stock.name)}</button>`).join("")}</div>` : "";
     suggestions.hidden = !popular.length;
     list.innerHTML = "";
     return;

@@ -16,10 +16,10 @@ test("sector filters read as one row of chips at every width", async ({ page }) 
   for (const width of [320, 390, 700, 1280]) {
     await page.setViewportSize({ width, height: 844 });
     await openSectors(page);
-    const chips = page.locator("#sector-page .sector-toolbar button");
+    const chips = page.locator(".market-header .sector-toolbar button");
     await expect(chips).toHaveText(["交易量", "買超", "賣超", "當日", "5 日", "20 日"]);
-    await expect(page.locator("#sector-page .segmented-indicator").first()).toBeHidden();
-    const layout = await page.locator("#sector-page .sector-toolbar").evaluate((toolbar) => {
+    await expect(page.locator(".market-header .sector-toolbar .segmented-indicator").first()).toBeHidden();
+    const layout = await page.locator(".market-header .sector-toolbar").evaluate((toolbar) => {
       const boxes = [...toolbar.querySelectorAll("button")].map((button) => button.getBoundingClientRect());
       const style = getComputedStyle(toolbar.querySelector("button"));
       return { tops: new Set(boxes.map(({ top }) => Math.round(top))).size, radius: parseFloat(style.borderRadius), height: toolbar.getBoundingClientRect().height, pageOverflow: document.documentElement.scrollWidth > innerWidth };
@@ -29,7 +29,7 @@ test("sector filters read as one row of chips at every width", async ({ page }) 
     expect(layout.pageOverflow).toBe(false);
     if (width <= 700) expect(layout.height).toBeLessThan(50.4);
     else {
-      const labels = await page.locator("#sector-page .sector-toolbar :is(.sector-sort-control, .sector-period-control) > span").evaluateAll((spans) => spans.map((span) => getComputedStyle(span).fontSize));
+      const labels = await page.locator(".market-header .sector-toolbar :is(.sector-sort-control, .sector-period-control) > span").evaluateAll((spans) => spans.map((span) => getComputedStyle(span).fontSize));
       expect(labels[0]).toBe(labels[1]);
     }
   }
@@ -81,6 +81,6 @@ test("the chips still change the ranking and show which is chosen", async ({ pag
   await buying.click();
   await expect(buying).toHaveAttribute("aria-pressed", "true");
   await expect(activity).toHaveAttribute("aria-pressed", "false");
-  const colors = await page.locator("#sector-page .sector-sort-tabs button").evaluateAll((buttons) => buttons.map((button) => getComputedStyle(button).borderColor));
+  const colors = await page.locator(".market-header .sector-sort-tabs button").evaluateAll((buttons) => buttons.map((button) => getComputedStyle(button).borderColor));
   expect(colors[1]).not.toBe(colors[0]);
 });

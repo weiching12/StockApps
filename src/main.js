@@ -459,6 +459,24 @@ function renderPage() {
   renderPageView({ state, dataset, renderLoadState, updateSegmentedControls });
   if (state.page === "backtest") backtest.show();
   rememberPage(state.page, nativeMode ? nativeStorage : undefined);
+  fitMarketPanel();
+}
+
+/**
+ * On phones the market list fills the screen down to its footer and only its rows scroll,
+ * so a long list never scrolls the page away from the filters.
+ */
+function fitMarketPanel() {
+  const panel = document.querySelector(".stocks-panel");
+  if (!panel) return;
+  const fit = matchMedia("(max-width: 700px)").matches && state.page === "market" && state.marketView === "list";
+  panel.classList.toggle("is-fitted", fit);
+  document.documentElement.classList.toggle("market-fitted", fit);
+  if (!fit) return;
+  if (window.scrollY) window.scrollTo(0, 0);
+  const top = panel.getBoundingClientRect().top;
+  // Below a few rows of room (a short phone with a sector's flows open) the page scrolls instead.
+  panel.style.setProperty("--market-panel-height", `${Math.max(220, Math.floor(window.innerHeight - top - 12))}px`);
 }
 
 const updateSegmentedControl = controls.updateSegmented;
@@ -486,7 +504,7 @@ function sectorContext() { return { state, dataset, loading, loadFailed, latestS
   sectorGroupOverviews: apiMode ? selectedSummary?.data.sectorGroups : null,
   sectorDetail: apiMode ? sectorDetailCache.get(`${summaryKey(dataset.info.asOf)}:${state.sectorName}`) : null,
   loadingIcon, stockMoney, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures, institutionalMoney, isDemo, number, institutionSparkline }; }
-function renderSectorOverview() { renderSectorOverviewView(sectorContext()); renderSectorNavView(sectorContext()); }
+function renderSectorOverview() { renderSectorOverviewView(sectorContext()); renderSectorNavView(sectorContext()); fitMarketPanel(); }
 function renderSectorDialog(name) { renderSectorDialogView(name, sectorContext()); }
 
 // Up to tablet width the sector detail is a pull-down sheet with no close button.
@@ -847,6 +865,9 @@ function bindEvents() {
     void refreshWithVersionCheck();
   });
   bindKeyboardNavigation({ onSearch: openSearch, onSectorDetails: openSectorDialog });
+  // The header above the list changes height with the sector flows and the phone's toolbars.
+  window.addEventListener("resize", fitMarketPanel);
+  new ResizeObserver(() => fitMarketPanel()).observe(document.querySelector(".page-heading"));
   document.addEventListener("click", (event) => {
     const home = event.target.closest("[data-home]");
     if (home) {

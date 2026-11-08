@@ -6,6 +6,7 @@ test("search is its own page in the navigation, and the market list has no searc
   await expect(page.locator(".stocks-panel .search-box")).toHaveCount(0);
   await page.locator('[data-page="search"]').first().click();
   await expect(page.locator("#page-title")).toContainText("搜尋");
+  await expect(page.locator(".page-heading")).toHaveClass(/sr-only/);
   await expect(page.locator("#stock-search")).toBeFocused();
   await expect(page.locator(".stocks-panel")).toBeHidden();
   await expect(page.locator("#search-summary")).toContainText("輸入代碼或名稱");

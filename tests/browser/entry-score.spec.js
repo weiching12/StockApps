@@ -176,7 +176,9 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   await page.locator(".info-dialog-handle").click();
   await expect(page.locator("#info-dialog")).toBeHidden();
   await rows.last().locator(".stock-name").scrollIntoViewIfNeeded();
-  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  // On phones only the list scrolls; the page itself stays put.
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  expect(await page.locator(".table-scroll").evaluate((table) => table.scrollTop)).toBeGreaterThan(0);
   await rows.last().locator(".stock-name").click();
   await expect(page.locator(".entry-dialog")).toBeVisible();
   const dialogBounds = await page.locator("#info-dialog").boundingBox();

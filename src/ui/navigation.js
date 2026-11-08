@@ -32,7 +32,12 @@ export function renderPageView({ state, dataset, renderLoadState, updateSegmente
   document.querySelector("#research-date").hidden = !favorites;
   // The market page shows its views as a switch in place of the title.
   document.querySelector("#page-title").classList.toggle("sr-only", market);
-  document.querySelector(".market-views").hidden = !market;
+  document.querySelector(".market-header").hidden = !market;
+  // The search page opens straight on its field; its heading stays for screen readers only.
+  document.querySelector(".page-heading").classList.toggle("sr-only", state.page === "search");
+  // Sector choices narrow the list only, so they sit in the header just for that view.
+  document.querySelector(".sector-nav").hidden = state.marketView !== "list";
+  document.querySelector(".sector-toolbar").hidden = state.marketView !== "sectors";
   document.querySelectorAll("[data-market-view-choice]").forEach((button) =>
     button.setAttribute("aria-pressed", String(button.dataset.marketViewChoice === state.marketView)));
   document.querySelectorAll("[data-page-panel]").forEach((panel) => {
