@@ -2147,14 +2147,16 @@ dialog h2 {
   text-align: right;
   font-weight: 700;
 }
+/* Direction glyph: a triangle up for net buying, down for net selling, a short dash when flat. */
 .sector-marker {
   width: 9px;
-  height: 9px;
-  border-radius: 50%;
+  height: 3px;
+  border-radius: 2px;
   background: #94a3b8;
 }
-.sector-marker.up { background: var(--up); }
-.sector-marker.down { background: var(--down); }
+.sector-marker:is(.up, .down) { height: 8px; border-radius: 0; }
+.sector-marker.up { background: var(--up); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.sector-marker.down { background: var(--down); clip-path: polygon(0 0, 100% 0, 50% 100%); }
 .sector-identity { min-width: 0; }
 .sector-activity { display: block; margin-top: 2px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sector-breadth {
@@ -3420,8 +3422,8 @@ dialog.sector-dialog {
   /* The view switch takes the title's row at full width; the date stays beside the eyebrow. */
   /* Nothing else shows in the market page's heading, so its panel sits right under the bar. */
   .page-heading .market-header { grid-column: 1 / -1; grid-row: 1; min-width: 0; margin: 0; }
-  main:has(.market-header:not([hidden])) { padding-top: 10px; }
-  .page-heading:has(.market-header:not([hidden])) { row-gap: 0; margin-bottom: 10px; }
+  main:has(.market-header:not([hidden])) { padding-top: 6px; padding-inline: 10px; }
+  .page-heading:has(.market-header:not([hidden])) { row-gap: 0; margin-bottom: 8px; }
   .page-heading:has(.market-header:not([hidden])) .date-control { grid-row: 1; margin-top: 0; transform: none; align-self: center; }
   .page-heading:has(.market-header:not([hidden])) .eyebrow { display: none; }
   /* Nothing sits beside the view switch, so the spacer that holds the date's column goes. */
