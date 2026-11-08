@@ -67,6 +67,8 @@ export function bindPullToRefresh(pullRefresh) {
   }, true);
 }
 
+const OVERSCROLL_CLOSE = 72;
+
 export function bindMobileDragDismiss(dialog, handle, { previewSelector, sheetQuery = "(max-width: 520px)" } = {}) {
   if (previewSelector) handle.setAttribute("aria-label", "關閉個股明細；下拉收合，再拉關閉，上拉展開");
   let drag = null;
@@ -88,11 +90,14 @@ export function bindMobileDragDismiss(dialog, handle, { previewSelector, sheetQu
       if (node.scrollTop > 1 && node.scrollHeight > node.clientHeight + 1) scrolled.push(node);
     return scrolled;
   };
-  const canStart = (target, { whileScrolled = false } = {}) => {
+  // A mouse drag on a control would steal its click, but a finger flicking a sheet lands on stock rows and
+  // links most of the time; those drags are told apart from taps by distance and their click is suppressed.
+  const canStart = (target, { touch = false } = {}) => {
     if (!dialog.open || dialog.hasAttribute("data-mandatory-update") || !matchMedia(sheetQuery).matches) return false;
     if (handle.contains(target)) return true;
-    if (target.closest("button,a,input,select,textarea,summary,[role=slider],.table-scroll")) return false;
-    return whileScrolled || !scrolledAbove(target).length;
+    if (target.closest(touch ? "input,select,textarea,[role=slider],[contenteditable]:not([contenteditable='false'])"
+      : "button,a,input,select,textarea,summary,[role=slider],.table-scroll")) return false;
+    return touch || !scrolledAbove(target).length;
   };
   const move = (x, y, event) => {
     if (!drag) return;
@@ -107,8 +112,12 @@ export function bindMobileDragDismiss(dialog, handle, { previewSelector, sheetQu
     const expanding = supportsPreview() && dialog.dataset.mobileSheet === "preview" && distance < 0;
     if ((!expanding && distance < -8) || horizontal > Math.max(8, Math.abs(distance))) { reset(); return; }
     if (Math.abs(distance) <= 8) return;
-    event.preventDefault();
     drag.distance = distance;
+    // Once a phone's native scroll owns the touch (iOS rubber-banding past the top), moves can no longer
+    // be cancelled: moving the sheet too would double the motion, so the bounce is the feedback and the
+    // distance still decides on release.
+    if (event.type === "touchmove" && !event.cancelable) return;
+    event.preventDefault();
     dialog.classList.add("is-dragging");
     dialog.style.setProperty("--mobile-drag-y", `${Math.max(-72, distance)}px`);
   };
@@ -136,7 +145,7 @@ export function bindMobileDragDismiss(dialog, handle, { previewSelector, sheetQu
   // Native scrolling cancels the touch's pointer; that must not end a touch drag, which has no pointer id.
   dialog.addEventListener("pointercancel", (event) => { if (event.pointerId === drag?.id) reset(); });
   dialog.addEventListener("touchstart", (event) => {
-    if (event.touches.length !== 1 || !canStart(event.target, { whileScrolled: true })) { reset(); return; }
+    if (event.touches.length !== 1 || !canStart(event.target, { touch: true })) { reset(); return; }
     const touch = event.touches[0], scrolled = handle.contains(event.target) ? [] : scrolledAbove(event.target);
     drag = { x: touch.clientX, y: touch.clientY, scrolled: scrolled.length ? scrolled : null };
   }, { passive: true });
@@ -145,6 +154,11 @@ export function bindMobileDragDismiss(dialog, handle, { previewSelector, sheetQu
     move(event.touches[0].clientX, event.touches[0].clientY, event);
   }, { passive: false });
   dialog.addEventListener("touchend", finish);
+  // iOS may hand a touch that started on scrolled content to native scrolling and stop reporting it; its
+  // bounce past the top still shows as a negative scroll offset, which closes the sheet like a pull would.
+  dialog.addEventListener("scroll", () => {
+    if (dialog.scrollTop <= -OVERSCROLL_CLOSE && canStart(handle)) { reset(); suppressClickUntil = performance.now() + 350; dialog.close(); }
+  }, { passive: true });
   dialog.addEventListener("touchcancel", reset);
   dialog.addEventListener("click", (event) => {
     if (performance.now() < suppressClickUntil) { event.preventDefault(); event.stopImmediatePropagation(); }

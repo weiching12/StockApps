@@ -164,3 +164,23 @@ test("a leftover fraction of a pixel of scroll does not block pulling the sector
   await swipe(page, page.locator("#sector-dialog-heading"), 300);
   await expect(dialog).toBeHidden();
 });
+
+test("an iOS bounce past the top closes the sector detail even when the touch went to native scrolling", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
+  await page.locator(".sector-card").first().click();
+  const dialog = page.locator("#sector-dialog");
+  await expect(dialog).toBeVisible();
+  // A small bounce stays open; Chromium never reports negative offsets, so the iOS value is stubbed.
+  const bounce = (offset) => dialog.evaluate((node, value) => {
+    Object.defineProperty(node, "scrollTop", { configurable: true, get: () => value });
+    node.dispatchEvent(new Event("scroll"));
+    delete node.scrollTop;
+  }, offset);
+  await bounce(-30);
+  await expect(dialog).toBeVisible();
+  await bounce(-90);
+  await expect(dialog).toBeHidden();
+});
