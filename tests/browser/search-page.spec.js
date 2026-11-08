@@ -38,7 +38,8 @@ test("matches rank codes before names and a result opens the stock", async ({ pa
 test("the slash key opens search from another page", async ({ page }) => {
   await page.goto("/");
   await page.locator('[data-page="market"]').first().click();
-  await page.locator("#page-description").click();
+  // Nothing focused, so the key is not typed into a field.
+  await page.evaluate(() => document.activeElement?.blur());
   await page.keyboard.press("/");
   await expect(page.locator("#page-title")).toContainText("搜尋");
   await expect(page.locator("#stock-search")).toBeFocused();

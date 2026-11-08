@@ -1304,12 +1304,9 @@ dialog h2 {
   main {
     padding: 28px 24px 0;
   }
+  /* The filters and the two menus share a row while they fit, then the menus wrap below. */
   .table-toolbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .search-controls {
-    width: 100%;
+    flex-wrap: wrap;
   }
 }
 @media (max-width: 1000px) {
@@ -3386,6 +3383,10 @@ dialog.sector-dialog {
 /* Market page: its two views read as the title, styled like the sidebar's items. */
 /* One panel holds the view switch and, for the list, the sector choices. */
 .market-header { display: grid; gap: 10px; margin: 4px 0 6px; padding: 8px; }
+/* The panel is the market page's heading at every width: as wide as the list under it, with no
+   eyebrow or description around it (the view switch already names the page). */
+.page-heading:has(.market-header:not([hidden])) > div:first-child { flex: 1 1 auto; }
+.page-heading:has(.market-header:not([hidden])) :is(.eyebrow, #page-description) { display: none; }
 .market-header[hidden], .market-header :is(.sector-nav, .sector-toolbar)[hidden] { display: none; }
 .market-header .sector-toolbar { margin: 0; padding: 10px 0 0; border-top: 1px solid var(--border); border-bottom: 0; background: transparent; }
 .market-header .sector-nav { padding: 10px 0 0; border-top: 1px solid var(--border); }
