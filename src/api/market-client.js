@@ -6,7 +6,6 @@ export class MarketApiClient {
   constructor(fetcher = fetch) { this.http = new HttpClient(fetcher); }
 
   market(options) { return this.http.json(MARKET_API_PATH, options); }
-  snapshot(path, options) { return this.http.json(path, options); }
   summary(date, settings, options) {
     const params = new URLSearchParams({ ...settings, ...(date ? { asOf: date } : {}) });
     return this.http.json(`/api/v1/market/summary?${params}`, options);

@@ -1,6 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { createManifest, marketDay, mergeShard, normalizeCatalog, normalizeFlows, normalizePrices, SHARD_COUNT } from "../../cloudflare/twse.js";
+import { createManifest } from "../../cloudflare/snapshots/market-format.js";
+import { marketDay, mergeShard } from "../../shared/market.js";
+import { normalizeCatalog, normalizeFlows, normalizePrices } from "../../cloudflare/adapters/twse.js";
+import { SHARD_COUNT } from "../../shared/market-codec.js";
 import { MarketSummaryService } from "../../cloudflare/services/market-summary-service.js";
 import { EntryResearchService } from "../../cloudflare/services/entry-research-service.js";
 import { ENTRY_RESEARCH_MODEL_VERSION } from "../../shared/entry-research-model.js";

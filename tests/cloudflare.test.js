@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import worker from "../cloudflare/worker.js";
 import { syncMarket as runSyncMarket, pendingDates, scheduledDates } from "../cloudflare/sync.js";
-import { CATALOG_URL, MANIFEST_KEY, SHARD_COUNT, SYNC_KEY, createManifest, marketDay, mergeShard,
-  normalizeCatalog, normalizeFlows, normalizePrices, reportUrl, shardKey, shardOf, stageKey, taipeiDate } from "../cloudflare/twse.js";
-import { combineChunks, loadApiDataset } from "../src/provider.js";
+import { CATALOG_URL, normalizeCatalog, normalizeFlows, normalizePrices, reportUrl } from "../cloudflare/adapters/twse.js";
+import { MANIFEST_KEY, SYNC_KEY, shardKey, stageKey } from "../cloudflare/storage/market-keys.js";
+import { SHARD_COUNT, shardOf } from "../shared/market-codec.js";
+import { createManifest } from "../cloudflare/snapshots/market-format.js";
+import { marketDay, mergeShard, taipeiDate } from "../shared/market.js";
+import { combineChunks } from "../src/provider.js";
 import { getSnapshot } from "../src/indicators.js";
 
 import { testStore } from "./helpers/t86-db.js";
@@ -129,66 +132,6 @@ test("generation mixing and incomplete company coverage cannot be rendered", () 
   const bad = structuredClone(chunks);
   bad[shardOf("2330")].stocks.find((s) => s.symbol === "2330").history[0][1] = null;
   assert.throws(() => combineChunks(manifest, bad), /history/);
-});
-
-test("browser loads one manifest and 128 compact chunks with at most six concurrent requests", async () => {
-  const { manifest, chunks } = datasetParts();
-  let active = 0, peak = 0, count = 0;
-  const data = await loadApiDataset(async (url) => {
-    count++; peak = Math.max(peak, ++active);
-    await new Promise((resolve) => setImmediate(resolve)); active--;
-    return Response.json(url === "/api/v1/market" ? manifest : chunks[Number(url.split("/").at(-1))]);
-  });
-  assert.equal(count, 129); assert.ok(peak <= 6); assert.equal(data.info.mode, "twse");
-  await assert.rejects(loadApiDataset(async () => new Response(null, { status: 503 })), /資料服務/);
-});
-
-test("progressive loading publishes validated stocks before a delayed shard and prioritizes favorites", async () => {
-  const { manifest, chunks } = datasetParts();
-  const blocked = shardOf("3026");
-  let release, firstStock, finished = false;
-  const gate = new Promise((resolve) => { release = resolve; });
-  const first = new Promise((resolve) => { firstStock = resolve; });
-  const requested = [], counts = [];
-  let partial;
-  const result = loadApiDataset(async (url) => {
-    if (url === "/api/v1/market") return Response.json(manifest);
-    const index = Number(url.split("/").at(-1));
-    requested.push(index);
-    if (index === blocked) await gate;
-    return Response.json(chunks[index]);
-  }, { prioritySymbols: ["2330"], onManifest: (dataset) => {
-    partial = dataset;
-    assert.equal(dataset.stocks.length, catalog.length);
-    assert.ok(dataset.stocks.every((stock) => stock.history.length === 0));
-  }, onChunk: ({ loaded, stocks }) => {
-    counts.push(loaded);
-    if (stocks.length) firstStock();
-  } }).then((dataset) => { finished = true; return dataset; });
-  await first;
-  assert.equal(finished, false);
-  assert.equal(requested[0], shardOf("2330"));
-  assert.ok(partial.stocks.find((stock) => stock.symbol === "2330").history.length > 0);
-  assert.equal(partial.stocks.find((stock) => stock.symbol === "3026").history.length, 0);
-  release();
-  assert.deepEqual(await result, combineChunks(manifest, chunks));
-  assert.ok(counts.every((count, index) => index === 0 || count >= counts[index - 1]));
-  assert.equal(counts.at(-1), catalog.length);
-});
-
-test("an invalid progressive shard is rejected before its stocks are published and stops further callbacks", async () => {
-  const { manifest, chunks } = datasetParts();
-  const bad = shardOf("2330");
-  chunks[bad].generation = "wrong-generation";
-  const published = [];
-  await assert.rejects(loadApiDataset(async (url) => Response.json(url === "/api/v1/market"
-    ? manifest : chunks[Number(url.split("/").at(-1))]), {
-    prioritySymbols: ["2330"], onChunk: ({ stocks }) => published.push(...stocks.map((stock) => stock.symbol)),
-  }), /generation/);
-  assert.ok(!published.includes("2330"));
-  const count = published.length;
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(published.length, count);
 });
 
 test("public API is cache-only, returns company snapshots and never contacts upstream", async () => {

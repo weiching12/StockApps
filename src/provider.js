@@ -70,51 +70,6 @@ export function combineChunks(manifest, chunks) {
   return marketDataset(manifest, manifest.stocks.map((stock) => decoded.get(stock.symbol)));
 }
 
-export async function loadApiDataset(fetcher = fetch, { onManifest, onChunk, onCacheFallback, prioritySymbols = [] } = {}) {
-  const controller = new AbortController();
-  const client = new MarketApiClient(fetcher);
-  const get = async (url) => {
-    const { data, response } = url === "/api/v1/market"
-      ? await client.market({ signal: controller.signal })
-      : await client.snapshot(url, { signal: controller.signal });
-    if (!response.ok) throw new Error("目前無法載入雲端股票資料，請稍後重試。");
-    if (response.headers.get("X-PWA-Cache") === "fallback") onCacheFallback?.();
-    return data;
-  };
-  const manifest = validateManifest(await get("/api/v1/market"));
-  const dataset = marketDataset(manifest, manifest.stocks.map((stock) => ({ ...stock, history: [], tradingDates: manifest.dates })));
-  const positions = new Map(manifest.stocks.map((stock, index) => [stock.symbol, index]));
-  const priorities = new Set(prioritySymbols.filter((symbol) => positions.has(symbol)).map(shardOf));
-  const order = [...new Set([...priorities, ...manifest.chunks.map((_, index) => index)])];
-  const expected = Array.from({ length: SHARD_COUNT }, () => []);
-  for (const stock of manifest.stocks) expected[shardOf(stock.symbol)].push(stock);
-  await onManifest?.(dataset);
-  let cursor = 0, loaded = 0, completed = 0, stopped = false, failure;
-  const workers = Array.from({ length: 6 }, async () => {
-    try {
-      while (!stopped && cursor < order.length) {
-        const index = order[cursor++];
-        const chunk = await get(manifest.chunks[index]);
-        if (stopped) return;
-        const stocks = decodeChunk(manifest, chunk, index, expected[index]);
-        for (const stock of stocks) dataset.stocks[positions.get(stock.symbol)] = stock;
-        loaded += stocks.length;
-        completed++;
-        await onChunk?.({ loaded, total: manifest.stocks.length, completed, stocks });
-      }
-    } catch (error) {
-      if (!failure) {
-        failure = error;
-        stopped = true;
-        controller.abort();
-      }
-    }
-  });
-  await Promise.all(workers);
-  if (failure) throw failure;
-  return dataset;
-}
-
 export async function loadDataset() {
   const { demoProvider } = await import("./data.js");
   return demoProvider.load();

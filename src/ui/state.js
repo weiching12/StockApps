@@ -5,7 +5,6 @@ export const createState = () => ({
   marketView: "list",
   view: "all",
   sector: "all",
-  query: "",
   searchQuery: "",
   sort: "",
   research: "all",

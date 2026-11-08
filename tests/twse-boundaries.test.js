@@ -2,22 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import * as twse from "../cloudflare/twse.js";
+import { SHARD_COUNT } from "../shared/market-codec.js";
 import * as adapter from "../cloudflare/adapters/twse.js";
 import * as market from "../shared/market.js";
 import * as keys from "../cloudflare/storage/market-keys.js";
 import { createManifest } from "../cloudflare/snapshots/market-format.js";
 
-test("TWSE compatibility facade keeps its complete public contract", () => {
-  assert.deepEqual(Object.keys(twse), [
-    "CATALOG_URL", "ETF_CATALOG_URL", "HISTORY_LIMIT", "MANIFEST_KEY", "SHARD_COUNT", "SYNC_KEY",
-    "combineCatalogs", "createManifest", "fetchJson", "marketDay", "mergeShard", "normalizeCatalog",
-    "normalizeEtfCatalog", "normalizeFlows", "normalizePrices", "reportUrl", "shardKey", "shardOf",
-    "stageKey", "taipeiDate", "validDate",
-  ]);
-  for (const module of [adapter, market, keys, { createManifest }]) {
-    for (const [name, value] of Object.entries(module)) assert.equal(twse[name], value, name);
-  }
+test("TWSE storage keys keep their published names", () => {
   assert.equal(keys.MANIFEST_KEY, "twse:v2:market");
   assert.equal(keys.SYNC_KEY, "twse:v2:sync");
   assert.equal(keys.shardKey("current", 127), "twse:v2:current:shard:127");
@@ -31,7 +22,7 @@ test("source parsing, market rules, and published snapshots preserve the pre-ref
   const prices = adapter.normalizePrices(fixture.prices, date);
   const flows = adapter.normalizeFlows(fixture.flows, date);
   const day = market.marketDay(catalog, prices, flows);
-  const chunks = Array.from({ length: twse.SHARD_COUNT }, (_, index) => market.mergeShard(catalog, index, null, [day]));
+  const chunks = Array.from({ length: SHARD_COUNT }, (_, index) => market.mergeShard(catalog, index, null, [day]));
   const manifest = createManifest(catalog, [date], "boundary-fixture", "2026-10-16T14:00:00Z", day.coverage, "previous-fixture");
   // Captured from the original twse.js before moving functions. Includes field
   // ordering, missing/inactive records, null institutions, and all 128 chunks.

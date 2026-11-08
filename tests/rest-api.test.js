@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../cloudflare/worker.js";
-import { MANIFEST_KEY, shardKey } from "../cloudflare/twse.js";
+import { MANIFEST_KEY, shardKey } from "../cloudflare/storage/market-keys.js";
 import { shardOf } from "../src/market-codec.js";
 
 function fixture() {

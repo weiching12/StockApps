@@ -724,7 +724,6 @@ function setResearchFilter(value) {
 }
 
 function resetFilters() {
-  state.query = "";
   state.sector = "all";
   state.view = "all";
   state.research = "all";

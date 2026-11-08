@@ -1,10 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createManifest, marketDay, mergeShard, normalizeCatalog, normalizeFlows, normalizePrices, SHARD_COUNT } from "../cloudflare/twse.js";
+import { createManifest } from "../cloudflare/snapshots/market-format.js";
+import { marketDay, mergeShard } from "../shared/market.js";
+import { normalizeCatalog, normalizeFlows, normalizePrices } from "../cloudflare/adapters/twse.js";
 import { MarketSummaryService } from "../cloudflare/services/market-summary-service.js";
 import { getSnapshot, getStockInstitutionEstimate, getDominantInstitution } from "../shared/indicators.js";
-import { expandStock, shardOf } from "../shared/market-codec.js";
+import { SHARD_COUNT, expandStock, shardOf } from "../shared/market-codec.js";
 import { loadMarketSummary } from "../src/provider.js";
 import { MarketRepository } from "../cloudflare/repositories/market-repository.js";
 import { MarketSummaryCoordinator } from "../cloudflare/summary-coordinator.js";

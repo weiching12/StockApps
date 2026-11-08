@@ -2,8 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import worker from "../cloudflare/worker.js";
-import { normalizeEtfCatalog, normalizeCatalog, normalizePrices, normalizeFlows, marketDay,
-  mergeShard, createManifest, combineCatalogs, SHARD_COUNT, MANIFEST_KEY, shardKey, shardOf } from "../cloudflare/twse.js";
+import { normalizeEtfCatalog, normalizeCatalog, normalizePrices, normalizeFlows } from "../cloudflare/adapters/twse.js";
+import { marketDay, mergeShard, combineCatalogs } from "../shared/market.js";
+import { createManifest } from "../cloudflare/snapshots/market-format.js";
+import { SHARD_COUNT, shardOf } from "../shared/market-codec.js";
+import { MANIFEST_KEY, shardKey } from "../cloudflare/storage/market-keys.js";
 import { combineChunks } from "../src/provider.js";
 import { isEtf } from "../src/market-codec.js";
 import { prepareEtfRelease } from "../scripts/prepare-etfs.js";

@@ -5,7 +5,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import worker from "../cloudflare/worker.js";
 import { testDatabase } from "./helpers/t86-db.js";
-import { createManifest, marketDay, mergeShard, normalizeCatalog, normalizeFlows, normalizePrices, MANIFEST_KEY, shardKey, shardOf } from "../cloudflare/twse.js";
+import { createManifest } from "../cloudflare/snapshots/market-format.js";
+import { marketDay, mergeShard } from "../shared/market.js";
+import { normalizeCatalog, normalizeFlows, normalizePrices } from "../cloudflare/adapters/twse.js";
+import { MANIFEST_KEY, shardKey } from "../cloudflare/storage/market-keys.js";
+import { shardOf } from "../shared/market-codec.js";
 
 const spec = JSON.parse(readFileSync(new URL("../public/openapi.json", import.meta.url)));
 // Contract smoke checker for the schema keywords used here, not a general OAS validator.

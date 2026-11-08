@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as browser from "../src/indicators.js";
 import * as domain from "../shared/indicators.js";
-import { stockAnalysis } from "../cloudflare/services/analysis-service.js";
+import { AnalysisService } from "../cloudflare/services/analysis-service.js";
+
+const stockAnalysis = (market, symbol, options) => new AnalysisService(market).stock(symbol, options);
 import { analysisOptions } from "../cloudflare/api/validators.js";
 
 test("browser compatibility entry exports identical pure rule functions", () => {

@@ -2,7 +2,7 @@
 
 已加入 TWSE 全市場日報 adapter、Cloudflare KV 分組快取與每日排程。一般本機啟動保留示範資料；Cloudflare 正式模式使用全部上市公司名錄與真實資料，部署步驟見 [cloudflare.md](cloudflare.md)。
 
-`src/provider.js` 的 `loadDataset()` 選擇來源；`loadApiDataset()` 與 `src/data.js` 的 `demoProvider.load()` 共用資料格式，回傳下列結構：
+`src/provider.js` 依建置模式選擇來源：示範模式以 `loadDataset()` 取得 `src/data.js` 的 `demoProvider.load()`；API 模式以 `loadMarketSummary()` 讀取名錄與市場摘要。兩者共用下列資料格式：
 
 ```js
 {
@@ -89,7 +89,7 @@ TWSE API 回應驗證、欄名映射、日期與單位檢查、缺漏值、KV �
 
 傳輸與儲存使用 `schemaVersion: 2`：`/api/market` 提供公司名錄、實際交易日、`coverage` 與 128 個不可變分組網址，前端最多六個並行請求。每個分組包含 `generation`、`index`、`stocks: [{symbol, history}]`，歷史每列為 `[date, open, high, low, close, volume, foreignBuy, foreignSell, trustBuy, trustSell, dealerBuy, dealerSell]`；法人缺漏為 `null`，前端展開成上列統一格式，均線／KD 計算不變。前端檢查分組版本與公司涵蓋率，拒絕混版或缺組資料。
 
-`loadApiDataset(fetcher, {onManifest, onChunk, prioritySymbols})` 支援逐批通知。完整名錄取得後先建立頁面控制項；包含自選股的分組優先下載。每個分組必須驗證版本、編號、該分組完整公司集合與歷史格式後，才將其中完整個股交給畫面。`onChunk` 可等待畫面更新後再續取下一組，維持最多六個並行請求；任一分組失敗即取消剩餘下載，不宣告載入完成。
+前端不再逐組下載歷史分組：API 模式只讀取名錄（`/api/v1/market`）與同一版本的市場摘要（`/api/v1/market/summary`），版本、交易日或公司數不一致即拒絕；個股歷史與完整分析改由 `/api/v1/stocks/{symbol}/analysis` 按需取得。分組網址仍公開提供，`combineChunks()` 為其格式的參考解碼器（測試使用）。
 
 載入中的個股清單可搜尋、排序及收藏，尚未取得的股票不以空歷史冒充來源缺漏。每檔指標只在歷史、資料日或設定變更時重算，表格保留未變動的資料列。產業統計在所有分組成功後才顯示；失敗時保留已驗證的個股清單，清楚標示未完成並提供手動重新載入。自選偏好以完整名錄檢查，不會因某個分組尚未取得而被移除。
 

@@ -5,7 +5,7 @@ import { T86DataValidator, T86_FIELDS, T86_QUERY, t86DataHash } from "../cloudfl
 import { syncT86 } from "../cloudflare/t86-sync.js";
 import { T86Store } from "../cloudflare/t86-store.js";
 import { syncMarket, syncSlot } from "../cloudflare/sync.js";
-import { MANIFEST_KEY, SYNC_KEY } from "../cloudflare/twse.js";
+import { MANIFEST_KEY, SYNC_KEY } from "../cloudflare/storage/market-keys.js";
 import { testDatabase, testStore } from "./helpers/t86-db.js";
 import { etfCatalog } from "./helpers/etf-catalog.js";
 

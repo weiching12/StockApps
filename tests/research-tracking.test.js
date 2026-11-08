@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compareResearchSnapshots, researchSnapshot, RESEARCH_CHANGE_THRESHOLD } from "../shared/research-tracking.js";
+import { compareResearchSnapshots, RESEARCH_CHANGE_THRESHOLD } from "../shared/research-tracking.js";
+import { researchSnapshot } from "./helpers/research-snapshot.js";
 import { addResearchPeriod, activeResearchPeriod, loadResearchStore, persistResearchStore, removeResearchPeriod } from "../src/ui/research-store.js";
 
 const keys = ["trend", "momentum", "priceVolume", "institutional", "entryRisk"];

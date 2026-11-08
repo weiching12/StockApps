@@ -33,7 +33,3 @@ export class AnalysisService {
       priceBasis: "unadjusted", settings } };
   }
 }
-
-// Compatibility entry point for existing internal consumers.
-export const stockAnalysis = (marketService, symbol, options) =>
-  new AnalysisService(marketService).stock(symbol, options);

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { MarketSyncCoordinator, coordinateMarketSync } from "../cloudflare/sync/coordinator.js";
 import { CoordinatorStore } from "../cloudflare/sync/coordinator-store.js";
-import { MANIFEST_KEY, SYNC_KEY } from "../cloudflare/twse.js";
+import { MANIFEST_KEY, SYNC_KEY } from "../cloudflare/storage/market-keys.js";
 import { syncMarket } from "../cloudflare/sync.js";
 
 const time = Date.parse("2026-10-21T10:30:00Z");

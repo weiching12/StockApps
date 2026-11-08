@@ -227,8 +227,7 @@ thead th button,
   .sector-toolbar .sector-period-control > span {
     font-size: var(--text-secondary);
   }
-  .filter-tabs button,
-  #sector-filter {
+  .filter-tabs button {
     font-size: var(--text-secondary);
   }
   .search-box input {

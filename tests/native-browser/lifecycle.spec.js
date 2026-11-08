@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { normalizeCatalog, normalizePrices, normalizeFlows, marketDay, createManifest, mergeShard } from "../../cloudflare/twse.js";
+import { normalizeCatalog, normalizePrices, normalizeFlows } from "../../cloudflare/adapters/twse.js";
+import { marketDay, mergeShard } from "../../shared/market.js";
+import { createManifest } from "../../cloudflare/snapshots/market-format.js";
 import { MarketSummaryService } from "../../cloudflare/services/market-summary-service.js";
 
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/twse-20261016.json", import.meta.url), "utf8"));

@@ -3,8 +3,11 @@ import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 import { combineChunks } from "../src/provider.js";
 import { isEtf } from "../src/market-codec.js";
-import { normalizeEtfCatalog, normalizePrices, marketDay, mergeShard, combineCatalogs,
-  createManifest, MANIFEST_KEY, SHARD_COUNT, shardKey } from "../cloudflare/twse.js";
+import { normalizeEtfCatalog, normalizePrices } from "../cloudflare/adapters/twse.js";
+import { marketDay, mergeShard, combineCatalogs } from "../shared/market.js";
+import { createManifest } from "../cloudflare/snapshots/market-format.js";
+import { MANIFEST_KEY, shardKey } from "../cloudflare/storage/market-keys.js";
+import { SHARD_COUNT } from "../shared/market-codec.js";
 import { T86DataValidator, t86FlowReport } from "../cloudflare/t86-validator.js";
 
 /** Add one verified ETF session while retaining every existing company history. */

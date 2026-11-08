@@ -63,7 +63,7 @@ encoding and symbol/shard identity. Browser and backend use the same modules.
 
 TWSE HTTP and official-column parsing live in `adapters/twse.js`. Storage keys live
 in `storage/market-keys.js`; API-link serialization lives in
-`snapshots/market-format.js`. `twse.js` remains a facade for existing consumers.
+`snapshots/market-format.js`; callers import these modules directly.
 The T86 transaction and optimistic concurrency guard stay in `t86-store.js`.
 
 ## Presence

@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { combineChunks } from "../src/provider.js";
-import { MANIFEST_KEY, shardKey } from "../cloudflare/twse.js";
+import { MANIFEST_KEY, shardKey } from "../cloudflare/storage/market-keys.js";
 import { isEtf } from "../src/market-codec.js";
 
 const args = Object.fromEntries(process.argv.slice(2).map((arg) => arg.replace(/^--/, "").split("=")));

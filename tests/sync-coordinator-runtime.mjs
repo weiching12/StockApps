@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const source = `
 import { MarketSyncCoordinator } from "./cloudflare/sync/coordinator.js";
-import { SYNC_KEY } from "./cloudflare/twse.js";
+import { SYNC_KEY } from "./cloudflare/storage/market-keys.js";
 export class TestCoordinator extends MarketSyncCoordinator {
   constructor(ctx, env) {
     super(ctx, env);

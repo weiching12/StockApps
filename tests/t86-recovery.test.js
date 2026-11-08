@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { syncT86, T86_RUNNING_TIMEOUT_MS } from "../cloudflare/t86-sync.js";
 import { T86_QUERY } from "../cloudflare/t86-validator.js";
 import { syncMarket } from "../cloudflare/sync.js";
-import { MANIFEST_KEY, SYNC_KEY } from "../cloudflare/twse.js";
+import { MANIFEST_KEY, SYNC_KEY } from "../cloudflare/storage/market-keys.js";
 import { testStore } from "./helpers/t86-db.js";
 
 const date = "2026-10-19", start = new Date("2026-10-19T10:30:00Z");
