@@ -3394,7 +3394,7 @@ dialog.sector-dialog {
 }
 
 /* Market page: its two views read as the title, styled like the sidebar's items. */
-.market-views { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
+.market-views { display: flex; flex-wrap: wrap; gap: 6px; width: fit-content; margin: 4px 0 6px; padding: 6px; }
 .market-views[hidden] { display: none; }
 .market-views button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--border); border-radius: 10px; background: transparent; color: var(--muted); font-size: var(--text-body); font-weight: 600; cursor: pointer; }
 .market-views button .icon { width: 18px; height: 18px; }
@@ -3408,7 +3408,7 @@ dialog.sector-dialog {
   /* Nothing sits beside the view switch, so the spacer that holds the date's column goes. */
   .page-heading.without-date:has(.market-views:not([hidden]))::after { display: none; }
   .market-views button { flex: 1 1 0; justify-content: center; white-space: nowrap; }
-  .market-views { flex-wrap: nowrap; gap: 4px; margin: 0; }
+  .market-views { flex-wrap: nowrap; gap: 4px; width: auto; margin: 0; }
   .market-views button { min-height: 40px; padding: 6px 10px; gap: 6px; font-size: var(--text-secondary); }
   .market-views button .icon { width: 16px; height: 16px; }
 }

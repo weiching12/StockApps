@@ -57,6 +57,7 @@ test("the market page's title is a switch between the list and the ranking, each
   const views = page.locator(".market-views button");
   await expect(views).toHaveText(["市場觀察清單", "產業資金排行"]);
   await expect(page.locator("#page-title")).toHaveClass(/sr-only/);
+  await expect(page.locator(".market-views")).toHaveClass(/panel/);
   await expect(page.locator(".stocks-panel")).toBeVisible();
   await expect(page.locator("#sector-page")).toBeHidden();
   await expect(page.locator(".stocks-panel #sector-page")).toHaveCount(0);
