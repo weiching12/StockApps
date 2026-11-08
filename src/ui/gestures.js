@@ -80,16 +80,29 @@ export function bindMobileDragDismiss(dialog, handle, { previewSelector, sheetQu
       handle.focus({ preventScroll: true });
   };
   const reset = () => { drag = null; dialog.classList.remove("is-dragging"); dialog.style.removeProperty("--mobile-drag-y"); };
-  const canStart = (target) => {
+  // Scrolled content above the touch. A pixel of slack absorbs the fractional or bounced offsets phones
+  // leave behind after a flick, which used to block every later pull until the offset was exactly 0.
+  const scrolledAbove = (target) => {
+    const scrolled = [];
+    for (let node = target; node && dialog.contains(node); node = node.parentElement)
+      if (node.scrollTop > 1 && node.scrollHeight > node.clientHeight + 1) scrolled.push(node);
+    return scrolled;
+  };
+  const canStart = (target, { whileScrolled = false } = {}) => {
     if (!dialog.open || dialog.hasAttribute("data-mandatory-update") || !matchMedia(sheetQuery).matches) return false;
     if (handle.contains(target)) return true;
-    if (!handle.contains(target) && target.closest("button,a,input,select,textarea,summary,[role=slider],.table-scroll")) return false;
-    for (let node = target; node && dialog.contains(node); node = node.parentElement)
-      if (node.scrollTop > 0 && node.scrollHeight > node.clientHeight + 1) return false;
-    return true;
+    if (target.closest("button,a,input,select,textarea,summary,[role=slider],.table-scroll")) return false;
+    return whileScrolled || !scrolledAbove(target).length;
   };
   const move = (x, y, event) => {
     if (!drag) return;
+    // A touch that began on scrolled content scrolls it first; once it reaches the top, the same
+    // finger keeps going as a pull measured from there.
+    if (drag.scrolled) {
+      if (!drag.scrolled.some((node) => node.scrollTop > 1)) drag.scrolled = null;
+      drag.x = x; drag.y = y;
+      return;
+    }
     const distance = y - drag.y, horizontal = Math.abs(x - drag.x);
     const expanding = supportsPreview() && dialog.dataset.mobileSheet === "preview" && distance < 0;
     if ((!expanding && distance < -8) || horizontal > Math.max(8, Math.abs(distance))) { reset(); return; }
@@ -120,11 +133,12 @@ export function bindMobileDragDismiss(dialog, handle, { previewSelector, sheetQu
     if (event.pointerId === drag?.id) move(event.clientX, event.clientY, event);
   });
   dialog.addEventListener("pointerup", (event) => { if (event.pointerId === drag?.id) finish(); });
-  dialog.addEventListener("pointercancel", reset);
+  // Native scrolling cancels the touch's pointer; that must not end a touch drag, which has no pointer id.
+  dialog.addEventListener("pointercancel", (event) => { if (event.pointerId === drag?.id) reset(); });
   dialog.addEventListener("touchstart", (event) => {
-    if (event.touches.length !== 1 || !canStart(event.target)) { reset(); return; }
-    const touch = event.touches[0];
-    drag = { x: touch.clientX, y: touch.clientY };
+    if (event.touches.length !== 1 || !canStart(event.target, { whileScrolled: true })) { reset(); return; }
+    const touch = event.touches[0], scrolled = handle.contains(event.target) ? [] : scrolledAbove(event.target);
+    drag = { x: touch.clientX, y: touch.clientY, scrolled: scrolled.length ? scrolled : null };
   }, { passive: true });
   dialog.addEventListener("touchmove", (event) => {
     if (event.touches.length !== 1) { reset(); return; }

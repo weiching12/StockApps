@@ -128,3 +128,39 @@ test("desktop keeps the sector detail's close button", async ({ page }) => {
   await expect(page.locator("#close-sector-dialog")).toBeVisible();
   await expect(page.locator(".sector-dialog-handle")).toBeHidden();
 });
+
+test("a pull that starts on scrolled sector content scrolls to the top, then closes in the same gesture", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
+  await page.locator(".sector-card").first().click();
+  const dialog = page.locator("#sector-dialog");
+  await expect(dialog).toBeVisible();
+  await dialog.evaluate((node) => { node.scrollTop = 120; });
+  expect(await dialog.evaluate((node) => node.scrollTop)).toBeGreaterThan(1);
+  const box = await page.locator("#sector-dialog-content").boundingBox();
+  const x = box.x + box.width / 2, y = box.y + 60;
+  const client = await page.context().newCDPSession(page);
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+  for (let step = 1; step <= 30; step++) {
+    // Content scrolls back to the top first (as a phone does), then the finger keeps pulling.
+    if (step === 8) await dialog.evaluate((node) => { node.scrollTop = 0; });
+    await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y + step * 16 }] });
+  }
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await client.detach();
+  await expect(dialog).toBeHidden();
+});
+
+test("a leftover fraction of a pixel of scroll does not block pulling the sector detail closed", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('[data-market-view-choice="sectors"]').click();
+  await page.locator(".sector-card").first().click();
+  const dialog = page.locator("#sector-dialog");
+  await dialog.evaluate((node) => { node.scrollTop = 0.6; });
+  await swipe(page, page.locator("#sector-dialog-heading"), 300);
+  await expect(dialog).toBeHidden();
+});
