@@ -99,6 +99,35 @@ test("home screen launch downloads market data while the launch animation plays"
   await expect(page.locator("#stock-rows tr")).toHaveCount(manifest.coverage.traded);
 });
 
+test("the launch animation holds until a slow first summary arrives, then reveals a loaded page", async ({ page }) => {
+  await page.addInitScript(() => {
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = (query) => {
+      const result = nativeMatchMedia(query);
+      return query === "(display-mode: standalone)" ? new Proxy(result, { get: (target, key) =>
+        key === "matches" ? true : typeof target[key] === "function" ? target[key].bind(target) : target[key] }) : result;
+    };
+  });
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/v1/presence") return route.fulfill({ json: { today: 1 } });
+    if (path === "/api/v1/market") return route.fulfill({ json: versionedManifest });
+    if (path === "/api/v1/market/summary") { await held; return route.fulfill({ json: summary }); }
+    return route.fulfill({ status: 404 });
+  });
+  await page.goto("/");
+  const splash = page.locator("#app-splash");
+  await expect(splash).toBeVisible();
+  // Well past the animation's own 1.8 s minimum, a cold summary still keeps the page covered.
+  await page.waitForTimeout(3_000);
+  await expect(splash).toBeVisible();
+  release();
+  await expect(splash).toHaveCount(0, { timeout: 3_000 });
+  await expect(page.locator(".stocks-panel")).toHaveAttribute("aria-busy", "false");
+});
+
 test("switching dates fetches that date once and reuses the result", async ({ page }) => {
   const next = "2026-10-19";
   const future = { ...day, date: next, records: Object.fromEntries(Object.entries(day.records).map(([symbol, row]) => {

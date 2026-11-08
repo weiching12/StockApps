@@ -207,11 +207,16 @@ function stylesheetReady() {
   });
 }
 
-async function finishAppSplashBeforeLoading() {
+// The launch animation stays up until the first data has arrived, so the home page opens complete;
+// a cold server summary can take several seconds, and the cap keeps a stalled request from trapping it.
+const SPLASH_MIN_MS = 1800, SPLASH_DATA_CAP_MS = 10000;
+async function finishAppSplashBeforeLoading(pendingData = Promise.resolve()) {
   const splash = document.querySelector("#app-splash");
   if (!splash || !document.documentElement.classList.contains("is-standalone") ||
       document.documentElement.classList.contains("app-splash-seen")) return;
-  await Promise.all([new Promise((resolve) => window.setTimeout(resolve, 1800)), startupVersionCheck]);
+  const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+  await Promise.all([wait(SPLASH_MIN_MS), startupVersionCheck,
+    Promise.race([pendingData.catch(() => {}), wait(SPLASH_DATA_CAP_MS)])]);
   splash.classList.add("is-leaving");
   await new Promise((resolve) => window.setTimeout(resolve, 320));
   document.documentElement.classList.add("app-splash-seen");
@@ -1157,11 +1162,11 @@ async function init() {
   if (state.page === "backtest") { state.page = "home"; backtestRestore = true; }
   applyTheme();
   startVersionChecks();
-  // Download while the launch animation plays; the splash only delays showing the result.
+  // Download while the launch animation plays; the splash waits for it (up to a cap) before revealing the page.
   const pendingData = apiMode ? loadMarketSummary(fetch, { settings: state.settings,
     onCacheFallback: () => { usingCachedData = true; renderConnectionState(); } }) : loadDataset();
   pendingData.catch(() => {}); // Failures surface when awaited below, after the splash.
-  await Promise.all([finishAppSplashBeforeLoading(), stylesheetReady()]);
+  await Promise.all([finishAppSplashBeforeLoading(pendingData), stylesheetReady()]);
   const prepare = () => {
     state.date = dataset.info.asOf;
     state.favorites = [...new Set(state.favorites)].filter((symbol) => dataset.stocks.some((stock) => stock.symbol === symbol));

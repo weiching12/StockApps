@@ -35,6 +35,8 @@ and explicitly reports unadjusted prices. No new strategy or backtest claim is a
 從啟動圖交給網頁時的白畫面；首次繪製所需的進場動畫與載入骨架樣式都內嵌在 `index.html`，
 `main.js` 會等樣式表載入後才繪製 shell。原生建置不使用這個方式。
 
+從主畫面開啟的 PWA 會播放品牌進場動畫，至少 1.8 秒；市場清單與首日摘要在動畫期間同時下載，動畫會等到資料抵達才淡出，因此進入頁面時首頁已載入完成。伺服器摘要快取剛失效（部署或每日同步後）時，第一次計算可能需要數秒；為避免請求卡住，動畫最多等待 10 秒，逾時後改由頁面內的載入狀態接手。
+
 Browser selectors target sidebar navigation explicitly because About content has
 its own navigation buttons. Tests should select the main content panel rather than
 assuming only one market-related section exists.
