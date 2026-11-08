@@ -218,7 +218,7 @@ test("sector estimated billions follow each selected period's daily prices and n
     await expect(estimate).toHaveText(`${billions > 0 ? "+" : ""}${billions.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 億`);
     await expect(estimate).toHaveCSS("font-size", "14px");
   }
-  await expect(page.locator(".sector-note")).toContainText("非實際成交金額");
+  await expect(page.locator(".sector-note")).toHaveCount(0);
 });
 
 test("the phone list draws only the rows in view and reaches every stock", async ({ page }) => {

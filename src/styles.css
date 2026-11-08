@@ -1694,12 +1694,6 @@ dialog h2 {
   overflow-wrap: anywhere;
   white-space: normal;
 }
-.sector-note {
-  margin: 0;
-  padding: 10px 20px 14px;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-}
 .favorite-button,
 .outline-button {
   min-height: 44px;
@@ -2162,7 +2156,7 @@ dialog h2 {
 .sector-marker.up { background: var(--up); }
 .sector-marker.down { background: var(--down); }
 .sector-identity { min-width: 0; }
-.sector-activity { display: block; margin-top: 2px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.sector-activity { display: block; margin-top: 2px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sector-breadth {
   display: block;
   margin-top: 3px;
@@ -2213,6 +2207,7 @@ dialog h2 {
 #date-loading { position: absolute; top: -20px; right: 0; display: flex; align-items: center; color: var(--accent); }
 #date-loading .field-loading, #date-loading .loading-spinner { width: 14px; height: 14px; }
 .date-control:has(#date-loading:not([hidden])) .date-status { visibility: hidden; }
+@keyframes sector-line-grow { from { transform: scaleX(0); opacity: 0; } 60% { opacity: 1; } to { transform: scaleX(1); opacity: .85; } }
 @keyframes field-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .loading-spinner { animation: none; } }
 @media (max-width: 700px) {
@@ -2273,7 +2268,7 @@ dialog h2 {
     border-color: var(--border);
   }
   :is(.stock-name strong, .sector-stock-name > strong, .stock-close, .sector-identity h3, .sector-detail-heading h3, .source-details dd, dialog h2) { color: var(--ink); }
-  :is(.stock-name > span, .sector-inline, .institution-leader, .page-heading p, .date-control label, .dialog-intro, .helper-text, .sector-note, .sector-stock-name > small, .sector-stock-change, .table-footer) { color: var(--muted); }
+  :is(.stock-name > span, .sector-inline, .institution-leader, .page-heading p, .date-control label, .dialog-intro, .helper-text, .sector-stock-name > small, .sector-stock-change, .table-footer) { color: var(--muted); }
   :is(.table-scroll tbody td, .table-scroll tbody th, .sector-stock-table th,
     .sector-stock-table td, .source-details > div, .guide-item) { border-color: var(--border); }
   :is(.table-scroll tbody tr:hover, .table-scroll tbody tr:active,
@@ -2428,6 +2423,10 @@ dialog h2 {
     height: 3px;
     border-radius: 999px;
     opacity: .85;
+    transform-origin: left center;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .sector-ranking .sector-total i { animation: sector-line-grow .7s cubic-bezier(.22, 1, .36, 1) calc(var(--i, 0) * 45ms) both; }
   }
   .sector-change { grid-column: 4; grid-row: 2; align-self: start; }
 }

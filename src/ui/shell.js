@@ -97,7 +97,6 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
         <section id="sector-page" class="sector-page panel" data-page-panel="market" data-market-view="sectors" aria-label="產業資金排行" hidden>
           <div class="sector-ranking-head" aria-hidden="true"><span>產業排名</span><span id="sector-change-label">當日平均漲跌</span><span>法人淨買賣超金額</span></div>
           <div id="sector-grid" class="sector-grid sector-ranking"></div>
-          <p class="sector-note">金額以億元顯示，張數為輔。金額依各股每日法人淨買賣股數 × 當日收盤價累計，非實際成交金額。TOP1 百分比為該個股的區間漲跌幅；點選產業可同時查看當日、5 日、20 日買賣超。僅統計目前研究標的。資金流向僅供觀察，非買進訊號。</p>
         </section>
         ${backtestPanelMarkup()}
         <footer class="page-footer"><span class="footer-brand">株研 <span>STOCK RESEARCH</span></span><span>技術提示僅供研究參考。</span><button data-dialog="source">關於株研 ${icon("arrow")}</button></footer>
