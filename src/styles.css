@@ -2643,16 +2643,48 @@ dialog.sector-dialog {
   overflow-wrap: anywhere;
   font-size: var(--text-body);
 }
-.institution-sparkline {
+/* Net-flow bar on a faint track; lengths share one scale per period across the sector's stocks. */
+.sector-stock-bar {
   display: block;
-  width: 100px;
-  max-width: 100%;
-  margin: 5px 0 0 auto;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  overflow: hidden;
 }
-.institution-sparkline svg { display: block; width: 100%; height: 36px; }
-.institution-sparkline line { stroke: var(--border); }
-.institution-sparkline rect { fill: currentColor; }
+.sector-stock-bar i {
+  display: block;
+  width: calc(var(--share, 0) * 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: #94a3b8;
+  transform-origin: left center;
+}
+.sector-stock-bar i.up { background: var(--up); }
+.sector-stock-bar i.down { background: var(--down); }
+@media (prefers-reduced-motion: no-preference) {
+  .sector-stock-bar i { animation: sector-line-grow .7s cubic-bezier(.22, 1, .36, 1) both; }
+}
 .sector-detail-heading .sector-chart-note { margin-top: 5px; }
+.sector-detail-heading .sector-chart-note[hidden] { display: none; }
+.sector-note-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -6px 0 -6px 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  vertical-align: middle;
+  cursor: pointer;
+}
+.sector-note-toggle .icon { width: 16px; height: 16px; }
+.sector-note-toggle[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.sector-note-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .sector-dialog-handle { display: none; }
 .sector-dialog-footer { padding-bottom: max(13px, env(safe-area-inset-bottom)); }
 .date-control [hidden] { display: none; }
@@ -2728,19 +2760,36 @@ dialog.sector-dialog {
   }
   .sector-stock-table tbody tr {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px 8px;
-    padding: 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+    padding: 12px 0;
     border-bottom: 1px solid #e6ebf1;
   }
+  /* The rows sit straight on the sheet, without a framed box around the list. */
+  .sector-stock-scroll { border: 0; border-radius: 0; background: transparent; }
+  .sector-stock-table tbody tr > :is(th, .sector-stock-price) { margin-bottom: 4px; }
+  /* The change sits beside the close on one line. */
+  .sector-stock-price { display: flex; justify-content: flex-end; align-items: baseline; gap: 6px; white-space: nowrap; }
+  .sector-stock-table td.sector-stock-price > * { display: inline; }
+  .sector-stock-price .sector-stock-change { margin-top: 0; }
   .sector-stock-table tbody tr:last-child { border-bottom: 0; }
   .sector-stock-table th,
   .sector-stock-table td { min-width: 0; padding: 0; border: 0; }
-  .sector-stock-table tbody th { grid-column: 1 / span 2; }
-  .sector-stock-price { grid-column: 3; }
-  .sector-stock-net { text-align: left !important; }
-  .institution-sparkline { margin-inline-start: 0; }
-  .sector-stock-period-label { display: block; margin-bottom: 3px; }
+  .sector-stock-table tbody th { grid-column: 1; }
+  .sector-stock-price { grid-column: 2; }
+  /* One row per period: the label on the left, the bar in the middle, the figures on the right. */
+  .sector-stock-net {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: 30px minmax(0, 1fr) 94px 58px;
+    align-items: center;
+    column-gap: 10px;
+    text-align: left !important;
+  }
+  .sector-stock-period-label { display: block; }
+  .sector-stock-net .sector-stock-bar { grid-column: 2; grid-row: 1; margin-top: 0; }
+  .sector-stock-net > strong { grid-column: 3; grid-row: 1; text-align: right; white-space: nowrap; }
+  .sector-stock-net > small { grid-column: 4; grid-row: 1; margin-top: 0; text-align: right; white-space: nowrap; }
 }
 @media (max-width: 380px) {
   /* Keep amounts such as "+148.73 億" on one line at 320px; larger values still wrap. */

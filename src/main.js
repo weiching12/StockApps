@@ -63,6 +63,7 @@ const icons = {
   check: '<path d="m5 12 4 4L19 6"/>',
   trend: '<path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  message: '<path d="M20 15a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2Z"/><path d="M8 9h8M8 13h5"/>',
 };
 const icon = (name, cls = "") =>
   `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] ?? icons.chart}</svg>`;
@@ -100,18 +101,6 @@ const stockMoney = (stock, name, window, asOf = state.date) => apiMode
   dataset.dates.filter((date) => date <= asOf));
 const institutionalFigures = (amount, shares, moneyAttribute = "", sharesAttribute = "") =>
   `<strong class="institution-money ${direction(amount)}" ${moneyAttribute}>${institutionalMoney(amount)}</strong><small class="institution-lots" ${sharesAttribute}>${institutionalAmount(shares)}</small>`;
-function institutionSparkline(stock, tradingDates) {
-  const series = apiMode ? stock.institutionSeries ?? [] : getStockInstitutionSeries(stock, tradingDates);
-  if (!series.some(({ amount }) => Number.isFinite(amount))) return "";
-  const max = Math.max(1, ...series.map(({ amount }) => Math.abs(amount ?? 0)));
-  const description = series.filter(({ amount }) => Number.isFinite(amount)).map(({ date, amount }) => `${date} ${institutionalMoney(amount)}`).join("；");
-  return `<span class="institution-sparkline" role="img" aria-label="近 5 個交易日每日法人淨買賣超金額，由左至右由舊至新；各股獨立比例尺。${esc(description)}"><svg viewBox="0 0 100 36" aria-hidden="true"><line x1="0" y1="18" x2="100" y2="18"/>${series.map(({ date, amount }, index) => {
-    if (amount === null) return "";
-    const height = amount === 0 ? 1 : Math.max(1, Math.abs(amount) / max * 16);
-    const y = amount === 0 ? 17.5 : amount > 0 ? 18 - height : 18;
-    return `<rect class="${direction(amount)}" data-flow-date="${date}" data-flow-amount="${amount}" x="${8 + index * 18}" y="${y}" width="12" height="${height}" rx="1"><title>${date} ${institutionalMoney(amount)}</title></rect>`;
-  }).join("")}</svg></span>`;
-}
 const state = createState();
 const controls = createControlsController();
 const dialogs = createDialogController();
@@ -536,7 +525,7 @@ function sectorContext() { return { state, dataset, loading, loadFailed, latestS
   sectorOverviews: apiMode ? selectedSummary?.data.sectors : null,
   sectorGroupOverviews: apiMode ? selectedSummary?.data.sectorGroups : null,
   sectorDetail: apiMode ? sectorDetailCache.get(`${summaryKey(dataset.info.asOf)}:${state.sectorName}`) : null,
-  loadingIcon, stockMoney, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures, institutionalMoney, isDemo, number, institutionSparkline }; }
+  loadingIcon, stockMoney, updateSegmentedControl, renderSectorDialog, direction, esc, percent, institutionalFigures, institutionalMoney, isDemo, number, icon }; }
 function renderSectorOverview() {
   if (!shownOrStale("market", "sectors")) return;
   renderSectorOverviewView(sectorContext()); renderSectorNavView(sectorContext()); fitMarketPanel();

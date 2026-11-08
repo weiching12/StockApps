@@ -153,14 +153,24 @@ export function renderSectorOverviewView(context) {
   if (document.querySelector("#sector-dialog")?.open) renderSectorDialog(state.sectorName);
 }
 
+/** A bar whose length is the amount's share of the period's largest absolute amount in the sector. */
+function flowBar(amount, max) {
+  if (!Number.isFinite(amount) || !(max > 0)) return '<span class="sector-stock-bar" aria-hidden="true"></span>';
+  const share = Math.max(.02, Math.abs(amount) / max);
+  return `<span class="sector-stock-bar" aria-hidden="true"><i class="${amount > 0 ? "up" : amount < 0 ? "down" : "flat"}" style="--share:${share.toFixed(4)}"></i></span>`;
+}
+
 export function renderSectorDialogView(name, context) {
-  const { dataset, latestSnapshots, sectorDetail, isDemo, esc, number, direction, percent, institutionSparkline, institutionalFigures, institutionalMoney } = context;
+  const { dataset, latestSnapshots, sectorDetail, isDemo, esc, number, direction, percent, institutionalMoney, icon } = context;
   // Summary cells pair each amount with its share of the cohort's traded volume.
   const summaryFigures = (amount, ratio, key) => `<strong class="institution-money ${direction(amount)}" data-sector-money="${key}">${institutionalMoney(amount).replace(/ 億$/, "")}</strong><small class="institution-lots" data-sector-ratio="${key}" title="占量：淨買賣超股數／同期成交股數">${Number.isFinite(ratio) ? percent(ratio) : ""}</small>`;
   const detail = sectorDetail ?? (isDemo ? getSectorDetail(latestSnapshots, name, { tradingDates: dataset.dates, asOf: dataset.info.asOf }) : null);
   if (!detail) return;
   const { members, tradingDates } = detail;
   const periods = [["day", "當日"], ["5", "5 日"], ["20", "20 日"]];
+  // Each window's bars share one scale across the sector's stocks, so lengths compare between rows.
+  const maxAmount = Object.fromEntries(periods.map(([key]) =>
+    [key, Math.max(0, ...members.map(({ periods: values }) => Math.abs(values[key].amount ?? 0)))]));
 
   document.querySelector("#sector-dialog-heading").textContent = name;
   document.querySelector("#sector-dialog-meta").textContent = `${isDemo ? "最新完整交易日" : "報表交易日"} ${tradingDates.at(-1)}`;
@@ -176,15 +186,23 @@ export function renderSectorDialogView(name, context) {
       }).join("")}</div>
     </section>
     <section class="sector-stock-section" aria-labelledby="sector-stock-heading">
-      <div class="sector-detail-heading"><div><h3 id="sector-stock-heading">產業個股</h3><p>依當日淨買賣超金額排序；金額：億，占量為輔</p><p class="sector-chart-note">5 日柱圖：每日淨額，左舊右新、各股獨立比例尺。占量＝區間淨買賣超股數／同期成交股數。</p></div></div>
+      <div class="sector-detail-heading"><div><h3 id="sector-stock-heading">產業個股<button type="button" class="sector-note-toggle" aria-expanded="false" aria-controls="sector-chart-note" aria-label="顯示長條與占量說明">${icon("message")}</button></h3><p>依當日淨買賣超金額排序；金額：億，占量為輔</p><p id="sector-chart-note" class="sector-chart-note" hidden>長條：同區間各股淨買賣超金額的相對大小。占量＝區間淨買賣超股數／同期成交股數。</p></div></div>
       <div class="sector-stock-scroll" tabindex="0" role="region" aria-label="${esc(name)}個股股價與法人買賣超">
         <table class="sector-stock-table"><caption class="sr-only">${esc(name)}各股最新收盤價、日漲跌幅及當日、5 日、20 日法人淨買賣超金額（億）與占量</caption><colgroup><col class="sector-stock-name-column"><col class="sector-stock-price-column">${periods.map(() => '<col class="sector-stock-net-column">').join("")}</colgroup><thead><tr><th scope="col">股票</th><th scope="col">收盤價／日漲跌</th>${periods.map(([, label]) => `<th scope="col">${label}金額／占量</th>`).join("")}</tr></thead><tbody>${members.map(({ stock, periods: values }) => `<tr data-sector-stock="${stock.symbol}"><th scope="row"><span class="sector-stock-name"><strong>${stock.symbol}</strong><strong>${esc(stock.name)}</strong></span></th><td class="sector-stock-price"><span class="sector-stock-close">${number(stock.latest?.close, 2)}</span><small class="sector-stock-change ${direction(stock.latest?.changePercent)}">${percent(stock.latest?.changePercent)}</small></td>${periods.map(([key, label]) => {
           const { amount, ratio } = values[key];
           // The share of traded volume replaces the lot count under each amount.
-          const share = `<small class="institution-lots" data-institution-ratio="${key}" title="${label}三大法人淨買賣超股數 ÷ 同期成交股數 × 100%">${Number.isFinite(ratio) ? `占量 ${percent(ratio)}` : ""}</small>`;
-          return `<td class="sector-stock-net" data-sector-net="${key}"><span class="sector-stock-period-label" aria-hidden="true">${label}</span><strong class="institution-money ${direction(amount)}">${institutionalMoney(amount)}</strong>${share}${key === "5" ? institutionSparkline(stock, tradingDates) : ""}</td>`;
+          const share = `<small class="institution-lots" data-institution-ratio="${key}" title="${label}三大法人淨買賣超股數 ÷ 同期成交股數 × 100%">${Number.isFinite(ratio) ? percent(ratio) : ""}</small>`;
+          return `<td class="sector-stock-net" data-sector-net="${key}"><span class="sector-stock-period-label" aria-hidden="true">${label}</span><strong class="institution-money ${direction(amount)}">${institutionalMoney(amount)}</strong>${share}${flowBar(amount, maxAmount[key])}</td>`;
         }).join("")}</tr>`).join("")}</tbody></table>
       </div>
     </section>`;
+  const toggle = document.querySelector("#sector-dialog-content .sector-note-toggle");
+  toggle?.addEventListener("click", () => {
+    const note = document.querySelector("#sector-chart-note");
+    const open = note.hidden;
+    note.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.setAttribute("aria-label", `${open ? "隱藏" : "顯示"}長條與占量說明`);
+  });
 }
 

@@ -36,25 +36,21 @@ test("sector breadth follows the selected complete monetary window", async ({ pa
   }
 });
 
-test("stock ratios and mini bars distinguish signed, zero and missing values", async ({ page }) => {
+test("stock ratios and flow bars distinguish signed, zero and missing values", async ({ page }) => {
   await loadFixture(page);
   await page.locator('.sector-card').click();
   const row = (symbol) => page.locator(`[data-sector-stock="${symbol}"]`);
-  for (const [symbol, text] of [["9001", "占量 +10.00%"], ["9002", "占量 -20.00%"], ["9003", "占量 0.00%"], ["9004", ""]])
+  for (const [symbol, text] of [["9001", "+10.00%"], ["9002", "-20.00%"], ["9003", "0.00%"], ["9004", ""]])
     await expect(row(symbol).locator('[data-institution-ratio="day"]')).toHaveText(text);
   await expect(row("9001").locator('.sector-stock-name')).toHaveText(/^9001\s*每日買賣交錯$/);
-  const bars = row("9001").locator('.institution-sparkline rect');
-  await expect(bars).toHaveCount(5);
-  expect(await bars.evaluateAll((elements) => elements.map((bar) => Number(bar.dataset.flowAmount))))
-    .toEqual([1200000, -400000, 0, 4000000, 2500000]);
-  expect(await bars.evaluateAll((elements) => elements.map((bar) => bar.getAttribute("class"))))
-    .toEqual(["up", "down", "neutral", "up", "up"]);
-  await expect(row("9004").locator('.institution-sparkline .unknown')).toHaveCount(0);
-  expect(await row("9004").locator('.institution-sparkline rect').evaluateAll((bars) => bars.map((bar) => bar.getAttribute("x"))))
-    .toEqual(["8", "26", "62", "80"]);
+  // Each period draws one bar; a missing amount leaves an empty track, and lengths share the sector's scale.
+  for (const symbol of ["9001", "9002", "9003", "9004"])
+    await expect(row(symbol).locator('.sector-stock-bar')).toHaveCount(3);
   await expect(row("9004").locator('[data-sector-net="5"] .institution-money')).toHaveText("");
-  await expect(row("9003").locator('.institution-sparkline .neutral')).toHaveCount(5);
-  await expect(row("9001").locator('.institution-sparkline')).toHaveAccessibleName(/左至右由舊至新.*獨立比例尺/);
+  await expect(row("9004").locator('[data-sector-net="5"] .sector-stock-bar i')).toHaveCount(0);
+  await expect(page.locator('.institution-sparkline')).toHaveCount(0);
+  const shares = await page.locator('[data-sector-net="day"] .sector-stock-bar i').evaluateAll((bars) => bars.map((bar) => Number(bar.style.getPropertyValue("--share"))));
+  expect(Math.max(...shares)).toBe(1);
 });
 
 test("new institutional information fits phone and desktop layouts", async ({ page }, testInfo) => {
@@ -65,7 +61,7 @@ test("new institutional information fits phone and desktop layouts", async ({ pa
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.locator('.sector-card').click();
     const issues = await page.locator('.sector-stock-table').evaluate((table) => {
-      const elements = [...table.querySelectorAll('th, td, .institution-sparkline, [data-institution-ratio]')];
+      const elements = [...table.querySelectorAll('th, td, .sector-stock-bar, [data-institution-ratio]')];
       return elements.filter((element) => element.scrollWidth > element.clientWidth + 1)
         .map((element) => element.className || element.tagName);
     });
