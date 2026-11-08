@@ -3333,6 +3333,20 @@ dialog.sector-dialog {
 .sector-flow-period strong { font-size: var(--text-body); font-variant-numeric: tabular-nums; }
 .sector-flow-period strong.up { color: var(--up); }
 .sector-flow-period strong.down { color: var(--down); }
+.sector-chip-row button { transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 120ms ease; }
+.sector-chip-row button:active { transform: scale(.95); }
+@media (hover: hover) { .sector-chip-row button:hover:not([aria-pressed="true"]) { border-color: var(--accent); color: var(--accent); } }
+@media (prefers-reduced-motion: no-preference) {
+  .sector-chip-row button[aria-pressed="true"] { animation: sector-chip-pop 260ms cubic-bezier(.3, 1.6, .5, 1); }
+  .sector-chip-row.is-entering button { animation: sector-chip-in 260ms ease-out both; animation-delay: calc(var(--chip-index, 0) * 28ms); }
+  .sector-flow.is-entering { animation: sector-flow-in 320ms ease-out; }
+  .sector-flow.is-entering .sector-flow-period { animation: sector-flow-in 360ms ease-out both; }
+  .sector-flow.is-entering .sector-flow-period:nth-child(2) { animation-delay: 60ms; }
+  .sector-flow.is-entering .sector-flow-period:nth-child(3) { animation-delay: 120ms; }
+}
+@keyframes sector-chip-pop { 0% { transform: scale(.92); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@keyframes sector-chip-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+@keyframes sector-flow-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (max-width: 700px) {
   .home-entry { padding: 12px; }
   .sector-nav { padding: 8px 8px 0; }

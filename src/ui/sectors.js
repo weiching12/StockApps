@@ -50,7 +50,7 @@ export function sectorFlowMarkup(context) {
   const cells = periods.map(([label, sector]) => {
     const amount = sector?.estimate?.amount ?? null;
     const breadth = sector?.estimate?.available ? `買超 ${sector.estimate.buying}／${sector.estimate.available} 檔` : "";
-    return `<div class="sector-flow-period" data-flow-period="${label}"><span>${label}</span><strong class="${direction(amount)}">${amount === null ? "資料不足" : institutionalMoney(amount)}</strong><small>${breadth}</small></div>`;
+    return `<div class="sector-flow-period" data-flow-period="${label}"><span>${label}</span><strong class="${direction(amount)}"${amount === null ? "" : ` data-amount="${amount}"`}>${amount === null ? "資料不足" : institutionalMoney(amount)}</strong><small>${breadth}</small></div>`;
   }).join("");
   const detail = isGroup ? "" : `<button type="button" class="text-button" data-sector-open="${esc(name)}" aria-label="查看${esc(name)}個股法人明細">查看明細</button>`;
   return `<div class="sector-flow-head"><h3>${esc(name)} 法人動向</h3>${detail}</div><div class="sector-flow-periods">${cells}</div>`;
@@ -70,6 +70,30 @@ function syncChipRow(row, markup) {
   row.innerHTML = markup;
   row.dataset.chips = chips;
   row.scrollLeft = 0;
+  // A new set of chips fans in from the left; the stagger index drives each chip's delay.
+  row.querySelectorAll("button").forEach((button, index) => button.style.setProperty("--chip-index", Math.min(index, 12)));
+  replay(row, "is-entering");
+}
+
+const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function replay(node, className) {
+  node.classList.remove(className);
+  void node.offsetWidth;
+  node.classList.add(className);
+}
+
+/** Amounts roll up from zero to their value, formatted the same way at every frame. */
+function countUp(block, format, duration = 650) {
+  const cells = [...block.querySelectorAll("strong[data-amount]")].map((cell) => [cell, Number(cell.dataset.amount)]);
+  if (!cells.length || reducedMotion()) return;
+  const start = performance.now();
+  const frame = (now) => {
+    const progress = Math.min(1, (now - start) / duration), eased = 1 - (1 - progress) ** 3;
+    for (const [cell, amount] of cells) cell.textContent = format(progress === 1 ? amount : amount * eased);
+    if (progress < 1 && block.isConnected && cells[0][0].isConnected) requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
 }
 
 export function renderSectorNavView(context) {
@@ -82,8 +106,12 @@ export function renderSectorNavView(context) {
   syncChipRow(second, markup.second);
   second.hidden = !markup.second;
   const flow = sectorFlowMarkup(context), block = document.querySelector("#sector-flow");
+  // Only a newly chosen sector animates; a re-render of the same one (new data, resize) stays still.
+  const chosen = flow && block.dataset.sector !== state.sector;
   block.innerHTML = flow;
   block.hidden = !flow;
+  block.dataset.sector = flow ? state.sector : "";
+  if (chosen) { replay(block, "is-entering"); countUp(block, context.institutionalMoney); }
 }
 
 export function renderSectorOverviewView(context) {
