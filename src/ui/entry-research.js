@@ -50,6 +50,15 @@ function gateText(summary) {
   return fired.length > 1 ? `${fired[0]} 等 ${fired.length} 項` : fired[0] ?? "未通過初步門檻";
 }
 
+/** ETFs have no research status, so the phone market card shows their close and change in its place. */
+function etfPriceCell(stock, number) {
+  const close = stock.latest?.close, change = stock.latest?.changePercent;
+  const tone = change > 0 ? "up" : change < 0 ? "down" : "";
+  const price = Number.isFinite(close) ? `<span class="research-etf-price"><strong>${number(close, 2)}</strong>${Number.isFinite(change)
+    ? `<span class="change-chip ${tone}">${change > 0 ? "+" : ""}${number(change, 2)}%</span>` : ""}</span>` : "";
+  return `<span class="research-chip muted research-etf-chip">ETF 不評估</span>${price}`;
+}
+
 export function researchListCells(stock, esc, number) {
   const summary = researchSummaryOf(stock);
   const score = Number.isFinite(summary?.score) ? number(summary.score, 0) : "—";
@@ -68,7 +77,7 @@ export function researchListCells(stock, esc, number) {
   const nextLine = nextParts.length ? `<small class="research-next ${NEXT_TONE[next] ?? "muted"}" title="${esc([NEXT_DAY_STATUS_LABELS[next], SETUP_LABELS[setup]].filter(Boolean).join(" · "))}">${esc(nextParts.join(" · "))}</small>` : "";
   const research = summary
     ? `<span class="research-chip ${chipTone}">${esc(chipText)}</span>${nextLine}`
-    : `<span class="research-chip muted">${etf ? "ETF 不評估" : "資料不足"}</span>`;
+    : etf ? etfPriceCell(stock, number) : '<span class="research-chip muted">資料不足</span>';
   return { readiness, research };
 }
 

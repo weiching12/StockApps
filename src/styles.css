@@ -3025,6 +3025,8 @@ dialog.sector-dialog {
 .research-chip.positive { background: var(--accent-soft); color: var(--accent); }
 .research-chip.negative { background: #fff1f1; color: #b54750; }
 .research-chip.warning { background: #fff7e6; color: #a16207; }
+.research-etf-price { display: none; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.research-etf-price strong { color: var(--ink); font-size: var(--text-body); font-weight: 600; }
 .research-next { display: block; margin-top: 4px; font-size: var(--text-meta); line-height: 1.4; color: var(--muted); }
 .research-next.positive { color: var(--accent); font-weight: 500; }
 .research-next.warning { color: #a16207; }
@@ -3485,6 +3487,10 @@ dialog.sector-dialog {
   #stock-rows > tr { grid-template-columns: var(--table-favorite-width) minmax(0, 1fr) auto; grid-template-areas: "favorite stock research" ". price price" ". extras extras"; }
   #stock-rows > tr > .entry-cell, #stock-rows .research-next { display: none; }
   #stock-rows > tr > .research-cell { align-self: center; justify-self: end; }
+  /* An ETF card has no research status: its close and change take that spot, so the price row goes. */
+  #stock-rows .research-etf-chip { display: none; }
+  #stock-rows .research-etf-price { display: inline-flex; }
+  #stock-rows > tr:has(.research-etf-price) > .price-cell { display: none; }
 }
 @media (max-width: 359px) {
   /* Too narrow for a long name and the status on one line: the status drops below. */
