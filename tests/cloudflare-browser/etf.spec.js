@@ -76,7 +76,7 @@ test("ETF search and favorites work while every industry ranking and detail excl
   includeEtfs = true;
   await page.reload(); await ready();
   await page.locator('.sidebar [data-page="market"]').click();
-  await page.locator('#sector-chips [data-sector-chip="ETF"]').click();
+  await page.locator('[data-market-view-choice="etf"]').click();
   await expect(page.locator("#stock-rows tr")).toHaveCount(3);
   await expect(page.locator('#stock-rows [data-symbol="00632R"] .stock-close')).not.toHaveText("");
   await expect(page.locator('#stock-rows [data-symbol="00632R"] .signal-cell')).toContainText("資料不足");
@@ -84,7 +84,6 @@ test("ETF search and favorites work while every industry ranking and detail excl
   await page.locator('[data-page="favorites"]').click();
   await expect(page.locator('#research-list .research-card[data-research-symbol="00632R"]')).toBeVisible();
   await page.locator('[data-page="market"]').first().click();
-  await page.locator('#sector-chips [data-sector-chip="all"]').click();
   await page.locator('[data-market-view-choice="sectors"]').click();
   for (const window of ["day", "5", "20"]) {
     await page.locator(`[data-sector-window="${window}"]`).click();

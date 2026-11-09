@@ -13,8 +13,10 @@ async function loadMarket(page, count = 150, initialCount = 30) {
       export async function loadMarketSummary() { throw new Error("API loading is unavailable in this demo fixture"); }
       export async function loadDataset() {
         const data = await demoProvider.load();
+        // Companies only: ETFs have their own view and stay out of the market list.
+        const companies = data.stocks.filter((stock) => stock.sector !== "ETF" && stock.assetType !== "etf");
         data.stocks = Array.from({ length: ${count} }, (_, index) => {
-          const stock = structuredClone(data.stocks[index % data.stocks.length]);
+          const stock = structuredClone(companies[index % companies.length]);
           return { ...stock, symbol: String(1000 + index), name: "測試股票" + index };
         });
         return data;
@@ -242,7 +244,10 @@ test("the phone list draws only the rows in view and reaches every stock", async
     expect(state.gaps).toBe(0);
     expect(state.pageScroll).toBe(0);
   }
-  await expect(page.locator('#stock-rows tr[data-symbol="1149"]')).toBeVisible();
-  await page.locator('#stock-rows tr[data-symbol="1149"] .stock-name').click();
-  await expect(page.locator("#dialog-heading")).toContainText("1149");
+  // The list's last stock is reachable at the bottom and opens like any other.
+  const last = page.locator("#stock-rows tr[data-symbol]").last();
+  await expect(last).toBeVisible();
+  const symbol = await last.getAttribute("data-symbol");
+  await last.locator(".stock-name").click();
+  await expect(page.locator("#dialog-heading")).toContainText(symbol);
 });

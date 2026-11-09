@@ -9,6 +9,7 @@ const pageCopy = {
 const marketCopy = {
   list: pageCopy.market,
   sectors: ["INSTITUTIONAL RANKING", "法人買株", "依細產業排名法人資金方向，點選產業查看個股；資金流向僅供觀察，非買進訊號。"],
+  etf: ["ETF WATCHLIST", "ETF", "上市 ETF 的價格、量價與法人買賣超；ETF 不列入產業與法人買株排行。"],
 };
 
 export function renderPageView({ state, dataset, renderLoadState, updateSegmentedControls }) {
@@ -42,7 +43,7 @@ export function renderPageView({ state, dataset, renderLoadState, updateSegmente
     button.setAttribute("aria-pressed", String(button.dataset.marketViewChoice === state.marketView)));
   document.querySelectorAll("[data-page-panel]").forEach((panel) => {
     panel.hidden = panel.dataset.pagePanel !== state.page ||
-      Boolean(panel.dataset.marketView) && panel.dataset.marketView !== state.marketView;
+      Boolean(panel.dataset.marketView) && !panel.dataset.marketView.split(" ").includes(state.marketView);
   });
   document.querySelectorAll("[data-page]").forEach((button) => {
     const active = button.dataset.page === state.page;

@@ -1,4 +1,5 @@
 import { getSectorGroupOverview, getSectorOverview, getSectorDetail, rankSectors, sortSectors } from "../../shared/sectors.js";
+import { isEtf } from "../../shared/market-codec.js";
 
 const COLLAPSED_SUB_INDUSTRIES = 10;
 
@@ -101,7 +102,8 @@ export function renderSectorNavView(context) {
   const first = document.querySelector("#sector-chips");
   if (!first) return;
   const second = document.querySelector("#sub-sector-chips");
-  const markup = sectorChipsMarkup(dataset.stocks, state.sector, esc);
+  // ETFs have their own view, so the market list's sector choices leave them out.
+  const markup = sectorChipsMarkup(dataset.stocks.filter((stock) => !isEtf(stock)), state.sector, esc);
   syncChipRow(first, markup.first);
   syncChipRow(second, markup.second);
   second.hidden = !markup.second;

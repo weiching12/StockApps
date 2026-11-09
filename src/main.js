@@ -484,7 +484,7 @@ function renderPage() {
 function fitMarketPanel() {
   const panel = document.querySelector(".stocks-panel");
   if (!panel) return;
-  const fit = matchMedia("(max-width: 700px)").matches && state.page === "market" && state.marketView === "list";
+  const fit = matchMedia("(max-width: 700px)").matches && state.page === "market" && ["list", "etf"].includes(state.marketView);
   const changed = panel.classList.contains("is-fitted") !== fit;
   panel.classList.toggle("is-fitted", fit);
   document.documentElement.classList.toggle("market-fitted", fit);
@@ -981,7 +981,7 @@ function bindEvents() {
     }
     if (button.dataset.marketViewChoice) {
       state.marketView = button.dataset.marketViewChoice;
-      renderPage(); renderSectorOverview();
+      renderPage(); renderSectorOverview(); renderTable();
     }
     if (button.dataset.sectorChip) {
       state.sector = button.dataset.sectorChip;

@@ -55,7 +55,7 @@ test("the market page's title is a switch between the list and the ranking, each
   await page.goto("/");
   await page.locator('[data-page="market"]').first().click();
   const views = page.locator(".market-views button");
-  await expect(views).toHaveText(["市場觀察清單", "法人買株"]);
+  await expect(views).toHaveText(["市場觀察清單", "法人買株", "ETF"]);
   await expect(page.locator("#page-title")).toHaveClass(/sr-only/);
   await expect(page.locator(".market-header")).toHaveClass(/panel/);
   await expect(page.locator(".market-header #sector-chips")).toBeVisible();
@@ -105,11 +105,17 @@ test("choosing a sector narrows the list and shows that level's institutional fl
   await expect(page.locator("#sector-dialog-heading")).toHaveText("IC設計");
   await page.locator("#close-sector-dialog").click();
 
-  await page.locator('[data-sector-chip="ETF"]').click();
-  await expect(page.locator('#stock-rows tr[data-symbol="0050"]')).toBeVisible();
-  await expect(flow).toBeHidden();
+  // ETFs left the sector choices for their own view, which hides the chips and flows.
   await page.locator('#sector-chips [data-sector-chip="all"]').click();
   await expect(flow).toBeHidden();
+  await expect(page.locator('[data-sector-chip="ETF"]')).toHaveCount(0);
+  await expect(page.locator('#stock-rows tr[data-symbol="0050"]')).toHaveCount(0);
+  await page.locator('[data-market-view-choice="etf"]').click();
+  await expect(page.locator(".sector-nav")).toBeHidden();
+  await expect(page.locator('#stock-rows tr[data-symbol="0050"]')).toBeVisible();
+  await expect(page.locator('#stock-rows tr[data-symbol="2330"]')).toHaveCount(0);
+  await page.locator('[data-market-view-choice="list"]').click();
+  await expect(page.locator('#stock-rows tr[data-symbol="2330"]')).toBeVisible();
 });
 
 test("flows follow the market list's selected session", async ({ page }) => {

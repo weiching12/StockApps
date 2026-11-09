@@ -152,8 +152,9 @@ function structureHelp(research, stock, { esc, number, percent }) {
 /** The next-day card from the list's compact fields, shown at once while the full research loads. */
 export function researchCardPreview(summary, { esc, number }) {
   const gate = { status: summary.gateStatus, passedCount: summary.gatePassed, conditions: summary.gateConditions ?? {} };
+  // Same wording as the full card at the latest session, whose next date is not yet in the calendar.
   const canBuy = summary.nextDayStatus === "NEXT_DAY_CANDIDATE";
-  return `<section class="research-plan-card ${NEXT_TONE[summary.nextDayStatus] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估</p><div class="research-plan-head"><h3 id="research-plan-title">${canBuy ? "可進場" : "不進場"}</h3><span class="research-plan-status">${esc(NEXT_DAY_STATUS_LABELS[summary.nextDayStatus] ?? "—")}</span></div><dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${esc(gateSummary(gate, summary.modelVersion))}</dd></div><div><dt>進場準備度</dt><dd>${Number.isFinite(summary.score) ? `${number(summary.score, 0)} / 100` : "—"}</dd></div><div><dt>技術型態</dt><dd>${esc(SETUP_LABELS[summary.setupType] ?? "—")}</dd></div></dl></section>`;
+  return `<section class="research-plan-card ${NEXT_TONE[summary.nextDayStatus] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估</p><div class="research-plan-head"><h3 id="research-plan-title">下一交易日${canBuy ? "可進場" : "不進場"}</h3><span class="research-plan-status">${esc(NEXT_DAY_STATUS_LABELS[summary.nextDayStatus] ?? "—")}</span></div><dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${esc(gateSummary(gate, summary.modelVersion))}</dd></div><div><dt>進場準備度</dt><dd>${Number.isFinite(summary.score) ? `${number(summary.score, 0)} / 100` : "—"}</dd></div><div><dt>技術型態</dt><dd>${esc(SETUP_LABELS[summary.setupType] ?? "—")}</dd></div></dl></section>`;
 }
 
 /** Dialog sections in the required order, under the header and chart. */
