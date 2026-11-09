@@ -9,7 +9,7 @@ test("phone market cards keep their one status inside each card in both themes",
   await page.goto("/");
   await expect(page.locator("#stock-rows .research-chip").first()).toBeVisible();
   // Longest labels the cells can show.
-  const statuses = ["進場訊號已觸發", "未通過初步門檻", "訊號失效", "資料不足"];
+  const statuses = ["訊號觸發・資料不足", "訊號觸發・不進場", "未通過初步門檻", "明日可進場"];
   for (const theme of ["light", "dark"]) {
     await page.evaluate((theme) => { document.documentElement.dataset.theme = theme; }, theme);
     for (const width of [320, 360, 390, 430, 520, 700]) {

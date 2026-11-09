@@ -24,7 +24,10 @@ const STATUS_TONE = { TRIGGERED: "positive", WAIT_TRIGGER: "neutral", SIGNAL_EXP
   DATA_INSUFFICIENT: "muted", NOT_ELIGIBLE: "muted" };
 const NEXT_TONE = { NEXT_DAY_CANDIDATE: "positive", WAIT_TRIGGER: "neutral", PRICE_TOO_HIGH: "warning",
   PLAN_INVALIDATED: "negative", DATA_INSUFFICIENT: "muted", NOT_ELIGIBLE: "muted" };
-const NEXT_SHORT = { NEXT_DAY_CANDIDATE: "進場候選", PRICE_TOO_HIGH: "價格過高", DATA_INSUFFICIENT: "資料不足" };
+const NEXT_SHORT = { PRICE_TOO_HIGH: "超出容許範圍", DATA_INSUFFICIENT: "資料不足" };
+// A triggered signal is not an entry by itself: the list names the next-session outcome instead.
+const TRIGGERED_CHIP = { NEXT_DAY_CANDIDATE: ["明日可進場", "positive"], PRICE_TOO_HIGH: ["訊號觸發・不進場", "warning"],
+  DATA_INSUFFICIENT: ["訊號觸發・資料不足", "muted"] };
 const SETUP_SHORT = { PULLBACK_RECOVERY: "回踩恢復", RANGE_BREAKOUT: "區間突破" };
 const DATA_LABELS = { close: "收盤價", ma20: "MA20", ma60: "MA60", previousMa20: "前日 MA20", previousMa60: "前日 MA60",
   k: "K", d: "D", previousK: "前日 K", dayBeforeK: "前二日 K", changePercent: "漲跌幅 %", rvol20: "RVOL20",
@@ -53,13 +56,16 @@ export function researchListCells(stock, esc, number) {
   const gateTone = summary?.gateStatus === "PASS" ? "pass" : summary?.gateStatus === "FAIL" ? "fail" : "unknown";
   const readiness = `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><strong>${score}</strong></button><small class="research-gate ${gateTone}">${esc(gateText(summary))}</small>`;
   const status = summary?.status, next = summary?.nextDayStatus;
-  // Everything here concerns the next session, and the chip already covers every status
-  // without a plan, so the line only appears for a triggered signal; hover has the full wording.
-  const nextText = status === "TRIGGERED" ? NEXT_SHORT[next] : null;
-  const setup = status === "TRIGGERED" ? summary.setupType : null;
-  const nextLine = nextText ? `<small class="research-next ${NEXT_TONE[next] ?? "muted"}" title="${esc([NEXT_DAY_STATUS_LABELS[next], SETUP_LABELS[setup]].filter(Boolean).join(" · "))}">${esc([nextText, SETUP_SHORT[setup]].filter(Boolean).join(" · "))}</small>` : "";
+  // A triggered signal's chip states the next-session outcome; the line under it (wide screens)
+  // names why it is held back and the pattern, with the full wording on hover.
+  const triggered = status === "TRIGGERED";
+  const [chipText, chipTone] = triggered && TRIGGERED_CHIP[next] ? TRIGGERED_CHIP[next]
+    : [ENTRY_RESEARCH_STATUS_LABELS[status] ?? "—", STATUS_TONE[status] ?? "muted"];
+  const setup = triggered ? summary.setupType : null;
+  const nextParts = triggered ? [NEXT_SHORT[next], SETUP_SHORT[setup]].filter(Boolean) : [];
+  const nextLine = nextParts.length ? `<small class="research-next ${NEXT_TONE[next] ?? "muted"}" title="${esc([NEXT_DAY_STATUS_LABELS[next], SETUP_LABELS[setup]].filter(Boolean).join(" · "))}">${esc(nextParts.join(" · "))}</small>` : "";
   const research = summary
-    ? `<span class="research-chip ${STATUS_TONE[status] ?? "muted"}">${esc(ENTRY_RESEARCH_STATUS_LABELS[status] ?? "—")}</span>${nextLine}`
+    ? `<span class="research-chip ${chipTone}">${esc(chipText)}</span>${nextLine}`
     : '<span class="research-chip muted">資料不足</span>';
   return { readiness, research };
 }
