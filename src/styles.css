@@ -3025,6 +3025,11 @@ dialog.sector-dialog {
 .research-chip.positive { background: var(--accent-soft); color: var(--accent); }
 .research-chip.negative { background: #fff1f1; color: #b54750; }
 .research-chip.warning { background: #fff7e6; color: #a16207; }
+/* The ETF view has no research: its readiness and research columns and the research filter go away. */
+.stocks-panel.is-etf :is(col.entry-column, col.research-column, #market-research-filter) { display: none; }
+@media (min-width: 701px) {
+  .stocks-panel.is-etf :is(thead th:nth-child(3), thead th:nth-child(4), td.entry-cell, td.research-cell) { display: none; }
+}
 .research-etf-price { display: none; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .research-etf-price strong { color: var(--ink); font-size: var(--text-body); font-weight: 600; }
 .research-next { display: block; margin-top: 4px; font-size: var(--text-meta); line-height: 1.4; color: var(--muted); }

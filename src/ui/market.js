@@ -145,8 +145,9 @@ export const marketListStocks = (snapshots, marketView) =>
 function sortedMarketList({ state, snapshots: allSnapshots, pendingSymbols, stockMoney }) {
   const snapshots = marketListStocks(allSnapshots, state.marketView);
   const sector = state.marketView === "etf" ? "all" : state.sector;
-  const visibleStocks = filterStocks(snapshots, { ...state, sector }).filter((stock) => matchesResearchFilter(stock, state.research));
-  if (["all", "favorites"].includes(state.view) && (!state.research || state.research === "all")) {
+  const research = state.marketView === "etf" ? "all" : state.research;
+  const visibleStocks = filterStocks(snapshots, { ...state, sector }).filter((stock) => matchesResearchFilter(stock, research));
+  if (["all", "favorites"].includes(state.view) && (!research || research === "all")) {
     visibleStocks.push(...snapshots.filter((stock) => pendingSymbols.has(stock.symbol) &&
       (sector === "all" || stock.sector === sector || stock.sectorGroup === sector) &&
       (state.view !== "favorites" || state.favorites.includes(stock.symbol))));

@@ -39,6 +39,8 @@ export function renderPageView({ state, dataset, renderLoadState, updateSegmente
   // Sector choices narrow the list only, so they sit in the header just for that view.
   document.querySelector(".sector-nav").hidden = state.marketView !== "list";
   document.querySelector(".sector-toolbar").hidden = state.marketView !== "sectors";
+  // ETFs are not researched, so their view drops the readiness and research columns and filter.
+  document.querySelector(".stocks-panel")?.classList.toggle("is-etf", state.marketView === "etf");
   document.querySelectorAll("[data-market-view-choice]").forEach((button) =>
     button.setAttribute("aria-pressed", String(button.dataset.marketViewChoice === state.marketView)));
   document.querySelectorAll("[data-page-panel]").forEach((panel) => {
