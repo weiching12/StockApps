@@ -235,7 +235,7 @@ test("a stock's detail shows what the list knows while its analysis loads, never
   await expect(dialog.locator(".entry-dialog-meta")).toContainText("波段順勢進場");
   await expect(dialog.locator(".entry-chart-price strong")).not.toBeEmpty();
   await expect(dialog.locator(".research-plan-card h3")).not.toBeEmpty();
-  await expect(dialog.locator(".research-plan-facts dt")).toHaveText(["進場準備度", "初步門檻", "進場策略"]);
+  await expect(dialog.locator(".research-plan-facts dt")).toHaveText(["進場準備度", "初步門檻", "技術型態"]);
   await expect(dialog.locator(".entry-pending .loading-spinner")).toBeVisible();
   expect(await dialog.locator(".entry-pending .loading-spinner").evaluate((icon) => icon.getAnimations().map(({ animationName, playState }) => [animationName, playState]))).toEqual([["field-spin", "running"]]);
   await expect(dialog).not.toContainText("載入中");
