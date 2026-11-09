@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS, getSnapshot, getStockInstitutionEstimate } from "../../shared/indicators.js";
 import { DomainError } from "../../shared/domain-error.js";
 import { getEntryScore } from "../../shared/entry-score.js";
-import { evaluateEntryResearch } from "../../shared/entry-research.js";
+import { entryResearchApplies, evaluateEntryResearch } from "../../shared/entry-research.js";
 import { dailyCloseSeries } from "../../shared/price-history.js";
 
 export const RULES_VERSION = "technical-v1";
@@ -26,8 +26,8 @@ export class AnalysisService {
     return { data: { symbol, latest: snapshot.latest, signal: snapshot.signal, trend: snapshot.trend,
       priceHistory: dailyCloseSeries(snapshot.history, source.stock.tradingDates, asOf),
       entryScore,
-      entryResearch: evaluateEntryResearch({ stock: snapshot, tradingDates: dates, asOf, corporateActions: actions,
-        settings, score: entryScore }),
+      entryResearch: entryResearchApplies(snapshot) ? evaluateEntryResearch({ stock: snapshot, tradingDates: dates, asOf,
+        corporateActions: actions, settings, score: entryScore }) : null,
       institutionalSummary: snapshot.institutionalSummary, money },
     meta: { asOf, sourceAsOf: source.asOf, rulesVersion: RULES_VERSION,
       priceBasis: "unadjusted", settings } };

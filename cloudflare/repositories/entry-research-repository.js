@@ -143,7 +143,8 @@ export class EntryResearchRepository {
 
 function sampleFilter({ modelVersion, from, to, symbol, gateStatus, entryStatus, setupType, nextDayStatus, minScore, maxScore,
   source }) {
-  const where = ["s.ModelVersion=?"], values = [modelVersion];
+  // Samples saved before ETFs were excluded stay stored but out of every result; TWSE ETF codes all start with 00.
+  const where = ["s.ModelVersion=?", "s.Symbol NOT GLOB '00*'"], values = [modelVersion];
   const add = (sql, value) => { if (value !== undefined && value !== null) { where.push(sql); values.push(value); } };
   add("s.TradeDate>=?", from); add("s.TradeDate<=?", to); add("s.Symbol=?", symbol); add("s.GateStatus=?", gateStatus);
   add("s.EntryStatus=?", entryStatus); add("s.SetupType=?", setupType); add("s.NextDayStatus=?", nextDayStatus);

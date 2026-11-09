@@ -7,6 +7,7 @@ import { DEFAULT_SETTINGS, getSnapshot } from "../shared/indicators.js";
 import { ENTRY_RESEARCH_MODEL } from "../shared/entry-research-model.js";
 import { evaluateResearchOutcome } from "../shared/entry-research-outcome.js";
 import { captureEntryResearch, retentionCutoff } from "../cloudflare/entry-research-capture.js";
+import { isEtf } from "../shared/market-codec.js";
 import { EntryResearchRepository } from "../cloudflare/repositories/entry-research-repository.js";
 import { EntryResearchService } from "../cloudflare/services/entry-research-service.js";
 import { routeApi } from "../cloudflare/api/router.js";
@@ -77,6 +78,8 @@ test("simulated trades fill at the next open only within the plan and include co
 
 // --- Capture job against real SQLite with the D1 interface ---
 const dataset = await demoProvider.load();
+// ETFs are not researched, so only companies are saved as samples.
+const companies = dataset.stocks.filter((stock) => !isEtf(stock)).length;
 function marketAt(asOf, generation) {
   const known = dataset.dates.filter((date) => date <= asOf);
   const stocks = dataset.stocks.map((stock) => {
@@ -100,9 +103,10 @@ test("daily capture saves every listed stock once, keeps first captures and comp
   const first = dataset.dates[120], later = dataset.dates[150];
   const saved = await captureEntryResearch(env, { createServices: marketAt(first, "g1"), now: () => new Date("2026-08-01T12:00:00Z") });
   assert.equal(saved.status, "saved");
-  assert.equal(saved.inserted, dataset.stocks.length, "failed-gate stocks are saved too");
+  assert.equal(saved.inserted, companies, "failed-gate stocks are saved too");
   const counts = db.sqlite.prepare("SELECT GateStatus, COUNT(*) AS n FROM entry_research_samples GROUP BY GateStatus").all();
   assert.ok(counts.some((row) => row.GateStatus === "FAIL"));
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM entry_research_samples WHERE Symbol GLOB '00*'").get().n, 0, "ETFs are never sampled");
   const failed = db.sqlite.prepare("SELECT * FROM entry_research_samples WHERE GateStatus='FAIL' LIMIT 1").get();
   assert.equal(failed.ReadinessScore, null);
   assert.equal(failed.NextDayStatus, "NOT_ELIGIBLE");
@@ -113,15 +117,15 @@ test("daily capture saves every listed stock once, keeps first captures and comp
   const before = db.sqlite.prepare("SELECT DetailJson, CapturedAt FROM entry_research_samples WHERE Symbol='2330' AND TradeDate=?").get(first);
   const corrected = await captureEntryResearch(env, { createServices: marketAt(first, "g1-corrected"), now: () => new Date("2026-08-01T13:00:00Z") });
   assert.equal(corrected.inserted, 0);
-  assert.equal(corrected.skipped, dataset.stocks.length);
+  assert.equal(corrected.skipped, companies);
   assert.deepEqual(db.sqlite.prepare("SELECT DetailJson, CapturedAt FROM entry_research_samples WHERE Symbol='2330' AND TradeDate=?").get(first), before);
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM entry_research_runs").get().n, 2);
   const pending = db.sqlite.prepare("SELECT Status, Return20 FROM entry_research_outcomes WHERE TradeDate=?").all(first);
   assert.ok(pending.every((row) => row.Status === "PENDING" && row.Return20 === null));
   // Thirty sessions later the earlier samples' outcomes are complete.
   const next = await captureEntryResearch(env, { createServices: marketAt(later, "g2"), now: () => new Date("2026-09-15T12:00:00Z") });
-  assert.equal(next.inserted, dataset.stocks.length);
-  assert.ok(next.outcomeUpdates >= dataset.stocks.length);
+  assert.equal(next.inserted, companies);
+  assert.ok(next.outcomeUpdates >= companies);
   const complete = db.sqlite.prepare("SELECT Status, Return5, Return20, Mfe20, Mae20 FROM entry_research_outcomes WHERE TradeDate=?").all(first);
   assert.ok(complete.every((row) => row.Status === "COMPLETE" && Number.isFinite(row.Return20) && row.Mfe20 >= row.Mae20));
   db.sqlite.close();
@@ -135,9 +139,15 @@ test("samples API filters saved research and returns explanations on request", a
     const response = await routeApi(new Request(`https://example.test/api/v1/research/samples${query}`), env, services);
     return { status: response.status, body: await response.json() };
   };
+  // A sample stored for an ETF before they were excluded stays out of every result.
+  db.sqlite.exec("PRAGMA foreign_keys=OFF");
+  const columns = db.sqlite.prepare("PRAGMA table_info(entry_research_samples)").all().map(({ name }) => name);
+  db.sqlite.prepare(`INSERT INTO entry_research_samples (${columns.join(",")}) SELECT ${columns.map((name) => name === "Symbol" ? "'0050'" : name).join(",")} FROM entry_research_samples LIMIT 1`).run();
+  db.sqlite.exec("PRAGMA foreign_keys=ON");
   const all = await get("?limit=5");
   assert.equal(all.status, 200);
-  assert.equal(all.body.meta.total, dataset.stocks.length);
+  assert.equal(all.body.meta.total, companies);
+  assert.equal((await get("?symbol=0050")).body.meta.total, 0);
   assert.equal(all.body.data.length, 5);
   assert.equal(all.body.meta.provisional, true);
   assert.equal(all.body.data[0].detail, undefined);
@@ -165,7 +175,7 @@ test("samples, outcomes and runs older than six months are removed after each ca
     db.sqlite.prepare(`UPDATE ${table} SET TradeDate='2000-01-03'`).run();
   db.sqlite.exec("PRAGMA foreign_keys=ON");
   const result = await captureEntryResearch(env, { createServices: marketAt(asOf, "g2") });
-  assert.equal(result.pruned.samples, dataset.stocks.length);
+  assert.equal(result.pruned.samples, companies);
   assert.ok(result.pruned.outcomes > 0 && result.pruned.runs === 1);
   const dates = db.sqlite.prepare("SELECT DISTINCT TradeDate FROM entry_research_samples").all().map((row) => row.TradeDate);
   assert.deepEqual(dates, [asOf]);

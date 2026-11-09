@@ -1,7 +1,7 @@
 import { createApplicationServices } from "./composition.js";
 import { EntryResearchRepository } from "./repositories/entry-research-repository.js";
 import { DEFAULT_SETTINGS } from "../shared/indicators.js";
-import { evaluateEntryResearch, gateKeysForModel } from "../shared/entry-research.js";
+import { entryResearchApplies, evaluateEntryResearch, gateKeysForModel } from "../shared/entry-research.js";
 import { ENTRY_RESEARCH_MODEL } from "../shared/entry-research-model.js";
 import { evaluateResearchOutcome } from "../shared/entry-research-outcome.js";
 
@@ -107,7 +107,8 @@ export async function captureEntryResearch(env, { createServices = createApplica
     const { asOf, dates, stocks } = await services.summary.snapshots(undefined, DEFAULT_SETTINGS);
     if (asOf !== manifest.asOf) throw new Error("Entry research read a different publication than its manifest");
     const corporateActions = services.actions ? await services.actions.window(dates.slice(-61)) : null;
-    const rows = stocks.map((stock) => sampleRow(evaluateEntryResearch({ stock, tradingDates: dates, asOf,
+    // ETFs are not researched, so they never enter the samples the backtest reads.
+    const rows = stocks.filter(entryResearchApplies).map((stock) => sampleRow(evaluateEntryResearch({ stock, tradingDates: dates, asOf,
       corporateActions, settings: DEFAULT_SETTINGS, model }), { stock, revisionId, capturedAt: startedAt, source: "daily" }));
     const { inserted, skipped } = await repository.saveSamples(rows);
     const outcomeUpdates = await updateOutcomes({ repository, stocks, dates, actions: services.actions, model,

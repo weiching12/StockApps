@@ -28,7 +28,7 @@ import { bindKeyboardNavigation } from "./ui/keyboard.js";
 import { createTableBatchController } from "./ui/table-batches.js";
 import { calculateMarketSentiment } from "../shared/sentiment.js";
 import { getEntryScore } from "../shared/entry-score.js";
-import { evaluateEntryResearch } from "../shared/entry-research.js";
+import { entryResearchApplies, evaluateEntryResearch } from "../shared/entry-research.js";
 import { addResearchPeriod, loadResearchStore, persistResearchStore, removeResearchPeriod } from "./ui/research-store.js";
 import { renderResearchCenter } from "./ui/research.js";
 import { dailyCloseSeries } from "../shared/price-history.js";
@@ -260,8 +260,8 @@ function refreshData() {
     const snapshot = getSnapshot({ ...stock, tradingDates: dataset.dates }, date, state.settings);
     snapshot.entryScore = getEntryScore(snapshot, dataset.dates, date);
     // Demo data has no server; the same shared research model runs here instead.
-    snapshot.entryResearch = evaluateEntryResearch({ stock: snapshot, tradingDates: dataset.dates, asOf: date,
-      settings: state.settings, score: snapshot.entryScore });
+    snapshot.entryResearch = entryResearchApplies(snapshot) ? evaluateEntryResearch({ stock: snapshot, tradingDates: dataset.dates, asOf: date,
+      settings: state.settings, score: snapshot.entryScore }) : null;
     snapshot.priceHistory = dailyCloseSeries(snapshot.history, dataset.dates, date);
     // The sentiment series needs 60 closes at its oldest point.
     snapshot.history = snapshot.history.slice(-80);

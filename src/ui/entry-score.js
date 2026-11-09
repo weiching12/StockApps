@@ -1,3 +1,4 @@
+import { isEtf } from "../../shared/market-codec.js";
 import { dailyCloseSeries } from "../../shared/price-history.js";
 import { researchCardPreview, researchChartMarks, researchDialogSections } from "./entry-research.js";
 
@@ -159,6 +160,7 @@ export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = f
       ${researchCardPreview(stock.entryResearch, { esc, number })}
       <section class="entry-pending">${loadingIcon("研究明細載入中")}</section></div>`;
   }
+  if (isEtf(stock)) return `${heading}<p class="research-not-evaluated">ETF 追蹤指數或一籃子標的，不判斷進場時機，也不列入回測樣本。</p>`;
   if (!score || !research) return `${heading}<p>資料不足，無法進行進場研究。</p>`;
   const chartSeries = stock.priceHistory ?? dailyCloseSeries(stock.history,
     stock.tradingDates ?? stock.history?.map((bar) => bar.date), score.asOf);

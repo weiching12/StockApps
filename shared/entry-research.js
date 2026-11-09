@@ -1,3 +1,4 @@
+import { isEtf } from "./market-codec.js";
 import { getInstitutionNet, getPriceVolumeSignal } from "./indicators.js";
 import { CORE_THRESHOLDS, getAtr14, getEntryScore, researchPriceHistory } from "./entry-score.js";
 import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_STATUS_LABELS, NEXT_DAY_STATUS_LABELS, SETUP_LABELS } from "./entry-research-model.js";
@@ -292,6 +293,9 @@ export function entryResearchGates({ stock, tradingDates, asOf, corporateActions
  * `researchAllStocks` runs stages 2 and 3 even when stage 1 does not PASS; it exists only for
  * offline gate comparisons and is never set by the API or the daily capture.
  */
+/** Entry research times company entries; ETFs track an index or basket, so they are never evaluated or sampled. */
+export const entryResearchApplies = (stock) => !isEtf(stock);
+
 export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActions = null, settings, score,
   model = ENTRY_RESEARCH_MODEL, researchAllStocks = false }) {
   const result = score ?? getEntryScore(stock, tradingDates, asOf, { priceBasis: "unadjusted", corporateActions, settings });

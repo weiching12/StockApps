@@ -54,7 +54,9 @@ export function researchListCells(stock, esc, number) {
   const summary = researchSummaryOf(stock);
   const score = Number.isFinite(summary?.score) ? number(summary.score, 0) : "—";
   const gateTone = summary?.gateStatus === "PASS" ? "pass" : summary?.gateStatus === "FAIL" ? "fail" : "unknown";
-  const readiness = `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><strong>${score}</strong></button><small class="research-gate ${gateTone}">${esc(gateText(summary))}</small>`;
+  // ETFs are not researched: they say so instead of looking like missing data.
+  const etf = !summary && isEtf(stock);
+  const readiness = `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><strong>${score}</strong></button><small class="research-gate ${gateTone}">${esc(etf ? "不評估進場" : gateText(summary))}</small>`;
   const status = summary?.status, next = summary?.nextDayStatus;
   // A triggered signal's chip states the next-session outcome; the line under it (wide screens)
   // names why it is held back and the pattern, with the full wording on hover.
@@ -66,7 +68,7 @@ export function researchListCells(stock, esc, number) {
   const nextLine = nextParts.length ? `<small class="research-next ${NEXT_TONE[next] ?? "muted"}" title="${esc([NEXT_DAY_STATUS_LABELS[next], SETUP_LABELS[setup]].filter(Boolean).join(" · "))}">${esc(nextParts.join(" · "))}</small>` : "";
   const research = summary
     ? `<span class="research-chip ${chipTone}">${esc(chipText)}</span>${nextLine}`
-    : '<span class="research-chip muted">資料不足</span>';
+    : `<span class="research-chip muted">${etf ? "ETF 不評估" : "資料不足"}</span>`;
   return { readiness, research };
 }
 
