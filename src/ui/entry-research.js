@@ -146,7 +146,8 @@ function structureHelp(research, stock, { esc, number, percent }) {
 /** The next-day card from the list's compact fields, shown at once while the full research loads. */
 export function researchCardPreview(summary, { esc, number }) {
   const gate = { status: summary.gateStatus, passedCount: summary.gatePassed, conditions: summary.gateConditions ?? {} };
-  return `<section class="research-plan-card ${NEXT_TONE[summary.nextDayStatus] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估</p><div class="research-plan-head"><h3 id="research-plan-title">${esc(NEXT_DAY_STATUS_LABELS[summary.nextDayStatus] ?? "—")}</h3></div><dl class="research-plan-facts"><div><dt>進場準備度</dt><dd>${Number.isFinite(summary.score) ? `${number(summary.score, 0)} / 100` : "—"}</dd></div><div><dt>初步門檻</dt><dd>${esc(gateSummary(gate, summary.modelVersion))}</dd></div><div><dt>進場策略</dt><dd>${esc(SETUP_LABELS[summary.setupType] ?? "—")}</dd></div></dl></section>`;
+  const canBuy = summary.nextDayStatus === "NEXT_DAY_CANDIDATE";
+  return `<section class="research-plan-card ${NEXT_TONE[summary.nextDayStatus] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估</p><div class="research-plan-head"><h3 id="research-plan-title">${canBuy ? "可進場" : "不進場"}</h3><span class="research-plan-status">${esc(NEXT_DAY_STATUS_LABELS[summary.nextDayStatus] ?? "—")}</span></div><dl class="research-plan-facts"><div><dt>進場準備度</dt><dd>${Number.isFinite(summary.score) ? `${number(summary.score, 0)} / 100` : "—"}</dd></div><div><dt>初步門檻</dt><dd>${esc(gateSummary(gate, summary.modelVersion))}</dd></div><div><dt>進場策略</dt><dd>${esc(SETUP_LABELS[summary.setupType] ?? "—")}</dd></div></dl></section>`;
 }
 
 /** Dialog sections in the required order, under the header and chart. */
@@ -160,8 +161,9 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
 
   const reasons = research.status === "TRIGGERED" ? research.triggeredConditions : gate.status !== "PASS" ? gate.reasons : research.pendingConditions;
   const risks = research.riskWarnings.filter((warning) => !quality.warnings.includes(warning));
-  const card = `<section class="research-plan-card ${NEXT_TONE[plan.status] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估</p><div class="research-plan-head"><h3 id="research-plan-title">${esc(plan.label)}</h3>${NEXT_EXPLANATION[plan.status] ? `<details class="research-plan-help"><summary aria-label="${esc(plan.label)}的說明"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg></summary><p role="note">${esc(NEXT_EXPLANATION[plan.status])}</p></details>` : ""}</div><dl class="research-plan-facts"><div><dt>進場準備度</dt><dd>${Number.isFinite(research.score) ? `${number(research.score, 0)} / 100` : "—"}</dd></div><div><dt>初步門檻</dt><dd>${gateSummary(gate, result.modelVersion)}</dd></div><div><dt>進場策略</dt><dd>${esc(research.setupLabel ?? "—")}</dd></div></dl>
-    <details class="research-reasons"><summary>${research.status === "TRIGGERED" ? "主要成立原因" : "目前狀態原因"}</summary>${items(reasons, esc, "沒有額外說明。")}${risks.length ? `<h4>主要風險</h4>${items(risks, esc, "")}` : ""}${plan.conditionsToConfirm.length ? `<h4>明日需確認</h4>${items(plan.conditionsToConfirm, esc, "")}` : ""}</details>
+  const verdict = planVerdict(plan, { number });
+  const card = `<section class="research-plan-card ${NEXT_TONE[plan.status] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估</p><div class="research-plan-head"><h3 id="research-plan-title">${esc(verdict.title)}</h3><span class="research-plan-status">${esc(plan.label)}</span>${NEXT_EXPLANATION[plan.status] ? `<details class="research-plan-help"><summary aria-label="${esc(plan.label)}的說明"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg></summary><p role="note">${esc(NEXT_EXPLANATION[plan.status])}</p></details>` : ""}</div><p class="research-plan-basis">${esc(verdict.basis)}</p>${verdict.body}<dl class="research-plan-facts"><div><dt>進場準備度</dt><dd>${Number.isFinite(research.score) ? `${number(research.score, 0)} / 100` : "—"}</dd></div><div><dt>初步門檻</dt><dd>${gateSummary(gate, result.modelVersion)}</dd></div><div><dt>進場策略</dt><dd>${esc(research.setupLabel ?? "—")}</dd></div></dl>
+    <details class="research-reasons"><summary>${research.status === "TRIGGERED" ? "主要成立原因" : "目前狀態原因"}</summary>${items(reasons, esc, "沒有額外說明。")}${risks.length ? `<h4>主要風險</h4>${items(risks, esc, "")}` : ""}</details>
 </section>`;
 
   const component = (label, value, weight) => `<div class="research-component"><span>${label}<small>權重 ${weight}%</small></span><strong>${Number.isFinite(value) ? number(value, 0) : "—"}</strong><progress value="${Number.isFinite(value) ? value : 0}" max="100" aria-label="${label} ${Number.isFinite(value) ? number(value, 0) : "無資料"} 分"></progress></div>`;
@@ -184,15 +186,61 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
       ["有效期間", validityText(signal.validSessions)]].map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>`
     : `<p><span class="research-chip ${STATUS_TONE[research.status] ?? "muted"}">${esc(research.label ?? "—")}</span></p>`}${signalRules(research, signal, esc)}</section>`;
 
-  const row = (label, value, note = "") => `<div><dt>${label}</dt><dd>${value}${note ? `<small>${note}</small>` : ""}</dd></div>`;
-  const planSection = `<section class="research-price-plan" aria-labelledby="research-price-plan-title"><h3 id="research-price-plan-title">明日價格計畫</h3>${Number.isFinite(plan.entryReferencePrice)
-    ? `<dl class="research-plan-table">${row("今日參考收盤價", price(plan.referenceClose, number))}${row("進場參考價格", price(plan.entryReferencePrice, number))}${row("可接受價格區間", plan.entryPriceLower === null ? `≤ ${price(plan.entryPriceUpper, number)}` : `${price(plan.entryPriceLower, number)} ～ ${price(plan.entryPriceUpper, number)}`, plan.entryPriceLower === null ? "策略未定義下限" : "")}${row("可接受價格上限", price(plan.entryPriceUpper, number), "超過後不再符合原計畫，避免追價")}${row("策略失效價格", price(plan.invalidationPrice, number), "跌破代表原策略情境被破壞")}${row("預估風險距離", `${number(plan.riskPercent, 2)}%`, `以上限進場為 ${number(plan.maxRiskPercent, 2)}%`)}${row("ATR14", price(plan.atr14, number))}${row("計畫有效", esc(plan.planExpiresAt ?? "下一個交易日"))}</dl>`
-    : `<p class="research-empty">${esc(plan.reasons.at(-1) ?? "沒有有效的價格計畫。")}</p>`}</section>`;
+  const planSection = riskSection(plan, signal, { esc, number });
 
   // Stocks that did not pass stage 1 have no readiness, signal or plan to show.
   const evaluated = gate.status === "PASS";
   const notice = evaluated ? "" : `<p class="research-not-evaluated">${gate.status === "FAIL" ? "未通過初步門檻，不評估進場準備度、訊號與價格計畫。" : "初步門檻資料待確認，暫不評估進場準備度、訊號與價格計畫。"}</p>`;
   return { basic, card, readiness, gates, signal: signalSection, plan: planSection, evaluated, notice };
+}
+
+const RISK_LIMIT = ENTRY_RESEARCH_MODEL.plan.maxRiskPercent, UPPER_ATR = ENTRY_RESEARCH_MODEL.plan.upperAtr;
+// The next session as "11/10 " when the calendar already has it, else "下一交易日"; `within` pads it for
+// mid-sentence use ("只看 11/10 開盤" / "只看下一交易日開盤").
+const planDays = (plan) => {
+  const date = plan.planExpiresAt ? shortDate(plan.planExpiresAt) : null;
+  return { next: date ? `${date} ` : "下一交易日", within: date ? ` ${date} ` : "下一交易日", basis: plan.planAsOf ? shortDate(plan.planAsOf) : "今日" };
+};
+
+/**
+ * What a user asks first: can I buy at the next open, and if so between which prices. Without a
+ * candidate the card says why in one sentence, instead of showing prices that look usable.
+ */
+function planVerdict(plan, { number }) {
+  const { next, within, basis } = planDays(plan);
+  const money = (value) => price(value, number);
+  const canBuy = plan.status === "NEXT_DAY_CANDIDATE";
+  const title = `${next}${canBuy ? "可進場" : "不進場"}`;
+  const basisText = `依 ${basis} 收盤、以固定研究規則判讀，非買賣指令`;
+  if (canBuy) return { title, basis: basisText, body: `<dl class="research-buy-range"><div><dt>參考買入價</dt><dd>${money(plan.entryReferencePrice)}</dd></div><div><dt>最高價<small>開盤上限</small></dt><dd>${money(plan.entryPriceUpper)}</dd></div><div><dt>最低價<small>停損價</small></dt><dd>${money(plan.invalidationPrice)}</dd></div></dl><p class="research-plan-reason">只看${within}開盤價：高於 ${money(plan.invalidationPrice)} 且不高於 ${money(plan.entryPriceUpper)} 才成立；開盤高於最高價不追價，不高於停損價則計畫取消。</p>` };
+  let reason = NEXT_EXPLANATION[plan.status] ?? "沒有有效的進場計畫。";
+  if (plan.status === "PRICE_TOO_HIGH" && Number.isFinite(plan.entryPriceUpper))
+    reason = plan.referenceClose > plan.entryPriceUpper
+      ? `${basis} 收盤 ${money(plan.referenceClose)} 已高於可接受最高價 ${money(plan.entryPriceUpper)}，不追價。`
+      : `停損距離太遠：以最高價 ${money(plan.entryPriceUpper)} 買進、跌到停損價 ${money(plan.invalidationPrice)} 會虧損 ${number(plan.maxRiskPercent, 2)}%，超過單筆上限 ${RISK_LIMIT}%。`;
+  return { title, basis: basisText, body: `<p class="research-plan-reason">${reason}</p>` };
+}
+
+/** The risk check against its limit, then how every price and percentage is calculated, with numbers. */
+function riskSection(plan, signal, { esc, number }) {
+  const money = (value) => price(value, number);
+  const heading = '<h3 id="research-price-plan-title">風險與計算方式</h3>';
+  if (!Number.isFinite(plan.entryReferencePrice))
+    return `<section class="research-price-plan" aria-labelledby="research-price-plan-title">${heading}<p class="research-empty">${esc(plan.reasons.at(-1) ?? "沒有有效的價格計畫。")}</p></section>`;
+  const { within } = planDays(plan);
+  const ok = plan.maxRiskPercent <= RISK_LIMIT;
+  const maxBuy = plan.invalidationPrice / (1 - RISK_LIMIT / 100);
+  const pullback = signal?.setupType === "PULLBACK_RECOVERY" && signal.evidence?.pullbackLow !== undefined;
+  const breakout = signal?.setupType === "RANGE_BREAKOUT" && signal.evidence?.rangeHigh !== undefined;
+  const atr = money(plan.atr14);
+  const reference = pullback ? `訊號日收盤價 = ${money(plan.entryReferencePrice)}`
+    : breakout ? `整理區間上緣 = ${money(plan.entryReferencePrice)}` : `訊號的進場參考價 = ${money(plan.entryReferencePrice)}`;
+  const stop = pullback
+    ? `回踩低點 ${money(signal.evidence.pullbackLow)} − ${ENTRY_RESEARCH_MODEL.pullback.invalidationAtr} × ATR14 ${atr} = ${money(plan.invalidationPrice)}`
+    : breakout ? `max（區間上緣 ${money(signal.evidence.rangeHigh)} − ${ENTRY_RESEARCH_MODEL.breakout.invalidationAtr} × ATR14 ${atr}，區間下緣 ${money(signal.evidence.rangeLow)}）= ${money(plan.invalidationPrice)}`
+      : `訊號的策略失效價 = ${money(plan.invalidationPrice)}`;
+  const note = ok ? "" : `要讓停損虧損不超過 ${RISK_LIMIT}%，買入價需 ≤ ${money(maxBuy)}；規則只看${within}開盤是否落在區間內，不會等待回落後再買，此數字僅用來說明規則。`;
+  return `<section class="research-price-plan" aria-labelledby="research-price-plan-title">${heading}<div class="research-risk-check ${ok ? "pass" : "fail"}"><div><span>以最高價買進的停損虧損</span><strong>${number(plan.maxRiskPercent, 2)}%</strong></div><div><span>單筆虧損上限（標準）</span><strong>${RISK_LIMIT}%</strong></div><span class="research-risk-verdict">${ok ? "符合" : "超過上限"}</span></div><p class="research-risk-note">以參考買入價 ${money(plan.entryReferencePrice)} 買進的停損虧損為 ${number(plan.riskPercent, 2)}%。${note}</p><h4>計算方式</h4><ul class="research-formulas"><li><strong>參考買入價</strong>${reference}</li><li><strong>最高價（開盤上限）</strong>參考買入價 ${money(plan.entryReferencePrice)} ＋ ${UPPER_ATR} × ATR14 ${atr} = ${money(plan.entryPriceUpper)}</li><li><strong>最低價（停損價）</strong>${stop}；跌破代表原本的進場理由不成立</li><li><strong>停損虧損</strong>（買入價 − 停損價）÷ 買入價；以最高價計：（${money(plan.entryPriceUpper)} − ${money(plan.invalidationPrice)}）÷ ${money(plan.entryPriceUpper)} = ${number(plan.maxRiskPercent, 2)}%</li><li><strong>單筆虧損上限 ${RISK_LIMIT}%</strong>研究模型的暫定參數：以最高價買進仍須在 ${RISK_LIMIT}% 內停損，用來排除停損距離過遠的訊號；尚未經歷史回測驗證</li><li><strong>ATR14</strong>近 14 個交易日的平均真實波動幅度 = ${atr}</li><li><strong>計畫有效</strong>僅${within}開盤</li></ul></section>`;
 }
 
 const validityText = (sessions) => sessions === 1 ? "僅訊號日當天" : `觸發日起 ${sessions} 個交易日`;

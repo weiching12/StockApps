@@ -3172,6 +3172,44 @@ dialog.sector-dialog {
 :is(.research-gate-item dl, .research-signal-facts, .research-plan-table) dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .research-plan-table { grid-template-columns: 1fr; }
 .research-plan-table dd small { display: block; color: var(--muted); font-size: var(--text-meta); }
+/* The verdict comes first: next-open yes/no, its basis, then the buy range or the one reason why not. */
+.research-plan-head { flex-wrap: wrap; column-gap: 8px; }
+.research-plan-head h3 { white-space: nowrap; }
+.research-plan-status { padding: 1px 8px; border: 1px solid currentColor; border-radius: 999px; color: var(--muted); font-size: var(--text-meta); white-space: nowrap; }
+.research-plan-card.warning .research-plan-status { color: #b45309; }
+.research-plan-card.positive .research-plan-status { color: var(--accent); }
+.research-plan-card.negative .research-plan-status { color: #b54750; }
+.research-plan-card > .research-plan-basis { margin: 0 0 10px; color: var(--muted); font-size: var(--text-meta); }
+.research-plan-card > .research-plan-reason { margin: 0 0 12px; color: var(--ink); font-size: var(--text-secondary); font-weight: 600; line-height: 1.6; }
+.research-buy-range { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 8px; }
+.research-buy-range div { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface, #fff); }
+.research-buy-range dt { color: var(--muted); font-size: var(--text-meta); line-height: 1.4; }
+.research-buy-range dt small { display: block; font-size: inherit; opacity: .8; }
+.research-buy-range dd { margin: 0; font-size: var(--text-title); font-weight: 600; font-variant-numeric: tabular-nums; }
+.research-buy-range + .research-plan-reason { font-weight: 400 !important; }
+.research-risk-check { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; align-items: center; gap: 8px 12px; padding: 10px 12px; border-radius: 10px; background: #f8fafc; }
+.research-risk-check div { display: grid; gap: 2px; }
+.research-risk-check span { color: var(--muted); font-size: var(--text-meta); }
+.research-risk-check strong { font-size: var(--text-title); font-variant-numeric: tabular-nums; }
+.research-risk-check .research-risk-verdict { padding: 2px 10px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+.research-risk-check.fail .research-risk-verdict { color: #b54750; background: #fde8ea; }
+.research-risk-check.fail div:first-child strong { color: #b54750; }
+.research-risk-check.pass .research-risk-verdict { color: #1d7967; background: #e3f4ef; }
+.research-risk-note { margin: 8px 0 12px; color: var(--muted); font-size: var(--text-secondary); line-height: 1.6; }
+.research-price-plan h4 { margin: 0 0 6px; font-size: var(--text-secondary); }
+.research-formulas { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: var(--text-secondary); line-height: 1.6; font-variant-numeric: tabular-nums; }
+.research-formulas li { padding-bottom: 6px; border-bottom: 1px dashed var(--border); }
+.research-formulas li:last-child { border-bottom: 0; }
+.research-formulas strong { display: block; color: var(--ink); }
+[data-theme="dark"] .research-buy-range div { background: #111b2b; }
+[data-theme="dark"] .research-risk-check { background: #111b2b; }
+[data-theme="dark"] .research-risk-check.fail .research-risk-verdict { background: #3a1a20; color: #f19ca5; }
+[data-theme="dark"] .research-risk-check.pass .research-risk-verdict { background: #12302a; color: #7fd3bd; }
+@media (max-width: 420px) {
+  .research-buy-range dd, .research-risk-check strong { font-size: var(--text-body); }
+  .research-risk-check { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .research-risk-check .research-risk-verdict { grid-column: 1 / -1; justify-self: start; }
+}
 /* Plan levels: one neutral tone, told apart by dash pattern and an on-chart label. */
 .entry-price-chart svg .entry-chart-plan { stroke: #475569; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
 .entry-price-chart svg .entry-chart-plan.entry { stroke-dasharray: 6 3; }
