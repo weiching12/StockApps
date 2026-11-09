@@ -195,6 +195,7 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
 }
 
 const RISK_LIMIT = ENTRY_RESEARCH_MODEL.plan.maxRiskPercent, UPPER_ATR = ENTRY_RESEARCH_MODEL.plan.upperAtr;
+const lossTo = (buy, stop) => Number.isFinite(buy) && Number.isFinite(stop) && buy > 0 ? (buy - stop) / buy * 100 : null;
 // The next session as "11/10 " when the calendar already has it, else "下一交易日"; `within` pads it for
 // mid-sentence use ("只看 11/10 開盤" / "只看下一交易日開盤").
 const planDays = (plan) => {
@@ -217,8 +218,17 @@ function planVerdict(plan, { number }) {
   if (plan.status === "PRICE_TOO_HIGH" && Number.isFinite(plan.entryPriceUpper))
     reason = plan.referenceClose > plan.entryPriceUpper
       ? `${basis} 收盤 ${money(plan.referenceClose)} 已高於可接受最高價 ${money(plan.entryPriceUpper)}，不追價。`
-      : `停損距離太遠：以最高價 ${money(plan.entryPriceUpper)} 買進、跌到停損價 ${money(plan.invalidationPrice)} 會虧損 ${number(plan.maxRiskPercent, 2)}%，超過單筆上限 ${RISK_LIMIT}%。`;
+      : stopTooFar(plan, basis, money, number);
   return { title, basis: basisText, body: `<p class="research-plan-reason">${reason}</p>` };
+}
+
+/** Why a stop is too far, told from today's close; the open's upper limit only when the close alone fits. */
+function stopTooFar(plan, basis, money, number) {
+  const atClose = lossTo(plan.referenceClose, plan.invalidationPrice);
+  const fromClose = `以 ${basis} 收盤價 ${money(plan.referenceClose)} 買進、跌到停損價 ${money(plan.invalidationPrice)} 會虧損 ${number(atClose, 2)}%`;
+  return atClose > RISK_LIMIT
+    ? `停損距離太遠：${fromClose}，超過單筆上限 ${RISK_LIMIT}%。`
+    : `停損距離太遠：${fromClose}，但開盤若在上限 ${money(plan.entryPriceUpper)} 買進會虧損 ${number(plan.maxRiskPercent, 2)}%，超過單筆上限 ${RISK_LIMIT}%。`;
 }
 
 /** The risk check against its limit, then how every price and percentage is calculated, with numbers. */
@@ -229,6 +239,7 @@ function riskSection(plan, signal, { esc, number }) {
     return `<section class="research-price-plan" aria-labelledby="research-price-plan-title">${heading}<p class="research-empty">${esc(plan.reasons.at(-1) ?? "沒有有效的價格計畫。")}</p></section>`;
   const { within } = planDays(plan);
   const ok = plan.maxRiskPercent <= RISK_LIMIT;
+  const atClose = lossTo(plan.referenceClose, plan.invalidationPrice);
   const maxBuy = plan.invalidationPrice / (1 - RISK_LIMIT / 100);
   const pullback = signal?.setupType === "PULLBACK_RECOVERY" && signal.evidence?.pullbackLow !== undefined;
   const breakout = signal?.setupType === "RANGE_BREAKOUT" && signal.evidence?.rangeHigh !== undefined;
@@ -240,7 +251,7 @@ function riskSection(plan, signal, { esc, number }) {
     : breakout ? `max（區間上緣 ${money(signal.evidence.rangeHigh)} − ${ENTRY_RESEARCH_MODEL.breakout.invalidationAtr} × ATR14 ${atr}，區間下緣 ${money(signal.evidence.rangeLow)}）= ${money(plan.invalidationPrice)}`
       : `訊號的策略失效價 = ${money(plan.invalidationPrice)}`;
   const note = ok ? "" : `要讓停損虧損不超過 ${RISK_LIMIT}%，買入價需 ≤ ${money(maxBuy)}；規則只看${within}開盤是否落在區間內，不會等待回落後再買，此數字僅用來說明規則。`;
-  return `<section class="research-price-plan" aria-labelledby="research-price-plan-title">${heading}<div class="research-risk-check ${ok ? "pass" : "fail"}"><div><span>以最高價買進的停損虧損</span><strong>${number(plan.maxRiskPercent, 2)}%</strong></div><div><span>單筆虧損上限（標準）</span><strong>${RISK_LIMIT}%</strong></div><span class="research-risk-verdict">${ok ? "符合" : "超過上限"}</span></div><p class="research-risk-note">以參考買入價 ${money(plan.entryReferencePrice)} 買進的停損虧損為 ${number(plan.riskPercent, 2)}%。${note}</p><h4>計算方式</h4><ul class="research-formulas"><li><strong>參考買入價</strong>${reference}</li><li><strong>最高價（開盤上限）</strong>參考買入價 ${money(plan.entryReferencePrice)} ＋ ${UPPER_ATR} × ATR14 ${atr} = ${money(plan.entryPriceUpper)}</li><li><strong>最低價（停損價）</strong>${stop}；跌破代表原本的進場理由不成立</li><li><strong>停損虧損</strong>（買入價 − 停損價）÷ 買入價；以最高價計：（${money(plan.entryPriceUpper)} − ${money(plan.invalidationPrice)}）÷ ${money(plan.entryPriceUpper)} = ${number(plan.maxRiskPercent, 2)}%</li><li><strong>單筆虧損上限 ${RISK_LIMIT}%</strong>研究模型的暫定參數：以最高價買進仍須在 ${RISK_LIMIT}% 內停損，用來排除停損距離過遠的訊號；尚未經歷史回測驗證</li><li><strong>ATR14</strong>近 14 個交易日的平均真實波動幅度 = ${atr}</li><li><strong>計畫有效</strong>僅${within}開盤</li></ul></section>`;
+  return `<section class="research-price-plan" aria-labelledby="research-price-plan-title">${heading}<div class="research-risk-check ${ok ? "pass" : "fail"}"><div><span>以收盤價 ${money(plan.referenceClose)} 買進</span><strong class="${atClose > RISK_LIMIT ? "over" : ""}">${number(atClose, 2)}%</strong></div><div><span>以開盤上限 ${money(plan.entryPriceUpper)} 買進</span><strong class="${ok ? "" : "over"}">${number(plan.maxRiskPercent, 2)}%</strong></div><div><span>單筆虧損上限（標準）</span><strong>${RISK_LIMIT}%</strong></div><span class="research-risk-verdict">${ok ? "符合" : "超過上限"}</span></div><p class="research-risk-note">上面兩個百分比都是「買進後跌到停損價 ${money(plan.invalidationPrice)} 的虧損」；規則以開盤上限買進的最壞情況判定，須不超過 ${RISK_LIMIT}%。${note}</p><h4>計算方式</h4><ul class="research-formulas"><li><strong>參考買入價</strong>${reference}</li><li><strong>最高價（開盤上限）</strong>參考買入價 ${money(plan.entryReferencePrice)} ＋ ${UPPER_ATR} × ATR14 ${atr} = ${money(plan.entryPriceUpper)}</li><li><strong>最低價（停損價）</strong>${stop}；跌破代表原本的進場理由不成立</li><li><strong>停損虧損</strong>（買入價 − 停損價）÷ 買入價；以收盤價計：（${money(plan.referenceClose)} − ${money(plan.invalidationPrice)}）÷ ${money(plan.referenceClose)} = ${number(atClose, 2)}%；以開盤上限計：（${money(plan.entryPriceUpper)} − ${money(plan.invalidationPrice)}）÷ ${money(plan.entryPriceUpper)} = ${number(plan.maxRiskPercent, 2)}%</li><li><strong>單筆虧損上限 ${RISK_LIMIT}%</strong>研究模型的暫定參數：以開盤上限買進仍須在 ${RISK_LIMIT}% 內停損，用來排除停損距離過遠的訊號；尚未經歷史回測驗證</li><li><strong>ATR14</strong>近 14 個交易日的平均真實波動幅度 = ${atr}</li><li><strong>計畫有效</strong>僅${within}開盤</li></ul></section>`;
 }
 
 const validityText = (sessions) => sessions === 1 ? "僅訊號日當天" : `觸發日起 ${sessions} 個交易日`;

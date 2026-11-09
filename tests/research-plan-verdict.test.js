@@ -27,19 +27,27 @@ function result(plan) {
   };
 }
 
-test("a stop too far away says no entry and names the loss against the 8% limit", () => {
+test("a stop too far away says no entry, telling the loss from today's close against the 8% limit", () => {
   const sections = researchDialogSections(result({ status: "PRICE_TOO_HIGH", label: "價格超出容許範圍" }), {}, { esc, number, percent });
   const card = text(sections.card), plan = text(sections.plan);
   assert.match(card, /11\/10 不進場/);
   assert.match(card, /依 11\/09 收盤/);
-  assert.match(card, /停損距離太遠：以最高價 476\.02 買進、跌到停損價 392\.49 會虧損 17\.55%，超過單筆上限 8%/);
+  assert.match(card, /停損距離太遠：以 11\/09 收盤價 460\.00 買進、跌到停損價 392\.49 會虧損 14\.68%，超過單筆上限 8%/);
   assert.doesNotMatch(sections.card, /research-buy-range/);
   assert.match(sections.plan, /research-risk-check fail/);
-  assert.match(plan, /以最高價買進的停損虧損 17\.55%/);
+  assert.match(plan, /以收盤價 460\.00 買進 14\.68%/);
+  assert.match(plan, /以開盤上限 476\.02 買進 17\.55%/);
   assert.match(plan, /單筆虧損上限（標準） 8%/);
   assert.match(plan, /買入價需 ≤ 426\.62/);
   assert.match(plan, /回踩低點 400\.50 − 0\.25 × ATR14 32\.04 = 392\.49/);
   assert.match(plan, /參考買入價 460\.00 ＋ 0\.5 × ATR14 32\.04 = 476\.02/);
+});
+
+test("when the close alone fits the limit, the reason adds the worst case at the open's upper limit", () => {
+  // Stop 430: 460 → 6.52% fits, 476.02 → 9.67% does not.
+  const sections = researchDialogSections(result({ status: "PRICE_TOO_HIGH", label: "價格超出容許範圍",
+    invalidationPrice: 430, riskPercent: 6.52, maxRiskPercent: 9.67 }), {}, { esc, number, percent });
+  assert.match(text(sections.card), /以 11\/09 收盤價 460\.00 買進、跌到停損價 430\.00 會虧損 6\.52%，但開盤若在上限 476\.02 買進會虧損 9\.67%，超過單筆上限 8%/);
 });
 
 test("a close above the upper price says it is not chased", () => {

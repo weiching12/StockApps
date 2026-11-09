@@ -3187,13 +3187,13 @@ dialog.sector-dialog {
 .research-buy-range dt small { display: block; font-size: inherit; opacity: .8; }
 .research-buy-range dd { margin: 0; font-size: var(--text-title); font-weight: 600; font-variant-numeric: tabular-nums; }
 .research-buy-range + .research-plan-reason { font-weight: 400 !important; }
-.research-risk-check { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; align-items: center; gap: 8px 12px; padding: 10px 12px; border-radius: 10px; background: #f8fafc; }
+.research-risk-check { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: center; gap: 8px 12px; padding: 10px 12px; border-radius: 10px; background: #f8fafc; }
 .research-risk-check div { display: grid; gap: 2px; }
-.research-risk-check span { color: var(--muted); font-size: var(--text-meta); }
+.research-risk-check span { color: var(--muted); font-size: var(--text-meta); line-height: 1.4; }
 .research-risk-check strong { font-size: var(--text-title); font-variant-numeric: tabular-nums; }
 .research-risk-check .research-risk-verdict { padding: 2px 10px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
 .research-risk-check.fail .research-risk-verdict { color: #b54750; background: #fde8ea; }
-.research-risk-check.fail div:first-child strong { color: #b54750; }
+.research-risk-check strong.over { color: #b54750; }
 .research-risk-check.pass .research-risk-verdict { color: #1d7967; background: #e3f4ef; }
 .research-risk-note { margin: 8px 0 12px; color: var(--muted); font-size: var(--text-secondary); line-height: 1.6; }
 .research-price-plan h4 { margin: 0 0 6px; font-size: var(--text-secondary); }
@@ -3207,7 +3207,7 @@ dialog.sector-dialog {
 [data-theme="dark"] .research-risk-check.pass .research-risk-verdict { background: #12302a; color: #7fd3bd; }
 @media (max-width: 420px) {
   .research-buy-range dd, .research-risk-check strong { font-size: var(--text-body); }
-  .research-risk-check { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .research-risk-check { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .research-risk-check .research-risk-verdict { grid-column: 1 / -1; justify-self: start; }
 }
 /* Plan levels: one neutral tone, told apart by dash pattern and an on-chart label. */
