@@ -2136,8 +2136,8 @@ dialog h2 {
   grid-template-columns: 30px 10px minmax(0, 1fr) 120px 170px;
   align-items: center;
   gap: 12px;
-  min-height: 92px;
-  padding: 8px 20px;
+  min-height: 60px;
+  padding: 10px 20px;
 }
 .sector-ranking .sector-rank {
   display: block;
