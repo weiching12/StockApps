@@ -2895,7 +2895,7 @@ dialog.sector-dialog {
 .research-date,
 .research-muted { color: var(--muted, #8da5c4); font-size: .82rem; }
 .research-date { margin: 0; }
-.research-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 1rem 0; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.research-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 10px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
 [data-theme="dark"] .research-stats { background: #111b2b; }
 .research-stat { display: grid; gap: 4px; min-width: 0; padding: 14px 18px; }
 .research-stat + .research-stat { border-left: 1px solid var(--border); }
@@ -2904,10 +2904,20 @@ dialog.sector-dialog {
 .research-stat strong.up { color: var(--up); }
 .research-stat strong small { color: var(--muted); font-size: var(--text-meta); font-weight: 500; }
 .research-stat-note { overflow: hidden; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; white-space: nowrap; text-overflow: ellipsis; }
-.research-controls { display: flex; gap: .75rem; margin: .75rem 0; }
-.research-controls label { display: flex; align-items: center; gap: .35rem; font-size: .82rem; }
-.research-controls select { max-width: 100%; color: inherit; background: var(--surface, #14243b); border: 1px solid var(--border, #293d58); border-radius: 8px; padding: .45rem; }
+.research-controls { display: flex; gap: 8px; margin: 0 0 6px; }
+.research-controls label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: var(--text-meta); white-space: nowrap; }
+/* Soft filled menus, like the market list's. */
+.research-controls select { max-width: 100%; min-height: 36px; padding: 6px 26px 6px 12px; border: 0; border-radius: 10px; background-color: var(--chip-track, #eef2f7); color: var(--ink-soft, #475569); font-size: var(--text-secondary); font-weight: 500; }
+[data-theme="dark"] .research-controls select { background-color: #1a2538; color: #cbd5e1; }
+/* The page opens straight on its figures; the session it reads sits under the list, as on the market page. */
+.research-center > .research-date { margin: 10px 2px 0; color: var(--muted); font-size: var(--text-meta); }
+.research-center > .research-date[hidden] { display: none; }
 .research-list { min-width: 0; }
+/* The watchlist sits in a panel like the market list. */
+#research-list:has(.research-table) { padding: 2px 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+#research-list .research-table tbody tr:last-child > * { border-bottom: 0; }
+[data-theme="dark"] #research-list:has(.research-table) { background: #111b2b; }
+@media (max-width: 520px) { #research-list:has(.research-table) { padding: 0 8px; } }
 .research-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .research-table th, .research-table td { padding: .8rem .65rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .research-table thead th { color: var(--muted); font-size: .76rem; font-weight: 500; text-align: left; white-space: nowrap; }
@@ -2938,10 +2948,12 @@ dialog.sector-dialog {
 .research-price-change { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.4; font-weight: 400; }
 .research-price-change.up { color: var(--up); }
 .research-price-change.down { color: var(--down); }
-@media (max-width: 720px) { .research-controls { flex-wrap: wrap; } }
+
 @media (max-width: 520px) {
-  .research-stat { padding: 12px 12px 11px; }.research-stat strong { font-size: var(--text-title); }
-  .research-controls { gap: .5rem; }.research-controls label { flex: 1 1 8.5rem; justify-content: space-between; }.research-controls select { flex: 1; min-width: 0; width: auto; }
+  .research-stat { padding: 10px 12px; }.research-stat strong { font-size: var(--text-title); }
+  /* Too narrow for the notes, which only repeated what the labels say. */
+  .research-stat-note { display: none; }
+  .research-controls label { flex: 1 1 0; min-width: 0; }.research-controls select { flex: 1; min-width: 0; width: 100%; }
   .research-table th, .research-table td { padding: .55rem .35rem; }
   .research-table th:nth-child(1) { width: 52%; }.research-table th:nth-child(2) { width: 23%; }.research-table th:nth-child(3) { width: 25%; }
   .research-table th:nth-child(n+4), .research-card td:nth-child(n+4) { display: none; }
@@ -3043,6 +3055,17 @@ dialog.sector-dialog {
 .list-search-toggle .icon { width: 16px; height: 16px; }
 .list-search-toggle:focus-visible, .list-search-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 @media (hover: hover) { .list-search-toggle:hover { color: var(--accent); } }
+/* Opening grows the field out of the icon's spot; closing lets the icon and menus settle back in. */
+@media (prefers-reduced-motion: no-preference) {
+  .stocks-panel.is-searching .table-toolbar > .list-search { transform-origin: left center; animation: list-search-open 240ms cubic-bezier(.22, 1, .36, 1) both; }
+  .stocks-panel.is-searching .list-search :is(input, .list-search-close) { animation: list-search-fade 200ms 90ms ease-out both; }
+  .stocks-panel.search-closed .search-controls > * { animation: list-search-fade 220ms ease-out both; }
+  .stocks-panel.search-closed .list-search-toggle { animation: list-search-pop 260ms cubic-bezier(.3, 1.6, .5, 1) both; }
+  .list-search-toggle:active { transform: scale(.92); }
+}
+@keyframes list-search-open { from { clip-path: inset(0 calc(100% - 36px) 0 0 round 10px); opacity: .6; } to { clip-path: inset(0 0 0 0 round 10px); opacity: 1; } }
+@keyframes list-search-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes list-search-pop { from { transform: scale(.8); opacity: 0; } to { transform: none; opacity: 1; } }
 [data-theme="dark"] .list-search-toggle, [data-theme="dark"] .stocks-panel .table-toolbar > .list-search { background: #1a2538; color: #cbd5e1; }
 @media (max-width: 700px) { .stocks-panel:is(.is-etf, .is-searching) .table-toolbar > .list-search { max-width: none; } }
 @media (min-width: 701px) {
@@ -3524,7 +3547,6 @@ dialog.sector-dialog {
   #stock-rows > tr > .entry-cell, #stock-rows .research-next { display: none; }
   #stock-rows > tr > .research-cell { align-self: center; justify-self: end; }
   /* An ETF card has no research status: its close and change take that spot, so the price row goes. */
-  #stock-rows .research-etf-chip { display: none; }
   #stock-rows .research-etf-price { display: inline-flex; }
   #stock-rows > tr:has(.research-etf-price) > .price-cell { display: none; }
 }

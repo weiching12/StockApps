@@ -56,7 +56,7 @@ function etfPriceCell(stock, number) {
   const tone = change > 0 ? "up" : change < 0 ? "down" : "";
   const price = Number.isFinite(close) ? `<span class="research-etf-price"><strong>${number(close, 2)}</strong>${Number.isFinite(change)
     ? `<span class="change-chip ${tone}">${change > 0 ? "+" : ""}${number(change, 2)}%</span>` : ""}</span>` : "";
-  return `<span class="research-chip muted research-etf-chip">ETF 不評估</span>${price}`;
+  return price;
 }
 
 export function researchListCells(stock, esc, number) {
@@ -65,7 +65,7 @@ export function researchListCells(stock, esc, number) {
   const gateTone = summary?.gateStatus === "PASS" ? "pass" : summary?.gateStatus === "FAIL" ? "fail" : "unknown";
   // ETFs are not researched: they say so instead of looking like missing data.
   const etf = !summary && isEtf(stock);
-  const readiness = `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><strong>${score}</strong></button><small class="research-gate ${gateTone}">${esc(etf ? "不評估進場" : gateText(summary))}</small>`;
+  const readiness = etf ? "" : `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><strong>${score}</strong></button><small class="research-gate ${gateTone}">${esc(gateText(summary))}</small>`;
   const status = summary?.status, next = summary?.nextDayStatus;
   // A triggered signal's chip states the next-session outcome; the line under it (wide screens)
   // names why it is held back and the pattern, with the full wording on hover.

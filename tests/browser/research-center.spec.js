@@ -79,7 +79,7 @@ test.use({ viewport: { width: 390, height: 844 } });
 test("phone research cards fit the viewport and remain operable", async ({ page }) => {
   await page.goto("/");
   await page.locator('[data-page="favorites"]').first().click();
-  await expect(page.locator("#page-description")).toBeVisible();
+  await expect(page.locator(".page-heading")).toHaveClass(/sr-only/);
   await expect(page.locator("#research-list .research-card").first()).toBeVisible();
   await expect(page.locator('.research-mobile-detail')).toHaveCount(0);
   for (const width of [320, 390, 483]) {
@@ -91,15 +91,19 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
       return stats.scrollWidth <= stats.clientWidth && items.length === 3 && items.every((item) => Math.abs(item.top - items[0].top) < 1)
         && labels.every((label) => label.scrollWidth <= label.clientWidth && label.getBoundingClientRect().height < 24);
     }), `stats at ${width}px`).toBe(true);
-    const heading =await page.locator(".page-heading").evaluate((node) => {
-      const title = node.querySelector("#page-title").getBoundingClientRect();
+    // No page heading: the figures come first and the session date sits under the list.
+    const layout = await page.locator(".research-center").evaluate((node) => {
+      const stats = node.querySelector("#research-stats").getBoundingClientRect();
+      const list = node.querySelector("#research-list").getBoundingClientRect();
       const date = node.querySelector("#research-date").getBoundingClientRect();
-      const description = node.querySelector("#page-description").getBoundingClientRect();
-      return { titleRight: title.right, dateLeft: date.left, dateRight: date.right, dateBottom: date.bottom, descriptionTop: description.top, viewportWidth: window.innerWidth };
+      const controls = [...node.querySelectorAll(".research-controls select")].map((item) => item.getBoundingClientRect());
+      return { statsTop: stats.top, listBottom: list.bottom, dateTop: date.top, dateRight: date.right, viewportWidth: window.innerWidth,
+        controlsOneRow: Math.abs(controls[0].top - controls[1].top) < 1 };
     });
-    expect(heading.dateLeft).toBeGreaterThanOrEqual(heading.titleRight - 1);
-    expect(heading.dateRight).toBeLessThanOrEqual(heading.viewportWidth + 1);
-    expect(heading.dateBottom).toBeLessThan(heading.descriptionTop);
+    expect(layout.statsTop).toBeLessThan(110);
+    expect(layout.dateTop).toBeGreaterThanOrEqual(layout.listBottom);
+    expect(layout.dateRight).toBeLessThanOrEqual(layout.viewportWidth + 1);
+    expect(layout.controlsOneRow).toBe(true);
     const bounds = await page.locator(".research-center").evaluate((node) => ({
       left: node.getBoundingClientRect().left, right: node.getBoundingClientRect().right,
       width: window.innerWidth,

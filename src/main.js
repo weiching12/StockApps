@@ -720,12 +720,16 @@ function clearListSearch() {
   state.listQuery = ""; state.listSearchOpen = false;
   const input = document.querySelector("#list-search");
   if (input) input.value = "";
+  document.querySelector(".stocks-panel")?.classList.remove("search-closed");
 }
 function setListSearch(open) {
   const hadQuery = Boolean(state.listQuery);
   if (!open) clearListSearch();
   state.listSearchOpen = open;
-  document.querySelector(".stocks-panel")?.classList.toggle("is-searching", open);
+  const panel = document.querySelector(".stocks-panel");
+  panel?.classList.toggle("is-searching", open);
+  // Marks a close just made by the user, so only that brings the menus back with a transition.
+  panel?.classList.toggle("search-closed", !open && state.marketView !== "etf");
   if (open) document.querySelector("#list-search").focus({ preventScroll: true });
   else if (state.marketView !== "etf") document.querySelector("[data-list-search-open]")?.focus({ preventScroll: true });
   if (hadQuery) renderTable();
