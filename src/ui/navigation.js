@@ -41,6 +41,7 @@ export function renderPageView({ state, dataset, renderLoadState, updateSegmente
   document.querySelector(".sector-toolbar").hidden = state.marketView !== "sectors";
   // ETFs are not researched, so their view drops the readiness and research columns and filter.
   document.querySelector(".stocks-panel")?.classList.toggle("is-etf", state.marketView === "etf");
+  document.querySelector(".stocks-panel")?.classList.toggle("is-searching", Boolean(state.listSearchOpen));
   document.querySelectorAll("[data-market-view-choice]").forEach((button) =>
     button.setAttribute("aria-pressed", String(button.dataset.marketViewChoice === state.marketView)));
   document.querySelectorAll("[data-page-panel]").forEach((panel) => {

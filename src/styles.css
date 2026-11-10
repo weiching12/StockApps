@@ -3026,7 +3026,25 @@ dialog.sector-dialog {
 .research-chip.negative { background: #fff1f1; color: #b54750; }
 .research-chip.warning { background: #fff7e6; color: #a16207; }
 /* The ETF view has no research: its readiness and research columns and the research filter go away. */
-.stocks-panel.is-etf :is(col.entry-column, col.research-column, #market-research-filter) { display: none; }
+.stocks-panel.is-etf :is(col.entry-column, col.research-column) { display: none; }
+/* ...and its toolbar is a single search field in place of the filters and menus. */
+.stocks-panel.is-etf .table-toolbar > :is(.filter-tabs, .search-controls) { display: none; }
+/* The list's search: an icon beside the menus opens the field in their place; the ETF view shows it always. */
+.list-search { display: none; }
+.stocks-panel:is(.is-etf, .is-searching) .table-toolbar > .list-search { display: flex; flex: 1 1 100%; order: 2; grid-column: 1 / -1; width: 100%; max-width: 420px; min-height: 36px; padding: 4px 6px 4px 12px; border: 0; border-radius: 10px; background: var(--chip-track, #eef2f7); }
+.stocks-panel.is-searching .table-toolbar > .search-controls { display: none; }
+.list-search > .icon { flex: none; width: 15px; height: 15px; }
+.list-search input { font-size: var(--text-secondary); }
+.list-search input::-webkit-search-cancel-button { display: none; }
+.list-search-close { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+.list-search-close .icon { width: 14px; height: 14px; }
+.stocks-panel.is-etf .list-search-close { display: none; }
+.list-search-toggle { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 10px; background: var(--chip-track, #eef2f7); color: var(--ink-soft, #475569); cursor: pointer; transition: background-color 180ms ease, color 180ms ease; }
+.list-search-toggle .icon { width: 16px; height: 16px; }
+.list-search-toggle:focus-visible, .list-search-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (hover: hover) { .list-search-toggle:hover { color: var(--accent); } }
+[data-theme="dark"] .list-search-toggle, [data-theme="dark"] .stocks-panel .table-toolbar > .list-search { background: #1a2538; color: #cbd5e1; }
+@media (max-width: 700px) { .stocks-panel:is(.is-etf, .is-searching) .table-toolbar > .list-search { max-width: none; } }
 @media (min-width: 701px) {
   .stocks-panel.is-etf :is(thead th:nth-child(3), thead th:nth-child(4), td.entry-cell, td.research-cell) { display: none; }
 }
@@ -3036,9 +3054,9 @@ dialog.sector-dialog {
 .research-next.positive { color: var(--accent); font-weight: 500; }
 .research-next.warning { color: #a16207; }
 .research-next.negative { color: #b54750; }
-#market-research-filter, #market-sort { min-width: 0; max-width: 180px; min-height: 44px; padding: 7px 21px 7px 8px;
-  border: 1px solid #d7dee9; border-radius: 4px; color: #70829c; background: #fff; font-size: var(--text-secondary); }
-[data-theme="dark"] :is(#market-research-filter, #market-sort) { background-color: #0d1726; color: var(--ink); border-color: var(--border); }
+#market-research-filter, #market-sort { min-width: 0; max-width: 180px; min-height: 36px; padding: 6px 26px 6px 12px;
+  border: 0; border-radius: 10px; color: var(--ink-soft, #475569); background-color: var(--chip-track, #eef2f7); font-size: var(--text-secondary); font-weight: 500; }
+[data-theme="dark"] :is(#market-research-filter, #market-sort) { background-color: #1a2538; color: #cbd5e1; }
 [data-theme="dark"] :is(#market-research-filter, #market-sort) option { background: #0d1726; color: var(--ink); }
 [data-theme="dark"] .research-chip { background: #1b2a40; color: #b5c3d6; }
 [data-theme="dark"] .research-chip.positive { background: #172554; color: #93c5fd; }
@@ -3093,10 +3111,11 @@ dialog.sector-dialog {
   /* The 44px target reaches past the 22px line it shares with the status chip. */
   #stock-rows .research-score-button { grid-area: readiness; align-self: start; justify-self: end; width: auto; min-height: 44px; margin-block: -11px; }
   /* Filters: search, one sideways row of quick filters, then industry and sort. */
-  .table-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-items: center; padding: 8px; }
+  .table-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; padding: 10px; border-top: 0; }
   .search-controls { display: contents; }
   .table-toolbar > .search-box { order: 0; grid-column: 1 / -1; width: 100%; max-width: none; min-height: 36px; padding-block: 5px; }
-  .table-toolbar #market-sort { order: 3; grid-column: 1 / -1; }
+  .table-toolbar .list-search-toggle { order: 2; }
+  .table-toolbar #market-sort { order: 3; grid-column: 2; }
   .table-toolbar > .filter-tabs { order: 1; grid-column: 1 / -1; width: 100%; justify-content: flex-start; gap: 6px; padding: 0 24px 0 0; border: 0; border-radius: 0; background: transparent;
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
   .filter-tabs .segmented-indicator { display: none; }
@@ -3106,7 +3125,7 @@ dialog.sector-dialog {
   [data-theme="dark"] .table-toolbar > .filter-tabs button { background: #1a2538; color: #cbd5e1; }
   [data-theme="dark"] .table-toolbar > .filter-tabs button[aria-pressed="true"] { background: #172554; color: #93c5fd; }
   #market-research-filter { display: none; }
-  .table-toolbar #market-sort { width: 100%; max-width: none; min-height: 34px; padding-block: 5px; }
+  .table-toolbar #market-sort { width: 100%; max-width: none; min-height: 36px; }
 }
 
 /* Score dialog: research sections come before the chart and the legacy V1.2 detail. */

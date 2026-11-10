@@ -5,7 +5,7 @@ import { compareResearchStocks, matchesResearchFilter, researchListCells, resear
 export function renderMarketView(context) {
   const { state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl } = context;
   // Loading the next batch keeps the same list: reuse it instead of filtering and sorting every stock again.
-  const listKey = [state.date, state.marketView, state.view, state.sector, state.research, state.sort, state.sortDirection,
+  const listKey = [state.date, state.marketView, state.listQuery, state.view, state.sector, state.research, state.sort, state.sortDirection,
     state.favorites.join(","), pendingSymbols.size, loading].join("|");
   if (tableState.listSource !== snapshots || tableState.listKey !== listKey) {
     tableState.list = sortedMarketList(context);
@@ -27,7 +27,7 @@ export function renderMarketView(context) {
   };
   const sortSelect = document.querySelector("#market-sort");
   if (sortSelect) sortSelect.value = [...sortSelect.options].some((option) => option.value === state.sort) ? state.sort : "";
-  const nextViewKey = [state.date, state.marketView, state.view, state.sector, state.research, state.sort, state.sortDirection].join("|");
+  const nextViewKey = [state.date, state.marketView, state.listQuery, state.view, state.sector, state.research, state.sort, state.sortDirection].join("|");
   // On phones the list scrolls inside its own box and only the rows in view are drawn.
   const scroller = document.querySelector(".stocks-panel.is-fitted .table-scroll");
   if (nextViewKey !== tableState.viewKey) {
@@ -144,10 +144,17 @@ export const marketListStocks = (snapshots, marketView) =>
 
 function sortedMarketList({ state, snapshots: allSnapshots, pendingSymbols, stockMoney }) {
   const snapshots = marketListStocks(allSnapshots, state.marketView);
-  const sector = state.marketView === "etf" ? "all" : state.sector;
-  const research = state.marketView === "etf" ? "all" : state.research;
-  const visibleStocks = filterStocks(snapshots, { ...state, sector }).filter((stock) => matchesResearchFilter(stock, research));
-  if (["all", "favorites"].includes(state.view) && (!research || research === "all")) {
+  const query = (state.listQuery ?? "").trim();
+  // The ETF view has a search field only: no filters, no research, listed by code.
+  if (state.marketView === "etf") {
+    const found = filterStocks(snapshots, { query });
+    if (!query) found.push(...snapshots.filter((stock) => pendingSymbols.has(stock.symbol)));
+    return found.sort((a, b) => a.symbol.localeCompare(b.symbol));
+  }
+  const sector = state.sector;
+  const research = state.research;
+  const visibleStocks = filterStocks(snapshots, { ...state, sector, query }).filter((stock) => matchesResearchFilter(stock, research));
+  if (!query && ["all", "favorites"].includes(state.view) && (!research || research === "all")) {
     visibleStocks.push(...snapshots.filter((stock) => pendingSymbols.has(stock.symbol) &&
       (sector === "all" || stock.sector === sector || stock.sectorGroup === sector) &&
       (state.view !== "favorites" || state.favorites.includes(stock.symbol))));

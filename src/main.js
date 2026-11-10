@@ -715,7 +715,25 @@ function setResearchFilter(value) {
   document.querySelector("#market-research-filter").value = value;
 }
 
+/** The market list's search opens from its icon and closes back to the menus; the ETF view shows it always. */
+function clearListSearch() {
+  state.listQuery = ""; state.listSearchOpen = false;
+  const input = document.querySelector("#list-search");
+  if (input) input.value = "";
+}
+function setListSearch(open) {
+  const hadQuery = Boolean(state.listQuery);
+  if (!open) clearListSearch();
+  state.listSearchOpen = open;
+  document.querySelector(".stocks-panel")?.classList.toggle("is-searching", open);
+  if (open) document.querySelector("#list-search").focus({ preventScroll: true });
+  else if (state.marketView !== "etf") document.querySelector("[data-list-search-open]")?.focus({ preventScroll: true });
+  if (hadQuery) renderTable();
+}
+
 function resetFilters() {
+  clearListSearch();
+  document.querySelector(".stocks-panel")?.classList.remove("is-searching");
   state.sector = "all";
   state.view = "all";
   state.research = "all";
@@ -979,8 +997,12 @@ function bindEvents() {
       renderSearch();
       input.focus({ preventScroll: true });
     }
+    if (button.dataset.listSearchOpen !== undefined) setListSearch(true);
+    if (button.dataset.listSearchClose !== undefined) setListSearch(false);
     if (button.dataset.marketViewChoice) {
       state.marketView = button.dataset.marketViewChoice;
+      // Each view starts from its whole list.
+      clearListSearch();
       renderPage(); renderSectorOverview(); renderTable();
     }
     if (button.dataset.sectorChip) {
@@ -1080,6 +1102,14 @@ function bindEvents() {
   document.querySelector("#stock-search").addEventListener("input", (event) => {
     state.searchQuery = event.target.value;
     renderSearch();
+  });
+  const listSearch = document.querySelector("#list-search");
+  listSearch.addEventListener("input", (event) => {
+    state.listQuery = event.target.value;
+    renderTable();
+  });
+  listSearch.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.marketView !== "etf") { event.preventDefault(); setListSearch(false); }
   });
   document.querySelector("#market-research-filter").addEventListener("change", (event) => {
     setResearchFilter(event.target.value);

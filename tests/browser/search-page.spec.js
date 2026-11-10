@@ -1,15 +1,54 @@
 import { test, expect } from "@playwright/test";
 
-test("search is its own page in the navigation, and the market list has no search box", async ({ page }) => {
+test("search is its own page in the navigation; the market list keeps its field behind an icon", async ({ page }) => {
   await page.goto("/");
   await page.locator('[data-page="market"]').first().click();
-  await expect(page.locator(".stocks-panel .search-box")).toHaveCount(0);
+  await expect(page.locator(".stocks-panel .list-search")).toBeHidden();
   await page.locator('[data-page="search"]').first().click();
   await expect(page.locator("#page-title")).toContainText("搜尋");
   await expect(page.locator(".page-heading")).toHaveClass(/sr-only/);
   await expect(page.locator("#stock-search")).toBeFocused();
   await expect(page.locator(".stocks-panel")).toBeHidden();
   await expect(page.locator("#search-summary")).toContainText("輸入代碼或名稱");
+});
+
+test("the market list's search icon opens a field in place of the menus and closing restores the list", async ({ page }) => {
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    await page.locator('[data-page="market"]').first().click();
+    const rows = page.locator("#stock-rows tr[data-symbol]"), field = page.locator("#list-search");
+    await expect(rows.first()).toBeVisible();
+    const all = await rows.count();
+    await page.locator("[data-list-search-open]").click();
+    await expect(field).toBeFocused();
+    await expect(page.locator("#market-sort")).toBeHidden();
+    await field.fill("2330");
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toHaveAttribute("data-symbol", "2330");
+    await page.locator("[data-list-search-close]").click();
+    await expect(field).toBeHidden();
+    await expect(page.locator("#market-sort")).toBeVisible();
+    await expect(rows).toHaveCount(all);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+});
+
+test("the ETF view shows only a search field, and switching views starts from the whole list again", async ({ page }) => {
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('[data-market-view-choice="etf"]').click();
+  const rows = page.locator("#stock-rows tr[data-symbol]"), field = page.locator("#list-search");
+  await expect(field).toBeVisible();
+  await expect(page.locator(".stocks-panel .filter-tabs, #market-sort, #market-research-filter, [data-list-search-open], [data-list-search-close]").locator("visible=true")).toHaveCount(0);
+  await expect(rows).toHaveCount(2);
+  await field.fill("高股息");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toHaveAttribute("data-symbol", "00878");
+  await page.locator('[data-market-view-choice="list"]').click();
+  await expect(field).toBeHidden();
+  await expect(field).toHaveValue("");
+  await expect(page.locator('#stock-rows tr[data-symbol="2330"]')).toBeVisible();
 });
 
 test("matches rank codes before names and a result opens the stock", async ({ page }) => {

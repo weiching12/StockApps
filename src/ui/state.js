@@ -6,6 +6,8 @@ export const createState = () => ({
   view: "all",
   sector: "all",
   searchQuery: "",
+  listQuery: "",
+  listSearchOpen: false,
   sort: "",
   research: "all",
   sortDirection: -1,
