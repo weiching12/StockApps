@@ -140,7 +140,7 @@
             "content": { "application/json": { "schema": {
               "type": "object", "required": ["data", "meta"],
               "properties": {
-                "data": { "type": "object", "required": ["name", "members", "periods"] },
+                "data": { "type": "object", "required": ["name", "members", "periods"], "properties": { "flow": { "type": ["object", "null"], "description": "近 20 個交易日三大法人逐日累計淨買賣超金額（元）：dates、available、expected 與 lines.total／外資／投信／自營商（累計）與 daily（各日金額）；只計 20 日資料完整的個股，資料不足時為 null" }, "price": { "type": ["object", "null"], "description": "同 20 個交易日的產業股價等權平均累計漲跌（%）：dates、base（起算收盤日）、available、expected、returns；未還原權息，任一收盤價缺漏的個股不計入，資料不足時為 null" } } },
                 "meta": { "type": "object", "required": ["asOf", "generation"] }
               }
             } } }

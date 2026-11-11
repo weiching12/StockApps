@@ -204,8 +204,7 @@ thead th button,
     font-size: var(--text-secondary);
   }
   .guide-item h3,
-.sector-detail-heading h3,
-.sector-summary-period h4 {
+.sector-detail-heading h3 {
     font-size: var(--text-secondary);
   }
   .change-chip,
@@ -215,9 +214,6 @@ thead th button,
   }
   .sector-change {
     font-size: var(--text-secondary);
-  }
-  .sector-summary-values .institution-money {
-    font-size: var(--text-body);
   }
   .sector-toolbar .sector-sort-control > span,
   .sector-toolbar .sector-period-control > span {

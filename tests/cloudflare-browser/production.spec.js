@@ -131,17 +131,12 @@ test("partial sector totals exclude missing data and leave unavailable constitue
       await expect(card.locator("[data-sector-coverage]")).toHaveCount(0);
     }
     await page.locator(`[data-sector-details="${sector}"]`).click();
-    for (const [key, days] of [["day", 1], ["5", 5], ["20", 20]]) {
-      const result = expected(sector, days);
-      const summary = page.locator(`#sector-dialog [data-sector-period="${key}"]`);
-      await expect(summary.locator('[data-sector-ratio="total"]')).toHaveText(result.ratios[0]);
-      await expect(summary.locator('[data-sector-money="total"]')).toHaveText(money(result.money).replace(/ 億$/, ""));
-      for (const [i, name] of ["外資", "投信", "自營商"].entries()) {
-        await expect(summary.locator(`[data-sector-ratio="${name}"]`)).toHaveText(result.ratios[i + 1]);
-        await expect(summary.locator(`[data-sector-money="${name}"]`)).toHaveText(money(result.cash[i]).replace(/ 億$/, ""));
-      }
-      await expect(summary.locator("[data-sector-coverage]")).toHaveCount(0);
-    }
+    // The trend opens on its last day, the 20-day totals of the same complete-stock cohort.
+    const twenty = expected(sector, 20), trend = page.locator("#sector-dialog .sector-flow-trend");
+    await expect(trend.locator('[data-flow-cell="total"] strong')).toHaveText(money(twenty.money).replace(/ 億$/, ""));
+    for (const [i, name] of ["外資", "投信", "自營商"].entries())
+      await expect(trend.locator(`[data-flow-cell="${name}"] strong`)).toHaveText(money(twenty.cash[i]).replace(/ 億$/, ""));
+    await expect(page.locator("#sector-dialog [data-sector-period]")).toHaveCount(0);
     if (sector === unpriced?.sector) {
       const row = page.locator(`[data-sector-stock="${unpriced.symbol}"]`);
       await expect(row.locator(".sector-stock-close")).toHaveText("—");

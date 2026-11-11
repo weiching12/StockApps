@@ -99,12 +99,13 @@ test("industry overview/detail match the previous UI algorithm across all window
   }
 });
 
-// Volume ratios were added after the legacy algorithm; parity covers every field it had.
+// Volume ratios, the flow trend and the price line were added after the legacy algorithm; parity covers every field it had.
 function withoutVolumeRatios(detail) {
   if (!detail) return detail;
-  return { ...detail, periods: Object.fromEntries(Object.entries(detail.periods).map(([window, { volume, ratio, institutions, ...period }]) =>
+  const { flow: _flow, price: _price, ...rest } = detail;
+  return { ...rest, periods: Object.fromEntries(Object.entries(detail.periods).map(([window, { volume, ratio, institutions, ...period }]) =>
     [window, { ...period, institutions: Object.fromEntries(Object.entries(institutions).map(([name, { ratio: _ratio, ...values }]) => [name, values])) }])),
-    members: detail.members.map((member) => ({ ...member, periods: Object.fromEntries(Object.entries(member.periods)
+    members: rest.members.map((member) => ({ ...member, periods: Object.fromEntries(Object.entries(member.periods)
       .map(([window, { ratio: _ratio, ...values }]) => [window, values])) })) };
 }
 

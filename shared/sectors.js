@@ -152,6 +152,70 @@ function getStockWindowVolume(stock, window, tradingDates) {
   return volume > 0 ? volume : null;
 }
 
+const FLOW_SESSIONS = 20;
+const FLOW_LINES = ["外資", "投信", "自營商"];
+
+/**
+ * Cumulative institutional net amount (TWD) at each of the last 20 sessions, summed over the stocks
+ * whose whole 20-session window is complete, so the last point equals the 20-day total shown with it.
+ * `daily` holds each session's own amount. Null when the calendar is short or no stock has a complete
+ * window; a missing day is never zero.
+ */
+export function getSectorFlowSeries(stocks, tradingDates, days = FLOW_SESSIONS) {
+  const dates = tradingDates.slice(-days);
+  if (dates.length !== days) return null;
+  const cohort = stocks.filter((stock) => Number.isFinite(getStockInstitutionEstimate(stock, "total", String(days), tradingDates)));
+  if (!cohort.length) return null;
+  const names = ["total", ...FLOW_LINES];
+  const lines = Object.fromEntries(names.map((name) => [name, []]));
+  const daily = Object.fromEntries(names.map((name) => [name, []]));
+  for (let index = 0; index < days; index++) {
+    const seen = tradingDates.slice(0, tradingDates.length - days + index + 1);
+    for (const name of names) {
+      let amount = 0;
+      for (const stock of cohort) {
+        const value = getStockInstitutionEstimate(stock, name, "day", seen);
+        if (!Number.isFinite(value)) return null;
+        amount += value;
+      }
+      daily[name].push(amount);
+      lines[name].push((lines[name].at(-1) ?? 0) + amount);
+    }
+  }
+  return { dates, available: cohort.length, expected: stocks.length, lines, daily };
+}
+
+/**
+ * The latest run of one institution's daily amounts: direction (1 buying, -1 selling, 0 flat), how many
+ * sessions it has lasted, the session it began, whether it reaches back past the series (`capped`)
+ * and whether the session before it went the other way (`turned`).
+ */
+export function getFlowStreak(daily, dates) {
+  const direction = Math.sign(daily.at(-1) ?? 0);
+  if (!direction) return { direction: 0, length: 0, since: null, capped: false, turned: false };
+  let start = daily.length - 1;
+  while (start > 0 && Math.sign(daily[start - 1]) === direction) start--;
+  return { direction, length: daily.length - start, since: dates[start], capped: start === 0,
+    turned: start > 0 && Math.sign(daily[start - 1]) === -direction };
+}
+
+/**
+ * Equal-weighted cumulative price change (%) of the sector over the same sessions, from the close before
+ * them. Prices are unadjusted, as everywhere else; a stock missing any of those closes stays out.
+ */
+export function getSectorPriceSeries(stocks, tradingDates, days = FLOW_SESSIONS) {
+  if (tradingDates.length < days + 1) return null;
+  const sessions = tradingDates.slice(-days - 1);
+  const rows = stocks.map((stock) => {
+    const history = new Map((stock.history ?? []).map((bar) => [bar.date, bar.close]));
+    const closes = sessions.map((date) => history.get(date));
+    return closes.every((close) => Number.isFinite(close) && close > 0) ? closes : null;
+  }).filter(Boolean);
+  if (!rows.length) return null;
+  return { dates: sessions.slice(1), base: sessions[0], available: rows.length, expected: stocks.length,
+    returns: sessions.slice(1).map((_, index) => rows.reduce((sum, closes) => sum + (closes[index + 1] / closes[0] - 1) * 100, 0) / rows.length) };
+}
+
 /** Detail cohort, shared institution totals and daily-money member ordering.
  * Amounts are closing-price estimates in TWD; share totals remain in shares.
  * No DOM, HTTP, storage or formatted strings enter the research model.
@@ -189,5 +253,6 @@ export function getSectorDetail(snapshots, name, { tradingDates, asOf = tradingD
     if (b.net === null) return -1;
     return b.net - a.net || a.stock.name.localeCompare(b.stock.name, "zh-Hant");
   });
-  return { name, stocks, periods, members, tradingDates: selectedDates };
+  return { name, stocks, periods, members, tradingDates: selectedDates, flow: getSectorFlowSeries(stocks, selectedDates),
+    price: getSectorPriceSeries(stocks, selectedDates) };
 }

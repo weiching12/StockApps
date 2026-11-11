@@ -1,7 +1,12 @@
 import { getSectorGroupOverview, getSectorOverview, getSectorDetail, rankSectors, sortSectors } from "../../shared/sectors.js";
 import { isEtf } from "../../shared/market-codec.js";
+import { bindFlowTrend, flowTrendMarkup } from "./sector-flow.js";
 
 const COLLAPSED_SUB_INDUSTRIES = 10;
+
+/** "Stocks buying / stocks in the sector". A stock without data for the window cannot count as buying
+ * but still counts in the total; with no usable stock at all the figure stays blank rather than read 0. */
+export const breadthText = (estimate) => estimate?.available ? `買超 ${estimate.buying}／${estimate.expected} 檔` : "";
 
 /** The ranking opens on its top rows; what matters sorts first, and the rest is one tap away. */
 export const visibleSectors = (sectors, expanded) => expanded ? sectors : sectors.slice(0, COLLAPSED_SUB_INDUSTRIES);
@@ -50,7 +55,7 @@ export function sectorFlowMarkup(context) {
   if (!periods.some(([, sector]) => sector)) return "";
   const cells = periods.map(([label, sector]) => {
     const amount = sector?.estimate?.amount ?? null;
-    const breadth = sector?.estimate?.available ? `買超 ${sector.estimate.buying}／${sector.estimate.available} 檔` : "";
+    const breadth = breadthText(sector?.estimate);
     return `<div class="sector-flow-period" data-flow-period="${label}"><span>${label}</span><strong class="${direction(amount)}"${amount === null ? "" : ` data-amount="${amount}"`}>${amount === null ? "資料不足" : institutionalMoney(amount)}</strong><small>${breadth}</small></div>`;
   }).join("");
   const detail = isGroup ? "" : `<button type="button" class="text-button" data-sector-open="${esc(name)}" aria-label="查看${esc(name)}個股法人明細">查看明細</button>`;
@@ -154,7 +159,7 @@ export function renderSectorOverviewView(context) {
       : `<p>${periodLabel}<span>${esc(leaderText)}</span> <span class="${direction(leaderChange)}">${leader ? percent(leaderChange) : ""}</span>${streakBadge}</p>`;
     const share = ranked ? Math.max(4, Math.round((Math.abs(sector.estimate.amount) / maxAmount) * 100)) : 0;
     const bar = ranked ? `<i class="${direction(sector.estimate.amount)}" style="--sector-bar:${share}%;--sector-share:${share / 100};--i:${Math.min(index, 12)}"></i>` : "";
-    return `<article class="sector-card" data-sector-name="${esc(sector.name)}" data-sector-details="${esc(sector.name)}" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="sector-dialog" aria-label="查看${esc(sector.name)}產業個股與法人買賣超"><div class="sector-main"><span class="sector-rank">${sector.rank ?? ""}</span><span class="sector-marker ${direction(sector.estimate.amount)}"></span><div class="sector-identity"><div class="sector-title"><h3>${esc(sector.name)}</h3><small class="sector-breadth" data-sector-breadth title="所選區間淨買賣超金額為正的家數／金額資料完整的有效家數">${sector.estimate.available ? `買超 ${sector.estimate.buying}／${sector.estimate.available} 檔` : ""}</small></div>${leaderLine}${state.sectorSort === "activity-desc" ? `<small class="sector-activity" data-sector-activity title="法人買進＋賣出金額占全市場法人交易的比重">${Number.isFinite(sector.activity?.share) ? `法人交易占 ${sector.activity.share.toFixed(1)}%` : "法人交易資料不足"}</small>` : ""}</div><strong class="sector-change ${direction(sector.change)}">${percent(sector.change)}</strong><div class="sector-total"><strong class="institution-money ${direction(sector.estimate.amount)}" data-sector-amount>${institutionalMoney(sector.estimate.amount).replace(" 億", '<span class="money-unit"> 億</span>')}</strong>${bar}</div></div></article>`;
+    return `<article class="sector-card" data-sector-name="${esc(sector.name)}" data-sector-details="${esc(sector.name)}" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="sector-dialog" aria-label="查看${esc(sector.name)}產業個股與法人買賣超"><div class="sector-main"><span class="sector-rank">${sector.rank ?? ""}</span><span class="sector-marker ${direction(sector.estimate.amount)}"></span><div class="sector-identity"><div class="sector-title"><h3>${esc(sector.name)}</h3><small class="sector-breadth" data-sector-breadth title="所選區間淨買賣超金額為正的個股數／產業內個股總檔數；資料不足的個股不計入買超">${breadthText(sector.estimate)}</small></div>${leaderLine}${state.sectorSort === "activity-desc" ? `<small class="sector-activity" data-sector-activity title="法人買進＋賣出金額占全市場法人交易的比重">${Number.isFinite(sector.activity?.share) ? `法人交易占 ${sector.activity.share.toFixed(1)}%` : "法人交易資料不足"}</small>` : ""}</div><strong class="sector-change ${direction(sector.change)}">${percent(sector.change)}</strong><div class="sector-total"><strong class="institution-money ${direction(sector.estimate.amount)}" data-sector-amount>${institutionalMoney(sector.estimate.amount).replace(" 億", '<span class="money-unit"> 億</span>')}</strong>${bar}</div></div></article>`;
   }).join("") + showAll;
   if (document.querySelector("#sector-dialog")?.open) renderSectorDialog(state.sectorName);
 }
@@ -168,8 +173,6 @@ function flowBar(amount, max) {
 
 export function renderSectorDialogView(name, context) {
   const { dataset, latestSnapshots, sectorDetail, isDemo, esc, number, direction, percent, institutionalMoney, icon } = context;
-  // Summary cells pair each amount with its share of the cohort's traded volume.
-  const summaryFigures = (amount, ratio, key) => `<strong class="institution-money ${direction(amount)}" data-sector-money="${key}">${institutionalMoney(amount).replace(/ 億$/, "")}</strong><small class="institution-lots" data-sector-ratio="${key}" title="占量：淨買賣超股數／同期成交股數">${Number.isFinite(ratio) ? percent(ratio) : ""}</small>`;
   const detail = sectorDetail ?? (isDemo ? getSectorDetail(latestSnapshots, name, { tradingDates: dataset.dates, asOf: dataset.info.asOf }) : null);
   if (!detail) return;
   const { members, tradingDates } = detail;
@@ -180,16 +183,7 @@ export function renderSectorDialogView(name, context) {
   document.querySelector("#sector-dialog-heading").textContent = name;
   document.querySelector("#sector-dialog-meta").textContent = `${isDemo ? "最新完整交易日" : "報表交易日"} ${tradingDates.at(-1)}`;
   document.querySelector("#sector-dialog-content").innerHTML = `
-    <section class="sector-detail-summary" aria-labelledby="sector-summary-heading">
-      <div class="sector-detail-heading"><div><h3 id="sector-summary-heading">法人淨買賣超金額</h3><p>當日與近 5／20 個交易日累計<span class="sr-only">，金額單位：億</span>。占量＝淨買賣超股數／同期成交股數</p></div></div>
-      <div class="sector-summary-grid"><div class="sector-summary-labels" aria-hidden="true"><span class="sector-summary-unit">單位：億</span>${["合計", "外資", "投信", "自營商"].map((label) => `<span>${label}</span>`).join("")}</div>${periods.map(([key, label]) => {
-        const { estimate, ratio, institutions } = detail.periods[key];
-        return `<article class="sector-summary-period" data-sector-period="${key}" aria-label="${label}法人買賣超"><header><h4>${label}</h4><div class="sector-summary-values"><span class="sr-only">合計</span>${summaryFigures(estimate.amount, ratio, "total")}</div></header><dl>${["外資", "投信", "自營商"].map((institution) => {
-          const { amount: money, ratio: share } = institutions[institution];
-          return `<div><dt>${institution}</dt><dd>${summaryFigures(money, share, institution)}</dd></div>`;
-        }).join("")}</dl></article>`;
-      }).join("")}</div>
-    </section>
+    ${flowTrendMarkup(detail.flow, detail.price)}
     <section class="sector-stock-section" aria-labelledby="sector-stock-heading">
       <div class="sector-detail-heading"><div><h3 id="sector-stock-heading">產業個股<button type="button" class="sector-note-toggle" aria-expanded="false" aria-controls="sector-chart-note" aria-label="顯示長條與占量說明">${icon("message")}</button></h3><p>依當日淨買賣超金額排序；金額：億，占量為輔</p><p id="sector-chart-note" class="sector-chart-note" hidden>長條：該股當日、5 日、20 日淨買賣超金額的相對大小，各股獨立比例尺。占量＝區間淨買賣超股數／同期成交股數。</p></div></div>
       <div class="sector-stock-scroll" tabindex="0" role="region" aria-label="${esc(name)}個股股價與法人買賣超">
@@ -201,6 +195,7 @@ export function renderSectorDialogView(name, context) {
         }).join("")}</tr>`).join("")}</tbody></table>
       </div>
     </section>`;
+  bindFlowTrend(document.querySelector("#sector-dialog-content"), detail.flow, detail.price, { money: institutionalMoney, direction });
   const toggle = document.querySelector("#sector-dialog-content .sector-note-toggle");
   toggle?.addEventListener("click", () => {
     const note = document.querySelector("#sector-chart-note");

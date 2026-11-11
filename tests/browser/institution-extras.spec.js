@@ -30,7 +30,7 @@ async function loadFixture(page) {
 
 test("sector breadth follows the selected complete monetary window", async ({ page }) => {
   await loadFixture(page);
-  for (const [period, text] of [["day", "買超 2／4 檔"], ["5", "買超 1／3 檔"], ["20", ""]]) {
+  for (const [period, text] of [["day", "買超 2／4 檔"], ["5", "買超 1／4 檔"], ["20", ""]]) {
     await page.locator(`[data-sector-window="${period}"]`).click();
     await expect(page.locator('[data-sector-breadth]')).toHaveText(text);
   }

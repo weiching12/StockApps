@@ -2289,7 +2289,7 @@ dialog h2 {
     color: var(--ink);
     border-color: var(--border);
   }
-  :is(.sector-summary-grid, .source-banner, .guide-item code, .app-status, .search-box, input, select) {
+  :is(.source-banner, .guide-item code, .app-status, .search-box, input, select) {
     background: #0d1726;
     color: var(--ink);
     border-color: var(--border);
@@ -2524,84 +2524,6 @@ dialog.sector-dialog {
   color: var(--muted);
   font-size: var(--text-secondary);
 }
-/* Periods sit side by side as columns; institution rows line up across them through subgrid. */
-.sector-summary-grid {
-  display: grid;
-  grid-template-columns: max-content repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(5, auto);
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface-raised, #fff);
-}
-.sector-summary-labels,
-.sector-summary-period {
-  display: grid;
-  grid-row: 1 / span 5;
-  grid-template-rows: subgrid;
-  min-width: 0;
-}
-.sector-summary-period :is(header, dl, dl > div) { display: contents; }
-.sector-summary-period dt {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-.sector-summary-labels > span,
-.sector-summary-period h4,
-.sector-summary-values,
-.sector-summary-period dd {
-  min-width: 0;
-  margin: 0;
-  padding: 10px 14px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
-}
-.sector-summary-labels > span:first-child,
-.sector-summary-period h4 { border-top: 0; }
-.sector-summary-labels > span {
-  display: flex;
-  align-items: center;
-  padding-right: 6px;
-  color: var(--muted);
-  font-size: var(--text-secondary);
-  white-space: nowrap;
-}
-/* Header row: quiet captions on a soft band; the total row below carries the weight, the institutions sit lighter. */
-.sector-summary-labels > .sector-summary-unit { font-size: var(--text-meta); }
-.sector-summary-labels > span:first-child,
-.sector-summary-period h4 { background: color-mix(in srgb, var(--muted) 7%, transparent); }
-.sector-summary-labels > span:nth-child(2) { color: var(--ink); font-weight: 600; }
-.sector-summary-labels > span:nth-child(2),
-.sector-summary-values { padding-block: 12px; border-top: 0; background: transparent; box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--border) 80%, transparent); }
-.sector-summary-period h4 {
-  padding-bottom: 10px;
-  color: var(--muted);
-  font-size: var(--text-meta);
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-align: right;
-}
-.sector-summary-labels > span:nth-child(n+3) { padding-block: 8px; font-size: var(--text-meta); }
-.sector-summary-period dd { padding-block: 8px; }
-.sector-summary-period dd .institution-money { display: block; font-size: var(--text-secondary); font-weight: 600; line-height: 1.35; }
-.sector-summary-period dd .institution-lots { display: block; margin-top: 1px; font-size: var(--text-meta); opacity: .85; }
-.sector-summary-values .institution-money { font-weight: 700; }
-.sector-summary-values,
-.sector-summary-period dd {
-  overflow-wrap: anywhere;
-  text-align: right;
-  font-size: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-.sector-summary-values .institution-money {
-  display: block;
-  font-size: var(--text-title);
-  line-height: 1.3;
-}
-[data-theme="dark"] .sector-summary-grid { background: #0d1726; }
 .sector-stock-section { margin-top: 24px; }
 .sector-stock-period-label {
   display: none;
@@ -2779,9 +2701,6 @@ dialog.sector-dialog {
   .pull-refresh.is-refreshing > span { animation: pull-refresh-spin 700ms linear infinite; }
   @keyframes pull-refresh-spin { to { transform: rotate(360deg); } }
   .sector-detail-heading { gap: 10px; }
-  .sector-summary-labels > span, .sector-summary-period h4, .sector-summary-values, .sector-summary-period dd { padding: 9px 6px; }
-  .sector-summary-labels > span { padding-left: 10px; }
-  .sector-summary-period:last-child :is(h4, .sector-summary-values, dd) { padding-right: 10px; }
   .sector-stock-scroll { max-height: none; overflow: visible; scrollbar-gutter: auto; }
   .sector-stock-table,
   .sector-stock-table tbody { display: block; }
@@ -2828,9 +2747,6 @@ dialog.sector-dialog {
 }
 @media (max-width: 380px) {
   /* Keep amounts such as "+148.73 億" on one line at 320px; larger values still wrap. */
-  .sector-summary-labels > span, .sector-summary-period h4, .sector-summary-values, .sector-summary-period dd { padding: 8px 2px; }
-  .sector-summary-labels > span { padding-left: 6px; }
-  .sector-summary-period:last-child :is(h4, .sector-summary-values, dd) { padding-right: 4px; }
 }
 /* The sector detail is a bottom sheet closed by pulling down on phones and tablets alike. */
 @media (max-width: 899px) {
@@ -3644,3 +3560,56 @@ dialog.sector-dialog {
 .mood-style-picture svg { display: block; width: 100%; height: auto; }
 .mood-style-choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .mood-style-choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Sector detail: cumulative institutional flow. One day's figures above, three lines and the total below. */
+.sector-flow-trend { --foreign-tone: #2a78d6; --trust-tone: #c47f00; --dealer-tone: #8a5cd6; margin-bottom: 12px; }
+[data-theme="dark"] .sector-flow-trend { --foreign-tone: #4a90e8; --trust-tone: #bd8118; --dealer-tone: #9a78e8; }
+.sector-flow-trend .foreign { --tone: var(--foreign-tone); }
+.sector-flow-trend .trust { --tone: var(--trust-tone); }
+.sector-flow-trend .dealer { --tone: var(--dealer-tone); }
+.sector-flow-trend .total { --tone: var(--muted); }
+.sector-flow-date { margin: 0 0 6px; color: var(--muted); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
+.sector-flow-readout { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+.sector-flow-cell { min-width: 0; }
+.sector-flow-cell span { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; white-space: nowrap; }
+.sector-flow-cell span::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
+.sector-flow-cell.total span::before { width: 10px; height: 2px; border-radius: 0; }
+.sector-flow-cell strong { display: block; font-size: var(--text-body); font-weight: 600; line-height: 1.3; white-space: nowrap; }
+/* The institution's run as of the day on show, under its figure. */
+.sector-flow-cell small { display: block; min-height: 1.4em; color: var(--muted); font-size: var(--text-meta); line-height: 1.4; white-space: nowrap; }
+.sector-flow-cell small.up { color: var(--up); }
+.sector-flow-cell small.down { color: var(--down); }
+.sector-flow-region { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 4px; }
+.sector-flow-scale { position: relative; color: var(--muted); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
+.sector-flow-scale span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
+.sector-flow-plot { position: relative; height: 180px; cursor: crosshair; touch-action: pan-y; -webkit-user-select: none; user-select: none; border-radius: 5px; }
+.sector-flow-plot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sector-flow-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.sector-flow-plot path { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.sector-flow-plot path.total { stroke-width: 1.5; stroke-dasharray: 5 4; }
+.sector-flow-zero { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.sector-flow-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--muted); opacity: .45; pointer-events: none; }
+.sector-flow-dot { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--tone); box-shadow: 0 0 0 2px var(--surface); pointer-events: none; }
+.sector-flow-dates { display: flex; justify-content: space-between; margin-top: 4px; padding-left: 42px; color: var(--muted); font-size: var(--text-meta); }
+.sector-flow-note, .sector-flow-empty { margin: 8px 0 0; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; }
+/* Each institution's latest run: a wider trace under that stretch, and a ring with its date where it began. */
+.sector-flow-plot path.sector-flow-run { stroke-width: 7; opacity: .22; }
+.sector-flow-turn { position: absolute; z-index: 1; pointer-events: none; }
+.sector-flow-turn i { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border: 1.5px solid var(--tone); border-radius: 50%; background: var(--surface); box-sizing: border-box; }
+/* A small annotation, like the chart legends: 11px, the size the price chart uses for its legend. */
+.sector-flow-turn b { position: absolute; right: 3px; padding: 0 2px; border-radius: 3px; background: color-mix(in srgb, var(--surface) 80%, transparent); font-size: 11px; font-weight: 500; line-height: 1.25; white-space: nowrap; }
+.sector-flow-turn.below b { top: calc(4px + var(--lift, 0) * 15px); }
+.sector-flow-turn.above b { bottom: calc(4px + var(--lift, 0) * 15px); }
+.sector-flow-turn.from-left b { right: auto; left: 3px; }
+.sector-flow-turn .up { color: var(--up); }
+.sector-flow-turn .down { color: var(--down); }
+/* The sector's price change as a pale area behind the flow; its figure sits on the date line. */
+.sector-flow-trend .price { --tone: var(--muted); }
+.sector-flow-plot path.price-area { fill: color-mix(in srgb, var(--muted) 13%, transparent); stroke: none; }
+.sector-flow-plot path.price { stroke-width: 1; opacity: .55; }
+.sector-flow-trend .sector-flow-date { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; }
+.sector-flow-price-read { display: inline-flex; align-items: center; gap: 4px; }
+.sector-flow-price-read::before { content: ""; width: 10px; height: 8px; border-radius: 2px; background: color-mix(in srgb, var(--muted) 30%, transparent); }
+.sector-flow-price-read strong { font-weight: 600; }
+.sector-flow-price-read .up { color: var(--up); }
+.sector-flow-price-read .down { color: var(--down); }
