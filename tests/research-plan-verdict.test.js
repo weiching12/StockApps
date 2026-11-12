@@ -63,7 +63,7 @@ test("a candidate shows the buy range first and passes the risk check", () => {
   assert.match(card, /參考買入價 460\.00/);
   assert.match(card, /最高價 開盤上限 476\.02/);
   assert.match(card, /最低價 停損價 440\.50/);
-  assert.match(card, /只看 11\/10 開盤價：高於 440\.50 且不高於 476\.02 才成立/);
+  assert.match(card, /11\/10 開盤價高於 440\.50、不高於 476\.02 才進場，否則不買/);
   assert.match(sections.plan, /research-risk-check pass/);
   assert.doesNotMatch(text(sections.plan), /買入價需 ≤/);
 });

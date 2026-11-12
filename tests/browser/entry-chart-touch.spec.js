@@ -16,11 +16,14 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   await plot.scrollIntoViewIfNeeded();
   await expect(chart.locator("h3")).toBeVisible();
   await expect(chart.locator(".entry-chart-readout")).toBeHidden();
-  await expect(chart.locator(".entry-chart-latest")).toBeVisible();
-  await expect(chart.locator(".entry-chart-latest strong")).toHaveCSS("font-size", "20px");
-  await expect(chart.locator(".entry-chart-latest-change")).toHaveCSS("font-size", "16px");
+  // The latest close lives in the dialog header, not in the chart.
+  const quote = page.locator("#info-dialog .entry-dialog-header .entry-dialog-quote");
+  await expect(chart.locator(".entry-chart-latest")).toHaveCount(0);
+  await expect(quote.locator("strong")).toHaveCSS("font-size", "20px");
+  await expect(quote.locator("small")).toHaveCSS("font-size", "16px");
+  await expect(chart.locator(".entry-chart-scale span").first()).toHaveCSS("font-size", "11px");
   const today = JSON.parse(await plot.getAttribute("data-points")).at(-1);
-  await expect(chart.locator(".entry-chart-latest strong")).toHaveText(today.close.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  await expect(quote.locator("strong")).toHaveText(today.close.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   await expect(plot).toHaveAttribute("aria-valuemax", "30");
   await expect(chart.locator(".entry-chart-range")).toHaveCount(0);
   const first = await chart.locator(".entry-chart-points circle").first().boundingBox();
@@ -41,7 +44,6 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: first.x + first.width / 2, y, id: 1 }] });
   await expect(chart.locator(".entry-chart-readout")).toBeVisible();
   await expect(chart.locator("h3")).toBeHidden();
-  await expect(chart.locator(".entry-chart-latest")).toBeHidden();
   expect((await plot.boundingBox()).y).toBe(stableY);
   await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect(plot).toHaveAttribute("aria-valuenow", "1");
@@ -51,7 +53,6 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   await expect(chart.locator(".entry-chart-selected-change")).toContainText("%");
   await expect(chart.locator("h3")).toBeVisible();
   await expect(chart.locator(".entry-chart-readout")).toBeHidden();
-  await expect(chart.locator(".entry-chart-latest")).toBeVisible();
   expect((await plot.boundingBox()).y).toBe(stableY);
   expect(await chart.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });

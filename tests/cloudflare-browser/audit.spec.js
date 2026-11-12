@@ -233,7 +233,7 @@ test("a stock's detail shows what the list knows while its analysis loads, never
   const dialog = page.locator("#info-dialog");
   await expect(dialog.locator("#dialog-heading")).toContainText(symbol);
   await expect(dialog.locator(".entry-dialog-meta")).toContainText("波段順勢進場");
-  await expect(dialog.locator(".entry-chart-price strong")).not.toBeEmpty();
+  await expect(dialog.locator(".entry-dialog-quote strong")).not.toBeEmpty();
   await expect(dialog.locator(".research-plan-card h3")).not.toBeEmpty();
   await expect(dialog.locator(".research-plan-facts dt")).toHaveText(["初步門檻", "進場準備度", "技術型態"]);
   await expect(dialog.locator(".entry-pending .loading-spinner")).toBeVisible();

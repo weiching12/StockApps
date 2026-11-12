@@ -737,6 +737,15 @@ h1 {
   border-bottom: 1px solid var(--border); background: #fff; }
 [data-theme="dark"] .entry-dialog-header { background: #111b2b; }
 .entry-dialog-header .entry-dialog-meta { margin: 0; }
+/* Date on the left, the latest close and its change on the right. */
+.entry-dialog-subline { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.entry-dialog-quote { flex: none; display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+.entry-dialog-quote strong { color: var(--ink); font-size: 20px; line-height: 1.2; }
+.entry-dialog-quote small { color: var(--muted); font-size: 16px; line-height: 1.4; }
+.entry-dialog-quote small.up { color: var(--up); }
+.entry-dialog-quote small.down { color: var(--down); }
+/* The decision card leads the dialog, right under the header. */
+.entry-dialog-header + .research-plan-card { margin-top: 0; }
 .entry-price-chart { --ma20-tone: #b47b20; margin-top: 24px; padding-top: 18px; box-shadow: inset 0 1px var(--border); }
 /* Directly under the header, the header's own divider is enough: no second line or extra gap. */
 .entry-dialog-header + .entry-price-chart { margin-top: 0; padding-top: 0; box-shadow: none; }
@@ -744,15 +753,10 @@ h1 {
 .entry-price-chart[data-trend="up"] { --chart-tone: var(--up); }
 .entry-price-chart[data-trend="down"] { --chart-tone: var(--down); }
 .entry-price-chart[data-trend="flat"] { --chart-tone: var(--accent); }
-.entry-chart-header { position: relative; height: 52px; }
+.entry-chart-header { position: relative; height: 48px; }
 .entry-chart-default { position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.entry-price-chart h3 { flex: 1; min-width: 0; margin: 0; font-size: 16px; line-height: 1.4; }
+.entry-price-chart h3 { flex: 1; min-width: 0; margin: 0; color: var(--muted); font-size: 14px; font-weight: 500; line-height: 1.4; }
 .entry-chart-default[hidden], .entry-chart-readout[hidden] { display: none; }
-.entry-chart-latest { flex: none; display: grid; gap: 2px; text-align: right; font-variant-numeric: tabular-nums; }
-.entry-chart-latest strong { color: var(--ink); font-size: 20px; line-height: 1.2; }
-.entry-chart-latest-change { color: var(--muted); font-size: 16px; line-height: 1.4; }
-.entry-chart-latest-change.up { color: var(--up); }
-.entry-chart-latest-change.down { color: var(--down); }
 .entry-chart-readout { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; font-variant-numeric: tabular-nums; }
 .entry-chart-readout > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; min-width: 0; }
 .entry-chart-selected-date, .entry-chart-selected-close { color: var(--ink); font-size: 16px; font-weight: 600; }
@@ -769,7 +773,7 @@ h1 {
 .entry-chart-legend button[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
 .entry-chart-legend button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
 .entry-chart-price-region { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 2px; }
-.entry-chart-scale { position: relative; color: var(--muted); font-size: 9px; line-height: 1.3; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.entry-chart-scale { position: relative; color: var(--muted); font-size: 11px; line-height: 1.3; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .entry-chart-scale span { position: absolute; left: 0; transform: translateY(-50%); }
 .entry-chart-plot { cursor: crosshair; touch-action: pan-y; border-radius: 5px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .entry-chart-plot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -3080,8 +3084,10 @@ dialog.sector-dialog {
 /* Score dialog: research sections come before the chart and the legacy V1.2 detail. */
 .entry-dialog.has-research > section + section { margin-top: 14px; }
 .research-basic { display: block; }
-.research-warning { width: 100%; padding: 8px 12px; border-radius: 8px; background: #fff7e6; color: #7a4b00; font-size: var(--text-meta); }
-.research-warning ul { margin: 0; padding-left: 18px; }
+/* A data note, not an alert: small muted text so it never outweighs the decision card. */
+.research-warning { width: 100%; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; }
+.research-warning ul { margin: 0; padding: 0; list-style: none; }
+.research-warning li::before { content: "※ "; }
 .research-plan-card { padding: 16px; border: 1px solid var(--border); border-left: 4px solid #94a3b8; border-radius: 12px; background: #f8fafc; }
 .research-plan-card.positive { border-left-color: var(--accent); background: var(--accent-soft); }
 .research-plan-card.warning { border-left-color: #d97706; background: #fffbeb; }
@@ -3099,9 +3105,9 @@ dialog.sector-dialog {
 [data-theme="dark"] .research-plan-help > p { background: #111b2b; }
 .research-plan-card > p { margin: 0 0 10px; font-size: var(--text-secondary); line-height: 1.65; }
 .research-eyebrow { margin: 0; color: var(--muted); font-size: var(--text-meta) !important; }
-/* The label names the card from its top-right corner; a long status wraps before reaching it. */
+/* Where a card keeps its label, it sits in the top-right corner; a long status wraps before reaching it. */
 .research-plan-card > .research-eyebrow { position: absolute; top: 12px; right: 12px; margin: 0; white-space: nowrap; }
-.research-plan-card > :is(.research-plan-head, h3) { padding-right: 84px; }
+.research-plan-card:has(> .research-eyebrow) > :is(.research-plan-head, h3) { padding-right: 84px; }
 /* All facts share one row, however many the card has. */
 .research-plan-facts { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin: 0 0 10px; }
 .research-plan-facts div { display: grid; gap: 2px; }
@@ -3161,7 +3167,7 @@ dialog.sector-dialog {
 .research-plan-card > .research-plan-reason { margin: 0 0 12px; color: var(--ink); font-size: var(--text-secondary); font-weight: 600; line-height: 1.6; }
 .research-buy-range { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 8px; }
 .research-buy-range div { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface, #fff); }
-.research-buy-range dt { color: var(--muted); font-size: var(--text-meta); line-height: 1.4; }
+.research-buy-range dt { min-height: 2.8em; color: var(--muted); font-size: var(--text-meta); line-height: 1.4; }
 .research-buy-range dt small { display: block; font-size: inherit; opacity: .8; }
 .research-buy-range dd { margin: 0; font-size: var(--text-title); font-weight: 600; font-variant-numeric: tabular-nums; }
 .research-buy-range + .research-plan-reason { font-weight: 400 !important; }
@@ -3198,8 +3204,10 @@ dialog.sector-dialog {
 .entry-chart-plan-labels span { position: absolute; left: 2px; transform: translateY(-50%); padding: 0 4px; border-radius: 3px; background: rgba(255, 255, 255, .88); color: #475569; font-size: 10px; line-height: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 [data-theme="dark"] .entry-chart-plan-labels span { background: rgba(17, 27, 43, .88); color: #cbd5e1; }
 [data-theme="dark"] .entry-price-chart svg .entry-chart-plan { stroke: #cbd5e1; }
-.entry-chart-plan-toggle { display: inline-flex; align-items: center; min-height: 32px; margin-top: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-size: var(--text-meta); cursor: pointer; }
+.entry-chart-plan-toggle { display: inline-flex; align-items: center; min-height: 32px; margin: 0 0 0 auto; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-size: var(--text-meta); cursor: pointer; }
 .entry-chart-plan-toggle[aria-pressed="true"] { background: var(--accent-soft); }
+.entry-chart-legend .entry-chart-plan-toggle { padding: 0 12px; border: 1px solid var(--border); color: var(--accent); font-size: var(--text-meta); opacity: 1; text-decoration: none; }
+.entry-chart-legend .entry-chart-plan-toggle::before { display: none; }
 .entry-chart-plan-toggle[aria-pressed="false"] .hide, .entry-chart-plan-toggle[aria-pressed="true"] .show { display: none; }
 .entry-price-chart.hide-plan :is(svg .entry-chart-plan, .entry-chart-plan-labels) { display: none; }
 [data-theme="dark"] .research-plan-card { background: #0d1726; }
@@ -3208,7 +3216,6 @@ dialog.sector-dialog {
 [data-theme="dark"] .research-plan-card.positive { background: #13213a; }
 [data-theme="dark"] .research-plan-card.warning { background: #251d0c; }
 [data-theme="dark"] .research-plan-card.negative { background: #26151a; }
-[data-theme="dark"] .research-warning { background: #2b2210; color: #f5d08a; }
 [data-theme="dark"] .research-gate-status.pass { color: #5eead4; }
 [data-theme="dark"] .research-gate-status.fail { color: #f3a6ad; }
 [data-theme="dark"] .research-gate-status.unknown { color: #f5c66b; }
@@ -3483,12 +3490,7 @@ dialog.sector-dialog {
 }
 
 /* Stock detail while its analysis loads: what the list knows, then room held for the rest. */
-.entry-chart-pending-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .entry-chart-pending-head h3 { margin: 0; }
-.entry-chart-price { display: grid; justify-items: end; gap: 2px; }
-.entry-chart-price strong { font-size: var(--text-title); font-variant-numeric: tabular-nums; }
-.entry-chart-price span.up { color: var(--up); }
-.entry-chart-price span.down { color: var(--down); }
 .entry-pending-body { display: grid; place-items: center; min-height: 260px; }
 .entry-pending { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; padding: 24px 12px; color: var(--muted); font-size: var(--text-secondary); }
 
@@ -3571,14 +3573,17 @@ dialog.sector-dialog {
 .sector-flow-date { margin: 0 0 6px; color: var(--muted); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
 .sector-flow-readout { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
 .sector-flow-cell { min-width: 0; }
-.sector-flow-cell span { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; white-space: nowrap; }
-.sector-flow-cell span::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
-.sector-flow-cell.total span::before { width: 10px; height: 2px; border-radius: 0; }
+.sector-flow-cell > span:first-child { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; white-space: nowrap; }
+.sector-flow-cell > span:first-child::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
+.sector-flow-cell.total > span:first-child::before { width: 10px; height: 2px; border-radius: 0; }
 .sector-flow-cell strong { display: block; font-size: var(--text-body); font-weight: 600; line-height: 1.3; white-space: nowrap; }
 /* The institution's run as of the day on show, under its figure. */
-.sector-flow-cell small { display: block; min-height: 1.4em; color: var(--muted); font-size: var(--text-meta); line-height: 1.4; white-space: nowrap; }
-.sector-flow-cell small.up { color: var(--up); }
-.sector-flow-cell small.down { color: var(--down); }
+/* Badges flag a run that goes against the price: red for buying, green for selling. The slot keeps the row's height when empty. */
+.sector-flow-run-slot { min-height: 22px; margin-top: 2px; }
+.sector-flow-badge { --badge: var(--muted); display: inline-block; padding: 1px 8px; border: 1px solid color-mix(in srgb, var(--badge) 45%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--badge) 14%, var(--surface)); color: var(--badge); font-size: var(--text-meta); font-weight: 500; line-height: 1.5; white-space: nowrap; }
+.sector-flow-badge[hidden] { display: none; }
+.sector-flow-badge.up { --badge: var(--up); }
+.sector-flow-badge.down { --badge: var(--down); }
 .sector-flow-region { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 4px; }
 .sector-flow-scale { position: relative; color: var(--muted); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
 .sector-flow-scale span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
@@ -3597,12 +3602,11 @@ dialog.sector-dialog {
 .sector-flow-turn { position: absolute; z-index: 1; pointer-events: none; }
 .sector-flow-turn i { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border: 1.5px solid var(--tone); border-radius: 50%; background: var(--surface); box-sizing: border-box; }
 /* A small annotation, like the chart legends: 11px, the size the price chart uses for its legend. */
-.sector-flow-turn b { position: absolute; right: 3px; padding: 0 2px; border-radius: 3px; background: color-mix(in srgb, var(--surface) 80%, transparent); font-size: 11px; font-weight: 500; line-height: 1.25; white-space: nowrap; }
+.sector-flow-turn b { position: absolute; right: 3px; }
+.sector-flow-turn b.sector-flow-badge { padding: 0 6px; font-size: 11px; line-height: 1.45; }
 .sector-flow-turn.below b { top: calc(4px + var(--lift, 0) * 15px); }
 .sector-flow-turn.above b { bottom: calc(4px + var(--lift, 0) * 15px); }
 .sector-flow-turn.from-left b { right: auto; left: 3px; }
-.sector-flow-turn .up { color: var(--up); }
-.sector-flow-turn .down { color: var(--down); }
 /* The sector's price change as a pale area behind the flow; its figure sits on the date line. */
 .sector-flow-trend .price { --tone: var(--muted); }
 .sector-flow-plot path.price-area { fill: color-mix(in srgb, var(--muted) 13%, transparent); stroke: none; }

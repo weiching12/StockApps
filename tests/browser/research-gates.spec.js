@@ -11,13 +11,13 @@ const openStock = async (page, symbol) => {
   await expect(page.locator("#info-dialog .research-gates")).toBeVisible();
 };
 
-test("a vetoed stock shows the gates right after the next-day card and opens its first triggered veto", async ({ page }) => {
+test("a vetoed stock leads with the next-day card, then the chart and the gates, and opens its first triggered veto", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openStock(page, "2317");
   const dialog = page.locator("#info-dialog");
   const order = await dialog.locator(".entry-dialog > section, .entry-dialog > p").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0]));
   // The data warning appears only when prices carry one; price and date are not repeated.
-  expect(order.filter((name) => name !== "research-basic").slice(0, 4)).toEqual(["entry-price-chart", "research-plan-card", "research-gates", "research-not-evaluated"]);
+  expect(order.filter((name) => name !== "research-basic").slice(0, 4)).toEqual(["research-plan-card", "entry-price-chart", "research-gates", "research-not-evaluated"]);
   await expect(dialog.locator(".research-basic-price")).toHaveCount(0);
   await expect(dialog.locator(".research-readiness, .research-signal, .research-price-plan")).toHaveCount(0);
   const tiles = dialog.locator(".research-gate-tile");
@@ -43,13 +43,14 @@ test("a passing stock keeps the research order and opens a gate panel when its i
   await expect(dialog.locator(".research-gates h3 small")).toHaveText("皆未觸發");
   await expect(dialog.locator(".research-gate-panel:visible")).toHaveCount(0);
   await expect(dialog.locator(".research-readiness")).toBeVisible();
-  // A price-data warning, when present, sits right under the chart and is not part of the order.
+  // A price-data note, when present, sits right under the chart and is not part of the order.
   const order = (await dialog.locator(".entry-dialog > section").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0])))
     .filter((name) => name !== "research-basic");
   const at = (name) => order.indexOf(name);
-  // Quick read first, then the detail in decision order.
-  expect([at("entry-price-chart"), at("research-plan-card"), at("research-gates"), at("research-signal"), at("research-readiness"), at("research-price-plan")])
-    .toEqual([...Array(6).keys()].map((step) => at("entry-price-chart") + step));
+  // The conclusion first, the chart behind it, then the detail in decision order.
+  expect(at("research-plan-card")).toBe(0);
+  expect([at("research-plan-card"), at("entry-price-chart"), at("research-gates"), at("research-signal"), at("research-readiness"), at("research-price-plan")])
+    .toEqual([...Array(6).keys()]);
   await dialog.locator('.research-gate-tile[data-gate="liquidity"]').click();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toBeVisible();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toContainText("平均成交金額");
@@ -108,23 +109,32 @@ test("the next-day explanation opens as a message from the info icon and closes 
   await expect(message).toBeHidden();
 });
 
-test("the next-day label sits alone in the card's top-right corner, clear of the status", async ({ page }) => {
+test("the header carries the latest close and the next-day card opens the dialog without a repeated label", async ({ page }) => {
   for (const width of [320, 390, 1280]) {
     await page.setViewportSize({ width, height: 844 });
     await openStock(page, "2330");
-    const card = page.locator("#info-dialog .research-plan-card");
-    const label = card.locator(".research-eyebrow");
-    await expect(label).toHaveText("明日進場評估");
+    const dialog = page.locator("#info-dialog");
+    const card = dialog.locator(".research-plan-card");
+    await expect(card.locator(".research-eyebrow")).toHaveCount(0);
+    await expect(dialog.locator(".entry-dialog-quote strong")).toHaveText(/^[\d,]+\.\d{2}$/);
+    await expect(dialog.locator(".entry-dialog-quote small")).toHaveText(/^[+-]?\d+\.\d{2}%$/);
     // Measured together: the desktop drawer may still be sliding in.
-    const { right, top, titleRight, labelLeft } = await card.evaluate((node) => {
-      const outer = node.getBoundingClientRect(), tag = node.querySelector(".research-eyebrow").getBoundingClientRect();
-      const range = document.createRange();
-      range.selectNodeContents(node.querySelector("h3"));
-      return { right: outer.right - tag.right, top: tag.top - outer.top, titleRight: range.getBoundingClientRect().right, labelLeft: tag.left };
+    const { gap, quoteInHeader, fits } = await dialog.evaluate((node) => {
+      const header = node.querySelector(".entry-dialog-header").getBoundingClientRect();
+      const quote = node.querySelector(".entry-dialog-quote").getBoundingClientRect();
+      const top = node.querySelector(".research-plan-card").getBoundingClientRect().top;
+      const chart = node.querySelector(".entry-price-chart").getBoundingClientRect().top;
+      return { gap: top - header.bottom, quoteInHeader: quote.top >= header.top && quote.bottom <= header.bottom + 1 && quote.right <= header.right + 1,
+        fits: node.scrollWidth <= node.clientWidth && top < chart };
     });
-    expect(right).toBeLessThan(20);
-    expect(top).toBeLessThan(20);
-    expect(titleRight).toBeLessThan(labelLeft);
+    expect(gap).toBeLessThan(24);
+    expect(quoteInHeader).toBe(true);
+    expect(fits).toBe(true);
+    // The three plan prices line up on one baseline, whatever their labels wrap to.
+    const tops = await card.locator(".research-buy-range dd").evaluateAll((cells) => cells.map((cell) => Math.round(cell.getBoundingClientRect().top)));
+    expect(new Set(tops).size).toBeLessThanOrEqual(1);
+    // The data note is quiet text, not a coloured bar.
+    for (const note of await dialog.locator(".research-warning").all()) await expect(note).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   }
 });
 
@@ -170,7 +180,7 @@ test("one institution line sits right under the chart dates at the plot's width,
   await expect(bar.locator(".entry-institution-net b")).toHaveText(latestNet);
 });
 
-test("plan levels on the chart start hidden and open from a toggle; the signal day is not marked", async ({ page }) => {
+test("plan levels start on the chart for a next-day candidate and toggle from the legend; the signal day is not marked", async ({ page }) => {
   await page.goto("/");
   // Demo data may have no next-day plan today; check whichever stock carries one.
   const symbols = await page.locator("#stock-rows tr[data-symbol]").evaluateAll((rows) => rows.map((row) => row.dataset.symbol));
@@ -180,13 +190,21 @@ test("plan levels on the chart start hidden and open from a toggle; the signal d
     await expect(chart.locator(".entry-chart-signal")).toHaveCount(0);
     const toggle = chart.locator(".entry-chart-plan-toggle");
     if (await toggle.count()) {
-      await expect(chart.locator(".entry-chart-plan-labels")).toBeHidden();
-      await expect(toggle).toHaveAttribute("aria-pressed", "false");
+      // The toggle is the last item of the legend row, not a button under the chart.
+      await expect(chart.locator(".entry-chart-legend > .entry-chart-plan-toggle")).toHaveCount(1);
+      // Shown from the start only when the card says the stock is a next-day candidate.
+      const candidate = await page.locator("#info-dialog .research-buy-range").count() > 0;
+      await expect(toggle).toHaveAttribute("aria-pressed", String(candidate));
+      const labels = chart.locator(".entry-chart-plan-labels");
+      const shown = async () => { await expect(labels.locator("span").first()).toBeVisible(); await expect(toggle).toHaveText("隱藏計畫價位"); };
+      const hidden = async () => { await expect(labels).toBeHidden(); await expect(toggle).toHaveText("顯示計畫價位"); };
+      await (candidate ? shown() : hidden());
       await toggle.click();
-      await expect(chart.locator(".entry-chart-plan-labels span").first()).toBeVisible();
-      await expect(toggle).toHaveText("隱藏計畫價位");
+      await (candidate ? hidden() : shown());
       await toggle.click();
-      await expect(chart.locator(".entry-chart-plan-labels")).toBeHidden();
+      await (candidate ? shown() : hidden());
+      // Named as on the decision card.
+      for (const label of await labels.locator("span").allTextContents()) expect(label).toMatch(/^(買入|最高|停損) [\d,]+\.\d{2}$/);
       return;
     }
     await page.keyboard.press("Escape");

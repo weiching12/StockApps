@@ -98,19 +98,21 @@ function priceChartMarkup(stock, esc, number, series, marks = null) {
   placed.forEach((line, index) => { if (index && line.at - placed[index - 1].at < 16) line.at = placed[index - 1].at + 16; });
   const planLabels = placed.length ? `<div class="entry-chart-plan-labels" aria-hidden="true">${placed.map(({ key, short, value, at }) =>
     `<span class="${key}" style="top:${(Math.min(at, 204) / 210 * 100).toFixed(2)}%">${short} ${number(value, 2)}</span>`).join("")}</div>` : "";
-  // Plan levels start hidden; the shared series toggle shows them on the chart.
+  // A candidate's plan levels start on the chart, where the decision card's prices can be checked against
+  // the trend; otherwise they wait behind the legend's toggle.
+  const planShown = Boolean(marks?.shown) && placed.length > 0;
   const planToggle = placed.length
-    ? `<button type="button" class="entry-chart-plan-toggle" data-chart-series="plan" aria-pressed="false" aria-label="在走勢圖顯示計畫價位（${placed.map(({ label, value }) => `${label} ${number(value, 2)}`).join("、")}）"><span class="show">顯示計畫價位</span><span class="hide">隱藏計畫價位</span></button>` : "";
-  return `<section class="entry-price-chart hide-plan" data-trend="${trend}"><div class="entry-chart-header"><div class="entry-chart-default">${heading}<div class="entry-chart-latest"><strong aria-label="${esc(last.date)} 收盤價 ${esc(Number.isFinite(last.close) ? number(last.close, 2) : "—")}">${Number.isFinite(last.close) ? number(last.close, 2) : "—"}</strong><small class="entry-chart-latest-change ${last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : ""}">${chartChange(last.changePercent)}</small></div></div><div class="entry-chart-readout" aria-label="選定交易日資訊" hidden><div><strong class="entry-chart-selected-date">${esc(last.date.slice(5).replace("-", "/"))}</strong><span class="entry-chart-selected-close">${esc(Number.isFinite(last.close) ? `收盤 ${number(last.close, 2)}` : "無收盤價")}</span><small class="entry-chart-selected-volume">${esc(Number.isFinite(last.volume) ? `量 ${number(last.volume / 1000)} 張` : "成交量不足")}</small></div><strong class="entry-chart-selected-change ${Number.isFinite(last.changePercent) ? last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : "" : ""}">${chartChange(last.changePercent)}</strong></div></div>
+    ? `<button type="button" class="entry-chart-plan-toggle" data-chart-series="plan" aria-pressed="${planShown}" aria-label="在走勢圖顯示計畫價位（${placed.map(({ label, value }) => `${label} ${number(value, 2)}`).join("、")}）"><span class="show">顯示計畫價位</span><span class="hide">隱藏計畫價位</span></button>` : "";
+  return `<section class="entry-price-chart${planShown ? "" : " hide-plan"}" data-trend="${trend}"><div class="entry-chart-header"><div class="entry-chart-default">${heading}</div><div class="entry-chart-readout" aria-label="選定交易日資訊" hidden><div><strong class="entry-chart-selected-date">${esc(last.date.slice(5).replace("-", "/"))}</strong><span class="entry-chart-selected-close">${esc(Number.isFinite(last.close) ? `收盤 ${number(last.close, 2)}` : "無收盤價")}</span><small class="entry-chart-selected-volume">${esc(Number.isFinite(last.volume) ? `量 ${number(last.volume / 1000)} 張` : "成交量不足")}</small></div><strong class="entry-chart-selected-change ${Number.isFinite(last.changePercent) ? last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : "" : ""}">${chartChange(last.changePercent)}</strong></div></div>
     <div class="entry-chart-legend">${[
       ["close", "收盤價"], ["ma20", "月線 MA20"], ["ma60", "季線 MA60"],
       ["volume", "成交量"],
-    ].map(([key, label]) => `<button type="button" data-chart-series="${key}" aria-pressed="true" aria-label="${label}">${label}</button>`).join("")}</div>
+    ].map(([key, label]) => `<button type="button" data-chart-series="${key}" aria-pressed="true" aria-label="${label}">${label}</button>`).join("")}${planToggle}</div>
     <div class="entry-chart-price-region"><div class="entry-chart-scale" aria-label="近 30 個交易日收盤價最高與最低"><span style="top:${(highLabelY / 210 * 100).toFixed(2)}%">高<br>${number(closingHigh, 2)}</span><span style="top:${(lowLabelY / 210 * 100).toFixed(2)}%">低<br>${number(closingLow, 2)}</span></div>
     <div class="entry-chart-plot" role="slider" tabindex="0" aria-label="${esc(stock.symbol)}近 ${series.length} 個交易日收盤價；點選圖表查看，觸控長按後左右滑動，鍵盤可用方向鍵" aria-orientation="horizontal" aria-valuemin="1" aria-valuemax="${series.length}" aria-valuenow="${series.length}" aria-valuetext="${esc(readout)}" data-index="${series.length - 1}" data-points="${esc(JSON.stringify(series))}"><svg viewBox="0 0 600 210" preserveAspectRatio="none" aria-hidden="true">
       <line x1="8" y1="16" x2="592" y2="16"/><line x1="8" y1="78" x2="592" y2="78"/><line x1="8" y1="140" x2="592" y2="140"/><line x1="8" y1="197" x2="592" y2="197"/>
       <path class="entry-chart-close" d="${path.trim()}"/><path class="entry-chart-ma20" d="${ma20Path.trim()}"/><path class="entry-chart-ma" d="${ma60Path.trim()}"/>${planSvg}<g class="entry-chart-bars">${bars}</g><g class="entry-chart-points">${dots}</g><line class="entry-chart-cursor" x1="${x(series.length - 1).toFixed(1)}" x2="${x(series.length - 1).toFixed(1)}" y1="16" y2="197"/></svg>${planLabels}</div></div>
-    <div class="entry-chart-dates"><span>${esc(series[0].date)}</span><span>${esc(last.date)}</span></div>${institutionBarMarkup(last, number)}${planToggle}</section>`;
+    <div class="entry-chart-dates"><span>${esc(series[0].date)}</span><span>${esc(last.date)}</span></div>${institutionBarMarkup(last, number)}</section>`;
 }
 
 export function selectEntryChartPoint(plot, index, number) {
@@ -146,34 +148,38 @@ export function restoreEntryChartTitle(plot, number) {
   // Back to the latest session, matching the title.
   showInstitutionPoint(chart, JSON.parse(plot.dataset.points).at(-1), number);
 }
+/** The latest close and its change, beside the date in the dialog header. */
+const quoteMarkup = (close, change, date, esc, number) => Number.isFinite(close)
+  ? `<div class="entry-dialog-quote"><strong aria-label="${esc(date ?? "")} 收盤價 ${number(close, 2)}">${number(close, 2)}</strong>${Number.isFinite(change) ? `<small class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${chartChange(change)}</small>` : ""}</div>` : "";
+
 export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = false, icon = () => "", loadingIcon = () => "") {
   const score = stock.entryScore;
   const heading = `<div class="entry-dialog-title"><p class="entry-dialog-sector">${esc(stock.sector ?? "產業未分類")}</p><button type="button" class="icon-button favorite-button ${favorite ? "is-favorite" : ""}" data-favorite="${esc(stock.symbol)}" aria-label="${favorite ? "移除" : "加入"}${esc(stock.name)}自選" aria-pressed="${favorite}">${icon("star")}</button><h2 id="dialog-heading">${esc(stock.symbol)} ${esc(stock.name)}</h2></div>`;
   const research = stock.entryResearch?.gateResult ? stock.entryResearch : null;
   // The list already knows the identity, price and next-day result; only the rest waits for the stock's analysis.
   if (score && !research && stock.entryResearch) {
-    const change = stock.latest?.changePercent;
-    const price = Number.isFinite(stock.latest?.close) ? `<div class="entry-chart-price"><strong>${number(stock.latest.close, 2)}</strong>${Number.isFinite(change) ? `<span class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${chartChange(change)}</span>` : ""}</div>` : "";
+    const date = score.asOf ?? stock.latest?.date ?? "";
     return `<div class="entry-dialog has-research"><header class="entry-dialog-header">${heading}
-      <p class="entry-dialog-meta">波段順勢進場 · ${esc(score.asOf ?? stock.latest?.date ?? "")}</p></header>
-      <section class="entry-price-chart entry-chart-pending"><div class="entry-chart-pending-head"><h3>30 個交易日走勢圖</h3>${price}</div><div class="entry-pending-body">${loadingIcon("走勢資料載入中")}</div></section>
+      <div class="entry-dialog-subline"><p class="entry-dialog-meta">波段順勢進場 · ${esc(date)}</p>${quoteMarkup(stock.latest?.close, stock.latest?.changePercent, date, esc, number)}</div></header>
       ${researchCardPreview(stock.entryResearch, { esc, number })}
+      <section class="entry-price-chart entry-chart-pending"><div class="entry-chart-pending-head"><h3>30 個交易日走勢圖</h3></div><div class="entry-pending-body">${loadingIcon("走勢資料載入中")}</div></section>
       <section class="entry-pending">${loadingIcon("研究明細載入中")}</section></div>`;
   }
   if (isEtf(stock)) return `${heading}<p class="research-not-evaluated">ETF 追蹤指數或一籃子標的，不判斷進場時機，也不列入回測樣本。</p>`;
   if (!score || !research) return `${heading}<p>資料不足，無法進行進場研究。</p>`;
   const chartSeries = stock.priceHistory ?? dailyCloseSeries(stock.history,
     stock.tradingDates ?? stock.history?.map((bar) => bar.date), score.asOf);
+  const latest = chartSeries.at(-1) ?? stock.latest;
   const header = `<header class="entry-dialog-header">${heading}
-    <p class="entry-dialog-meta">波段順勢進場 · ${esc(score.asOf)}</p></header>`;
+    <div class="entry-dialog-subline"><p class="entry-dialog-meta">波段順勢進場 · ${esc(score.asOf)}</p>${quoteMarkup(latest?.close, latest?.changePercent, latest?.date ?? score.asOf, esc, number)}</div></header>`;
   const chart = priceChartMarkup(stock, esc, number, chartSeries, researchChartMarks(research));
   const sections = researchDialogSections(research, stock, { esc, number, percent });
-  // Under the chart, the next-day card is the quick read; the detail then follows the order the
-  // research is decided in: gates, signal, readiness and the price plan. Stocks stopped by stage 1
-  // skip the empty later sections.
+  // The next-day card is the conclusion, so it leads; the chart backs it up, then the detail follows the
+  // order the research is decided in: gates, signal, readiness and the price plan. Stocks stopped by
+  // stage 1 skip the empty later sections.
   const body = sections.evaluated
-    ? `${sections.basic}${sections.card}${sections.gates}${sections.signal}${sections.readiness}${sections.plan}`
-    : `${sections.basic}${sections.card}${sections.gates}${sections.notice}`;
-  return `<div class="entry-dialog has-research">${header}${chart}${body}
+    ? `${sections.basic}${sections.gates}${sections.signal}${sections.readiness}${sections.plan}`
+    : `${sections.basic}${sections.gates}${sections.notice}`;
+  return `<div class="entry-dialog has-research">${header}${sections.card}${chart}${body}
     <p class="helper-text entry-disclaimer">進場研究依固定規則計算，明日進場候選不代表保證可以買進；分數不代表上漲機率、預期報酬率或買賣指令，參數為暫定、尚未經歷史回測驗證。<br>模型版本：${esc(research.modelVersion)}</p></div>`;
 }

@@ -199,6 +199,24 @@ export function getFlowStreak(daily, dates) {
     turned: start > 0 && Math.sign(daily[start - 1]) === -direction };
 }
 
+/** A price move smaller than this (%) over a run is too small to call the run a divergence. */
+export const DIVERGENCE_MIN_PERCENT = 0.5;
+
+/**
+ * Whether an institution's latest run went against the sector's price: selling while the average price
+ * rose, or buying while it fell, measured over the sessions of the run itself. Returns the price change
+ * (%) across the run, or null when they agree, the move is below DIVERGENCE_MIN_PERCENT, or there is no
+ * price series on the same sessions. A run reaching back past the series is measured from its first close.
+ */
+export function getRunDivergence(streak, dates, price) {
+  if (!streak?.direction || !price || price.dates.length !== dates.length || price.dates.some((date, index) => date !== dates[index])) return null;
+  const start = dates.indexOf(streak.since);
+  if (start < 0) return null;
+  const before = start > 0 ? price.returns[start - 1] : 0;
+  const change = ((1 + price.returns.at(-1) / 100) / (1 + before / 100) - 1) * 100;
+  return streak.direction * change < 0 && Math.abs(change) >= DIVERGENCE_MIN_PERCENT ? { change } : null;
+}
+
 /**
  * Equal-weighted cumulative price change (%) of the sector over the same sessions, from the close before
  * them. Prices are unadjusted, as everywhere else; a stock missing any of those closes stays out.

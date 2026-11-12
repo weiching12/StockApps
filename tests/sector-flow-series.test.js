@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { getSnapshot } from "../shared/indicators.js";
-import { getFlowStreak, getSectorDetail, getSectorFlowSeries, getSectorPriceSeries } from "../shared/sectors.js";
+import { DIVERGENCE_MIN_PERCENT, getFlowStreak, getRunDivergence, getSectorDetail, getSectorFlowSeries, getSectorPriceSeries } from "../shared/sectors.js";
 
 const dates = Array.from({ length: 25 }, (_, index) => `2026-09-${String(index + 1).padStart(2, "0")}`);
 const rows = (nets) => ["外資", "投信", "自營商"].map((name, index) => ({ name,
@@ -72,4 +72,31 @@ test("the sector price line averages each stock's change from the close before t
   const gap = makeStock("3003", [0, 0, 0], { missing: 4 });
   assert.equal(getSectorPriceSeries([gap], dates), null);
   assert.equal(getSectorPriceSeries([flat], dates.slice(0, 20)), null);
+});
+
+test("a run diverges only when it goes against the sector's price over the run's own sessions", () => {
+  const days = ["d1", "d2", "d3", "d4", "d5"];
+  const price = (returns) => ({ dates: days, returns });
+  const selling = getFlowStreak([2, 2, -1, -1, -1], days);
+  const buying = getFlowStreak([-2, -2, 1, 1, 1], days);
+  // Selling since d3 while the price climbs from +1% (d2) to +4%: about +2.97% across the run.
+  assert.ok(Math.abs(getRunDivergence(selling, days, price([0, 1, 2, 3, 4])).change - (1.04 / 1.01 - 1) * 100) < 1e-9);
+  // Buying while it falls diverges too; selling into a falling price, or buying into a rising one, agrees.
+  assert.ok(getRunDivergence(buying, days, price([0, 1, 0, -1, -2])).change < 0);
+  assert.equal(getRunDivergence(selling, days, price([0, 1, 0, -1, -2])), null);
+  assert.equal(getRunDivergence(buying, days, price([0, 1, 2, 3, 4])), null);
+  // The price before the run does not count: it rose before d3 but fell across d3-d5.
+  assert.equal(getRunDivergence(selling, days, price([5, 6, 6, 5, 4])), null);
+  // A move under the threshold is noise.
+  const flat = DIVERGENCE_MIN_PERCENT / 2;
+  assert.equal(getRunDivergence(selling, days, price([0, 0, 0, flat, flat])), null);
+});
+
+test("a run measured from the window's start uses the whole price change, and unmatched sessions give none", () => {
+  const days = ["d1", "d2", "d3"];
+  const capped = getFlowStreak([-1, -1, -1], days);
+  assert.ok(Math.abs(getRunDivergence(capped, days, { dates: days, returns: [1, 2, 3] }).change - 3) < 1e-9);
+  assert.equal(getRunDivergence(capped, days, null), null);
+  assert.equal(getRunDivergence(capped, days, { dates: ["d1", "d2", "dx"], returns: [1, 2, 3] }), null);
+  assert.equal(getRunDivergence(getFlowStreak([1, 0, 0], days), days, { dates: days, returns: [1, 2, 3] }), null);
 });

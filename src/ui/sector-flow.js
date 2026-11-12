@@ -1,4 +1,4 @@
-import { getFlowStreak } from "../../shared/sectors.js";
+import { getFlowStreak, getRunDivergence } from "../../shared/sectors.js";
 
 // One industry's institutional flow over the last sessions: each institution's latest run, the
 // cumulative net amount of the three and their total, and the sector's price change on the same
@@ -50,25 +50,27 @@ export function streakLabel({ direction, length, capped, turned }) {
 const turnLabel = ({ direction, turned }, date) => `${shortDate(date)} ${turned ? "轉" : "起"}${direction > 0 ? "買" : "賣"}${turned ? "" : "超"}`;
 
 /**
- * Each institution's latest run, drawn on its own line: the stretch it covers is traced again in a wider
- * stroke, and the session it began is marked on the line with its date. A run reaching back past the
- * window has no turn inside it, so only its trace shows. Labels start on the side the line has just left,
- * below a turn to selling and above a turn to buying; layoutTurnLabels moves any that collide.
+ * Only a run that goes against the sector's price is marked: an institution’s latest run is traced on
+ * its line in a wider stroke and the session it began is ringed and badged with its date. The same runs
+ * get a badge under their figure. Runs that agree with the price, and every run when there is no price on the same sessions, get
+ * nothing. A run reaching back past the window has no turn inside it, so only its trace shows. Labels start
+ * on the side the line has just left, below a turn to selling and above a turn to buying; layoutTurnLabels
+ * moves any that collide.
  */
-function runsMarkup(flow, y, last) {
+function runsMarkup(flow, y, last, price) {
   const runs = INSTITUTIONS.map(([key, toneClass]) => {
     const streak = getFlowStreak(flow.daily[key], flow.dates);
     const start = streak.since ? flow.dates.indexOf(streak.since) : -1;
-    return { key, toneClass, streak, start, at: start >= 0 ? y(flow.lines[key][start]) : null };
-  });
-  const traces = runs.filter(({ streak }) => streak.direction).map(({ key, toneClass, start }) => {
+    return { key, toneClass, streak, start, divergence: getRunDivergence(streak, flow.dates, price), at: start >= 0 ? y(flow.lines[key][start]) : null };
+  }).filter(({ divergence }) => divergence);
+  const traces = runs.map(({ key, toneClass, start }) => {
     const from = Math.max(0, start - 1);
     return `<path class="${toneClass} sector-flow-run" d="${flow.lines[key].slice(from).map((amount, offset) => `${offset ? "L" : "M"}${x(from + offset, last).toFixed(1)} ${y(amount).toFixed(1)}`).join(" ")}"/>`;
   }).join("");
-  const marks = runs.filter(({ streak }) => streak.direction && !streak.capped).map(({ key, toneClass, streak, start, at }) => {
+  const marks = runs.filter(({ streak }) => !streak.capped).map(({ key, toneClass, streak, start, at }) => {
     const side = streak.direction < 0 ? "below" : "above";
     const edge = x(start, last) / W < 0.3 ? "from-left" : "";
-    return `<span class="sector-flow-turn ${toneClass} ${side} ${edge}" data-flow-streak="${key}" style="left:${percentOf(x(start, last), W)};top:${percentOf(at, H)}" data-side="${side}"><i></i><b class="${tone(streak.direction)}">${turnLabel(streak, streak.since)}</b></span>`;
+    return `<span class="sector-flow-turn ${toneClass} ${side} ${edge}" data-flow-streak="${key}" style="left:${percentOf(x(start, last), W)};top:${percentOf(at, H)}" data-side="${side}"><i></i><b class="sector-flow-badge ${tone(streak.direction)}">${turnLabel(streak, streak.since)}</b></span>`;
   }).join("");
   return { traces, marks };
 }
@@ -88,12 +90,12 @@ export function flowTrendMarkup(flow, price) {
   if (!flow) return `<section class="sector-flow-trend" aria-labelledby="sector-trend-heading">${heading}<p class="sector-flow-empty">近 20 個交易日的法人資料不足，無法畫出累計走勢。</p></section>`;
   const last = flow.dates.length - 1, geo = flowScale(flow), y = (amount) => geo.y(toYi(amount));
   const paths = LINES.map(([key, toneClass]) => `<path class="${toneClass}" d="${path(flow.lines[key], y, last)}"/>`).join("");
-  const cells = [...INSTITUTIONS, LINES[0]].map(([key, toneClass, label]) => `<div class="sector-flow-cell ${toneClass}" data-flow-cell="${key}"><span>${label}</span><strong class="institution-money"></strong>${key === "total" ? "" : `<small data-flow-run="${key}"></small>`}</div>`).join("");
+  const cells = [...INSTITUTIONS, LINES[0]].map(([key, toneClass, label]) => `<div class="sector-flow-cell ${toneClass}" data-flow-cell="${key}"><span>${label}</span><strong class="institution-money"></strong>${key === "total" ? "" : `<div class="sector-flow-run-slot"><span class="sector-flow-badge" data-flow-run="${key}" hidden></span></div>`}</div>`).join("");
   const dots = LINES.map(([key, toneClass]) => `<i class="sector-flow-dot ${toneClass}" data-flow-dot="${key}"></i>`).join("");
   const withPrice = sameSessions(flow, price);
-  const runs = runsMarkup(flow, y, last);
+  const runs = runsMarkup(flow, y, last, withPrice ? price : null);
   return `<section class="sector-flow-trend" aria-labelledby="sector-trend-heading">${heading}
-    <p class="sector-flow-date"><span data-flow-date></span>${withPrice ? `<span class="sector-flow-price-read" title="灰色區域：產業內個股自 ${shortDate(price.base)} 收盤起的等權平均漲跌，未還原權息；另用比例尺，高低不與金額對應">產業股價 <strong data-flow-price></strong></span>` : ""}</p><div class="sector-flow-readout">${cells}</div>
+    <p class="sector-flow-date"><span data-flow-date></span>${withPrice ? `<span class="sector-flow-price-read" title="灰色區域：產業內個股自 ${shortDate(price.base)} 收盤起的等權平均漲跌，未還原權息；另用比例尺，高低不與金額對應">平均股價 <strong data-flow-price></strong></span>` : ""}</p><div class="sector-flow-readout">${cells}</div>
     <div class="sector-flow-region"><div class="sector-flow-scale" aria-hidden="true">${axisLabels(geo, H)}</div>
       <div class="sector-flow-plot" role="slider" tabindex="0" aria-label="${flow.dates.length} 個交易日法人累計淨買賣超；點選圖表查看，可用方向鍵" aria-orientation="horizontal" aria-valuemin="1" aria-valuemax="${last + 1}" aria-valuenow="${last + 1}" data-flow-plot>
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><line class="sector-flow-zero" x1="${PAD_X}" x2="${W - PAD_X}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>${withPrice ? priceLayer(price, last) : ""}${runs.traces}${paths}</svg>
@@ -136,6 +138,13 @@ export function bindFlowTrend(root, flow, price, { money, direction }) {
   const last = flow.dates.length - 1, geo = flowScale(flow);
   const priceGeo = root.querySelector('[data-flow-dot="price"]') ? priceScale(price) : null;
   let pinned = last;
+  // The runs the chart highlights: the latest one of an institution that goes against the price. A badge
+  // shows under its figure only on the days that highlight covers, from the run's first day on.
+  const highlighted = {};
+  for (const [key] of INSTITUTIONS) {
+    const streak = getFlowStreak(flow.daily[key], flow.dates);
+    if (priceGeo && getRunDivergence(streak, flow.dates, price)) highlighted[key] = flow.dates.indexOf(streak.since);
+  }
   const show = (index) => {
     const date = shortDate(flow.dates[index]), left = percentOf(x(index, last), W);
     root.querySelector("[data-flow-date]").textContent = index === last ? `近 ${flow.dates.length} 日累計 · 至 ${date}` : `累計至 ${date}`;
@@ -149,12 +158,15 @@ export function bindFlowTrend(root, flow, price, { money, direction }) {
       dot.style.left = left;
       dot.style.top = percentOf(geo.y(toYi(amount)), H);
       spoken.push(`${label} ${figure.textContent}`);
-      // The run as of the day on show, so an earlier day reads the run that was under way then.
+      // The run as of the day on show, only while that day lies inside the stretch the chart highlights:
+      // the first day reads the turn, later days how long it has lasted.
       const run = root.querySelector(`[data-flow-run="${key}"]`);
       if (run) {
-        const streak = getFlowStreak(flow.daily[key].slice(0, index + 1), flow.dates.slice(0, index + 1));
-        run.textContent = streakLabel(streak);
-        run.className = tone(streak.direction);
+        const inside = key in highlighted && index >= highlighted[key];
+        const streak = inside ? getFlowStreak(flow.daily[key].slice(0, index + 1), flow.dates.slice(0, index + 1)) : null;
+        run.hidden = !inside;
+        run.textContent = inside ? streakLabel(streak) : "";
+        run.className = `sector-flow-badge ${inside ? tone(streak.direction) : ""}`;
       }
     }
     root.querySelector("[data-flow-cursor]").style.left = left;
@@ -166,7 +178,7 @@ export function bindFlowTrend(root, flow, price, { money, direction }) {
       const dot = root.querySelector('[data-flow-dot="price"]');
       dot.style.left = left;
       dot.style.top = percentOf(priceGeo.y(change), H);
-      priceText = `；產業股價 ${figure.textContent}`;
+      priceText = `；平均股價 ${figure.textContent}`;
     }
     plot.setAttribute("aria-valuenow", String(index + 1));
     plot.setAttribute("aria-valuetext", `${date} 累計：${spoken.join("、")} 億${priceText}`);

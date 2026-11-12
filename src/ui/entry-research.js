@@ -165,7 +165,7 @@ export function researchCardPreview(summary, { esc, number }) {
   const gate = { status: summary.gateStatus, passedCount: summary.gatePassed, conditions: summary.gateConditions ?? {} };
   // Same wording as the full card at the latest session, whose next date is not yet in the calendar.
   const canBuy = summary.nextDayStatus === "NEXT_DAY_CANDIDATE";
-  return `<section class="research-plan-card ${NEXT_TONE[summary.nextDayStatus] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估</p><div class="research-plan-head"><h3 id="research-plan-title">下一交易日${canBuy ? "可進場" : "不進場"}</h3><span class="research-plan-status">${esc(NEXT_DAY_STATUS_LABELS[summary.nextDayStatus] ?? "—")}</span></div><dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${esc(gateSummary(gate, summary.modelVersion))}</dd></div><div><dt>進場準備度</dt><dd>${Number.isFinite(summary.score) ? `${number(summary.score, 0)} / 100` : "—"}</dd></div><div><dt>技術型態</dt><dd>${esc(SETUP_LABELS[summary.setupType] ?? "—")}</dd></div></dl></section>`;
+  return `<section class="research-plan-card ${NEXT_TONE[summary.nextDayStatus] ?? "muted"}" aria-labelledby="research-plan-title"><div class="research-plan-head"><h3 id="research-plan-title">下一交易日${canBuy ? "可進場" : "不進場"}</h3><span class="research-plan-status">${esc(NEXT_DAY_STATUS_LABELS[summary.nextDayStatus] ?? "—")}</span></div><dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${esc(gateSummary(gate, summary.modelVersion))}</dd></div><div><dt>進場準備度</dt><dd>${Number.isFinite(summary.score) ? `${number(summary.score, 0)} / 100` : "—"}</dd></div><div><dt>技術型態</dt><dd>${esc(SETUP_LABELS[summary.setupType] ?? "—")}</dd></div></dl></section>`;
 }
 
 /** Dialog sections in the required order, under the header and chart. */
@@ -180,7 +180,7 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
   const reasons = research.status === "TRIGGERED" ? research.triggeredConditions : gate.status !== "PASS" ? gate.reasons : research.pendingConditions;
   const risks = research.riskWarnings.filter((warning) => !quality.warnings.includes(warning));
   const verdict = planVerdict(plan, { number });
-  const card = `<section class="research-plan-card ${NEXT_TONE[plan.status] ?? "muted"}" aria-labelledby="research-plan-title"><p class="research-eyebrow">明日進場評估</p><div class="research-plan-head"><h3 id="research-plan-title">${esc(verdict.title)}</h3><span class="research-plan-status">${esc(plan.label)}</span>${NEXT_EXPLANATION[plan.status] ? `<details class="research-plan-help"><summary aria-label="${esc(plan.label)}的說明"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg></summary><p role="note">${esc(NEXT_EXPLANATION[plan.status])}</p></details>` : ""}</div><p class="research-plan-basis">${esc(verdict.basis)}</p>${verdict.body}<dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${gateSummary(gate, result.modelVersion)}</dd></div><div><dt>進場準備度</dt><dd>${Number.isFinite(research.score) ? `${number(research.score, 0)} / 100` : "—"}</dd></div><div><dt>技術型態</dt><dd>${esc(research.setupLabel ?? "—")}</dd></div></dl>
+  const card = `<section class="research-plan-card ${NEXT_TONE[plan.status] ?? "muted"}" aria-labelledby="research-plan-title"><div class="research-plan-head"><h3 id="research-plan-title">${esc(verdict.title)}</h3><span class="research-plan-status">${esc(plan.label)}</span>${NEXT_EXPLANATION[plan.status] ? `<details class="research-plan-help"><summary aria-label="${esc(plan.label)}的說明"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg></summary><p role="note">${esc(NEXT_EXPLANATION[plan.status])}</p></details>` : ""}</div><p class="research-plan-basis">${esc(verdict.basis)}</p>${verdict.body}<dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${gateSummary(gate, result.modelVersion)}</dd></div><div><dt>進場準備度</dt><dd>${Number.isFinite(research.score) ? `${number(research.score, 0)} / 100` : "—"}</dd></div><div><dt>技術型態</dt><dd>${esc(research.setupLabel ?? "—")}</dd></div></dl>
     <details class="research-reasons"><summary>${research.status === "TRIGGERED" ? "主要成立原因" : "目前狀態原因"}</summary>${items(reasons, esc, "沒有額外說明。")}${risks.length ? `<h4>主要風險</h4>${items(risks, esc, "")}` : ""}</details>
 </section>`;
 
@@ -231,7 +231,7 @@ function planVerdict(plan, { number }) {
   const canBuy = plan.status === "NEXT_DAY_CANDIDATE";
   const title = `${next}${canBuy ? "可進場" : "不進場"}`;
   const basisText = `依 ${basis} 收盤、以固定研究規則判讀，非買賣指令`;
-  if (canBuy) return { title, basis: basisText, body: `<dl class="research-buy-range"><div><dt>參考買入價</dt><dd>${money(plan.entryReferencePrice)}</dd></div><div><dt>最高價<small>開盤上限</small></dt><dd>${money(plan.entryPriceUpper)}</dd></div><div><dt>最低價<small>停損價</small></dt><dd>${money(plan.invalidationPrice)}</dd></div></dl><p class="research-plan-reason">只看${within}開盤價：高於 ${money(plan.invalidationPrice)} 且不高於 ${money(plan.entryPriceUpper)} 才成立；開盤高於最高價不追價，不高於停損價則計畫取消。</p>` };
+  if (canBuy) return { title, basis: basisText, body: `<dl class="research-buy-range"><div><dt>參考買入價</dt><dd>${money(plan.entryReferencePrice)}</dd></div><div><dt>最高價<small>開盤上限</small></dt><dd>${money(plan.entryPriceUpper)}</dd></div><div><dt>最低價<small>停損價</small></dt><dd>${money(plan.invalidationPrice)}</dd></div></dl><p class="research-plan-reason">${within}開盤價高於 ${money(plan.invalidationPrice)}、不高於 ${money(plan.entryPriceUpper)} 才進場，否則不買。</p>` };
   let reason = NEXT_EXPLANATION[plan.status] ?? "沒有有效的進場計畫。";
   if (plan.status === "PRICE_TOO_HIGH" && Number.isFinite(plan.entryPriceUpper))
     reason = plan.referenceClose > plan.entryPriceUpper
@@ -346,9 +346,10 @@ function gatesSection(result, { esc, number }) {
 export function researchChartMarks(result) {
   const plan = result?.nextDayPlan, signal = result?.entryResearch?.signal;
   if (!plan || !Number.isFinite(plan.entryReferencePrice)) return null;
-  return { lines: [
-    { key: "entry", label: "進場參考", short: "進場", value: plan.entryReferencePrice },
-    { key: "upper", label: "價格上限", short: "上限", value: plan.entryPriceUpper },
-    { key: "invalidation", label: "失效價", short: "失效", value: plan.invalidationPrice },
+  // Named as on the decision card; a candidate's levels start shown on the chart.
+  return { shown: plan.status === "NEXT_DAY_CANDIDATE", lines: [
+    { key: "entry", label: "參考買入價", short: "買入", value: plan.entryReferencePrice },
+    { key: "upper", label: "最高價", short: "最高", value: plan.entryPriceUpper },
+    { key: "invalidation", label: "停損價", short: "停損", value: plan.invalidationPrice },
   ] };
 }
