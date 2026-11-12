@@ -1,4 +1,4 @@
-import { summarizeEtfDividends } from "../shared/etf-info.js";
+import { lastBuyDate, summarizeEtfDividends } from "../shared/etf-info.js";
 import { classifyStock } from "../shared/custom-sectors.js";
 
 /**
@@ -98,17 +98,23 @@ export const demoProvider = {
 
 // Illustrative fund facts for the demo ETFs, shaped like /api/v1/stocks/{symbol}/fund. Not real figures.
 const DEMO_FUNDS = {
-  "0050": { fundType: "國內成分證券指數股票型基金", indexName: "臺灣50指數", inceptionDate: "2003-06-25", listedDate: "2003-06-30", units: 25_000_000_000, premium: -0.1,
-    dividends: [["2026-07-21", "2026-08-10", 0.6], ["2026-01-22", "2026-02-11", 0.5]] },
-  "00878": { fundType: "國內成分證券指數股票型基金", indexName: "MSCI臺灣ESG永續高股息精選30指數", inceptionDate: "2020-07-10", listedDate: "2020-07-20", units: 19_700_000_000, premium: 0.18,
-    dividends: [["2026-11-17", "2026-12-11", null], ["2026-08-18", "2026-09-11", 0.42], ["2026-05-19", "2026-06-12", 0.42], ["2026-02-24", "2026-03-20", 0.4], ["2025-11-18", "2025-12-12", 0.4]] },
+  "0050": { fundType: "國內成分證券指數股票型基金", indexName: "臺灣50指數", inceptionDate: "2003-06-25", listedDate: "2003-06-30", units: 25_000_000_000, premium: -0.1, issuer: "元大證券投資信託股份有限公司", holders: 3_874_000,
+    dividends: [["2026-07-21", "2026-08-10", 0.6], ["2026-01-22", "2026-02-11", 0.5]],
+    holdings: [["2330", "台積電", 56.45], ["2454", "聯發科", 6.74], ["2308", "台達電", 3.4], ["2317", "鴻海", 3.1], ["2891", "中信金", 1.62]] },
+  "00878": { fundType: "國內成分證券指數股票型基金", indexName: "MSCI臺灣ESG永續高股息精選30指數", inceptionDate: "2020-07-10", listedDate: "2020-07-20", units: 19_700_000_000, premium: 0.18, issuer: "國泰證券投資信託股份有限公司", holders: 1_650_000,
+    dividends: [["2026-11-17", "2026-12-11", null], ["2026-08-18", "2026-09-11", 0.42], ["2026-05-19", "2026-06-12", 0.42], ["2026-02-24", "2026-03-20", 0.4], ["2025-11-18", "2025-12-12", 0.4]],
+    holdings: [["2891", "中信金", 9.65], ["2382", "廣達", 9.14], ["2882", "國泰金", 6.43], ["2303", "聯電", 5.2], ["US0378331005", "境外標的範例", 1.1, "國外"]] },
 };
 export function demoEtfInfo(symbol, asOf, close) {
   const fund = DEMO_FUNDS[symbol];
   if (!fund || !Number.isFinite(close)) return null;
   const estimated = close / (1 + fund.premium / 100);
-  const dividends = fund.dividends.map(([exDate, payDate, amount]) => ({ exDate, recordDate: null, payDate, amount }));
-  return { symbol, profile: { fundType: fund.fundType, indexName: fund.indexName, inceptionDate: fund.inceptionDate, listedDate: fund.listedDate, units: fund.units },
-    nav: { date: asOf, estimated, marketPrice: close, premiumPercent: fund.premium, previous: null }, size: fund.units * estimated,
-    dividends, ...summarizeEtfDividends(dividends, asOf, close) };
+  const dividends = fund.dividends.map(([exDate, payDate, amount]) => ({ exDate, lastBuyDate: lastBuyDate(exDate), recordDate: null, payDate, amount }));
+  return { symbol, profile: { fundType: fund.fundType, indexName: fund.indexName, issuer: fund.issuer, inceptionDate: fund.inceptionDate, listedDate: fund.listedDate, units: fund.units },
+    nav: { date: asOf, estimated, marketPrice: close, premiumPercent: fund.premium, previous: null }, size: fund.units * estimated, sizeBasis: "reported", holders: fund.holders,
+    dividends, ...summarizeEtfDividends(dividends, asOf, close),
+    // Five monthly reports ending 2026-09; weights drift a little so a month reads differently from the next.
+    holdings: { basis: "monthly-top-10", months: ["2026-09", "2026-08", "2026-07", "2026-06", "2026-05"].map((month, back) => ({ month,
+      items: fund.holdings.map(([code, name, weight, kind = "國內上市"], index) => ({ rank: index + 1, kind, code, name,
+        weight: Math.round((weight - back * 0.21 * (index % 2 ? -1 : 1)) * 100) / 100 })) })) } };
 }

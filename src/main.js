@@ -33,7 +33,7 @@ import { addResearchPeriod, loadResearchStore, persistResearchStore, removeResea
 import { renderResearchCenter } from "./ui/research.js";
 import { dailyCloseSeries } from "../shared/price-history.js";
 import { priceBaseline } from "../shared/research-review.js";
-import { entryScoreDialogMarkup, selectEntryChartPoint, restoreEntryChartTitle } from "./ui/entry-score.js";
+import { entryChartMarkup, entryScoreDialogMarkup, selectEntryChartPoint, restoreEntryChartTitle } from "./ui/entry-score.js";
 import { moodStyleChoices, renderSentiment } from "./ui/sentiment.js";
 import { createBacktestController } from "./ui/backtest.js";
 import {
@@ -109,6 +109,7 @@ const nativeMode = import.meta.env.VITE_APP_TARGET === "native";
 const marketClient = new MarketApiClient();
 const backtest = createBacktestController({ client: marketClient, apiMode, esc, loadingIcon, openSample: openBacktestSample });
 const summaryCache = new RequestCache(), sectorDetailCache = new RequestCache(), stockDetailCache = new RequestCache();
+const chartRangeCache = new RequestCache();
 let researchStore;
 let researchSort = "readiness", researchFilter = "all";
 let selectedSummary, latestSummary, summaryRequest = 0;
@@ -262,7 +263,8 @@ function refreshData() {
     // Demo data has no server; the same shared research model runs here instead.
     snapshot.entryResearch = entryResearchApplies(snapshot) ? evaluateEntryResearch({ stock: snapshot, tradingDates: dataset.dates, asOf: date,
       settings: state.settings, score: snapshot.entryScore }) : null;
-    snapshot.priceHistory = dailyCloseSeries(snapshot.history, dataset.dates, date);
+    // An ETF's chart is its year by month; a stock's opens on a month of sessions.
+    snapshot.priceHistory = dailyCloseSeries(snapshot.history, dataset.dates, date, isEtf(snapshot) ? 260 : 30);
     if (isEtf(snapshot)) {
       // The ETF dialog reads the same shapes the API sends: per-window institutional money and fund facts.
       const sessions = dataset.dates.filter((day) => day <= date);
@@ -683,6 +685,35 @@ function closeEntryDrawer() {
   if (dialog?.open) dialog.close();
 }
 
+/**
+ * Redraws the dialog's chart for another range. The history is already stored: the API sends more sessions
+ * of the same series, and demo mode reads them from its own dataset.
+ */
+async function changeChartRange(button) {
+  const dialog = document.querySelector("#info-dialog"), chart = button.closest(".entry-price-chart");
+  const symbol = dialog.dataset.entrySymbol, days = Number(button.dataset.chartRange), date = state.date;
+  if (!symbol || !chart || button.getAttribute("aria-pressed") === "true" || chart.getAttribute("aria-busy") === "true") return;
+  const previous = chart.querySelector('[data-chart-range][aria-pressed="true"]');
+  const press = (chosen) => chart.querySelectorAll("[data-chart-range]").forEach((item) => item.setAttribute("aria-pressed", String(item === chosen)));
+  press(button);
+  chart.setAttribute("aria-busy", "true");
+  const settings = { ...state.settings }, key = `${summaryKey(date)}:${symbol}`;
+  try {
+    const series = await chartRangeCache.load(`${key}:${days}`, async () => {
+      if (apiMode) return (await marketClient.analysis(symbol, date, { ...settings, days })).data.data.priceHistory;
+      const source = dataset.stocks.find((stock) => stock.symbol === symbol);
+      return dailyCloseSeries(getSnapshot({ ...source, tradingDates: dataset.dates }, date, settings).history, dataset.dates, date, days);
+    });
+    if (!chart.isConnected || !dialog.open || dialog.dataset.entrySymbol !== symbol || state.date !== date) return;
+    const stock = { ...snapshots.find((item) => item.symbol === symbol), ...stockDetailCache.get(key) };
+    chart.outerHTML = entryChartMarkup(stock, esc, number, series, days);
+    dialog.querySelector(`.entry-price-chart [data-chart-range="${days}"]`)?.focus({ preventScroll: true });
+  } catch {
+    if (chart.isConnected) { press(previous); chart.removeAttribute("aria-busy"); }
+    toast("走勢資料載入失敗，請稍後再試");
+  }
+}
+
 async function openEntryScoreDialog(symbol, focusClose = true) {
   const date = state.date, key = `${summaryKey(date)}:${symbol}`;
   const dialog = document.querySelector("#info-dialog");
@@ -698,7 +729,7 @@ async function openEntryScoreDialog(symbol, focusClose = true) {
       // An ETF's fund facts load beside its analysis; failing to read them only blanks that section.
       const fund = isEtf(snapshots.find((stock) => stock.symbol === symbol))
         ? marketClient.fund(symbol).then(({ data: body }) => body.data ?? null, () => null) : null;
-      const { data } = await marketClient.analysis(symbol, date, settings);
+      const { data } = await marketClient.analysis(symbol, date, fund ? { ...settings, days: 260 } : settings);
       if (fund) data.data.etfInfo = await fund;
       const detail = data.data?.entryScore;
       if (data.meta?.asOf !== date || detail?.modelVersion !== summary?.modelVersion ||
@@ -968,6 +999,7 @@ function bindEvents() {
     const button = event.target.closest("button");
     if (!button) return;
     if (button.closest("#required-update-dialog")) return;
+    if (button.dataset.chartRange) { void changeChartRange(button); return; }
     if (button.dataset.chartSeries) {
       const visible = button.getAttribute("aria-pressed") !== "true";
       button.setAttribute("aria-pressed", String(visible));

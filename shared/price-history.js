@@ -34,3 +34,28 @@ export function dailyCloseSeries(history, tradingDates, asOf, days = 30) {
           Number.isFinite(bar?.changePercent) ? bar.changePercent : null };
     });
 }
+
+/**
+ * Daily sessions folded into one point per calendar month: the month's last close, its summed volume and
+ * the change from the previous month's close. The first month has nothing to compare with, and a month
+ * whose sessions all lack a close keeps a null close; nothing is filled in. `date` is the month's last
+ * session, so a point still says which day its close is from.
+ */
+export function monthlyCloseSeries(daily) {
+  const months = new Map();
+  for (const point of daily ?? []) {
+    const key = point.date.slice(0, 7);
+    if (!months.has(key)) months.set(key, []);
+    months.get(key).push(point);
+  }
+  let previous = null;
+  return [...months].map(([month, points]) => {
+    const priced = points.filter((point) => Number.isFinite(point.close) && point.close > 0);
+    const close = priced.at(-1)?.close ?? null;
+    const volumes = points.map((point) => point.volume).filter(Number.isFinite);
+    const changePercent = close !== null && previous !== null ? (close / previous - 1) * 100 : null;
+    if (close !== null) previous = close;
+    return { date: (priced.at(-1) ?? points.at(-1)).date, month, close, sessions: points.length,
+      volume: volumes.length ? volumes.reduce((sum, value) => sum + value, 0) : null, changePercent };
+  });
+}

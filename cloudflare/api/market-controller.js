@@ -1,4 +1,4 @@
-import { analysisOptions, researchBacktestOptions, researchSampleOptions, stockCollectionOptions } from "./validators.js";
+import { analysisOptions, chartDays, researchBacktestOptions, researchSampleOptions, stockCollectionOptions } from "./validators.js";
 
 // Controllers own API representations and HTTP input adaptation.
 export async function marketController(route, url, services) {
@@ -27,7 +27,7 @@ export async function marketController(route, url, services) {
       return summary.sector(decodeURIComponent(route.params.name), options.asOf, options.settings);
     }
     case "stocks": return market.stocks(stockCollectionOptions(url.searchParams));
-    case "analysis": return analysis.stock(route.params.symbol, analysisOptions(url.searchParams));
+    case "analysis": return analysis.stock(route.params.symbol, { ...analysisOptions(url.searchParams), days: chartDays(url.searchParams) });
     case "stock": return market.stock(route.params.symbol);
     case "history": return history.stock(route.params.symbol);
     case "review": return history.review(route.params.symbol);

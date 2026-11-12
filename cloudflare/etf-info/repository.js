@@ -28,6 +28,15 @@ export class EtfInfoRepository {
     ]);
   }
 
+  async saveProducts(products, updatedAt) {
+    await this.db.batch([
+      this.db.prepare("DELETE FROM etf_products"),
+      this.db.prepare(`INSERT INTO etf_products(Symbol,Issuer,AssetSize,Holders,UpdatedAt)
+        SELECT json_extract(value,'$.symbol'),json_extract(value,'$.issuer'),json_extract(value,'$.assetSize'),
+        json_extract(value,'$.holders'),? FROM json_each(?) WHERE true`).bind(updatedAt, JSON.stringify(products)),
+    ]);
+  }
+
   /** Replaces the fetched window, so a corrected or withdrawn announcement does not linger. */
   async saveDividends(dividends, start) {
     await this.db.batch([
@@ -49,13 +58,32 @@ export class EtfInfoRepository {
       .bind(updatedAt, JSON.stringify(navs)).run();
   }
 
+  /** The months whose holdings report is stored. */
+  async holdingMonths() {
+    return new Set((await this.db.prepare("SELECT DISTINCT Month FROM etf_holdings").all()).results.map((row) => row.Month));
+  }
+
+  /** A month's report replaces that month for every ETF; months before `keepFrom` are pruned in the same batch. */
+  async saveHoldings(month, rows, keepFrom) {
+    if (rows.some((row) => row.month !== month)) throw new Error("ETF holdings must belong to the saved month");
+    await this.db.batch([
+      this.db.prepare("DELETE FROM etf_holdings WHERE Month=? OR Month<?").bind(month, keepFrom),
+      this.db.prepare(`INSERT INTO etf_holdings(Symbol,Month,Rank,Kind,Code,Name,Weight)
+        SELECT json_extract(value,'$.symbol'),json_extract(value,'$.month'),json_extract(value,'$.rank'),json_extract(value,'$.kind'),
+        json_extract(value,'$.code'),json_extract(value,'$.name'),json_extract(value,'$.weight') FROM json_each(?) WHERE true`)
+        .bind(JSON.stringify(rows)),
+    ]);
+  }
+
   /** One ETF's stored facts; `from` bounds how far back distributions are read. */
   async fund(symbol, from) {
-    const [profile, nav, dividends] = await Promise.all([
+    const [profile, nav, dividends, product, holdings] = await Promise.all([
       this.db.prepare("SELECT FundType,IndexName,InceptionDate,ListedDate,Units,UpdatedAt FROM etf_profiles WHERE Symbol=?").bind(symbol).first(),
       this.db.prepare("SELECT Date,MarketPrice,EstimatedNav,PremiumPercent,PreviousNav,Units,UpdatedAt FROM etf_nav WHERE Symbol=?").bind(symbol).first(),
       this.db.prepare("SELECT ExDate,RecordDate,PayDate,Amount FROM etf_dividends WHERE Symbol=? AND ExDate>=? ORDER BY ExDate DESC").bind(symbol, from).all(),
+      this.db.prepare("SELECT Issuer,AssetSize,Holders FROM etf_products WHERE Symbol=?").bind(symbol).first(),
+      this.db.prepare("SELECT Month,Rank,Kind,Code,Name,Weight FROM etf_holdings WHERE Symbol=? ORDER BY Month DESC, Rank").bind(symbol).all(),
     ]);
-    return { profile, nav, dividends: dividends.results };
+    return { profile, nav, dividends: dividends.results, product, holdings: holdings.results };
   }
 }

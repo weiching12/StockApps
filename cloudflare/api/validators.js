@@ -63,6 +63,14 @@ export function researchBacktestOptions(params) {
   return { ...filters, horizon: Number(oneOf(params, "horizon", ["5", "10", "20"]) ?? 10) };
 }
 
+/** Sessions of price history for the chart: 30 by default, up to the stored 260. */
+export function chartDays(params) {
+  const raw = params.get("days");
+  if (raw === null) return 30;
+  if (!["30", "60", "260"].includes(raw)) throw new DomainError("INVALID_QUERY", "days 必須是 30、60 或 260");
+  return Number(raw);
+}
+
 export function analysisOptions(params) {
   const settings = { ...DEFAULT_SETTINGS };
   for (const name of Object.keys(settings)) {

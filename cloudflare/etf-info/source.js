@@ -5,6 +5,8 @@ export const ETF_DIVIDEND_URL = "https://www.twse.com.tw/rwd/zh/ETF/etfDiv";
 // Published by the TWSE market information system rather than the OpenAPI catalogue, so its shape is
 // validated on every read and a failure only leaves the premium blank.
 export const ETF_NAV_URL = "https://mis.twse.com.tw/stock/data/all_etf.txt";
+// The TWSE ETF product list: issuer, reported fund size (TWD 100 million) and holders, from TDCC.
+export const ETF_PRODUCT_URL = "https://www.twse.com.tw/zh/ETFortune/ajaxProductsResult";
 
 const compact = (date) => date.replaceAll("-", "");
 const realDate = (date) => new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date ? date : null;
@@ -43,7 +45,7 @@ export function parseEtfProfiles(report) {
     const symbol = String(row["基金代號"] ?? "").trim();
     if (!validSymbol(symbol)) continue;
     const units = amount(row["發行單位數/轉換數"]);
-    profiles.set(symbol, { symbol, fundType: text(row["基金類型"]), indexName: text(row["標的指數/追蹤指數名稱"]),
+    profiles.set(symbol, { symbol, name: text(row["基金中文名稱"]), fundType: text(row["基金類型"]), indexName: text(row["標的指數/追蹤指數名稱"]),
       inceptionDate: rocCompactDate(row["成立日期"]), listedDate: rocCompactDate(row["上市日期"]),
       units: units > 0 ? units : null });
   }
@@ -84,4 +86,20 @@ export function parseEtfNav(report, date) {
       previousNav: previousNav > 0 ? previousNav : null, units: units > 0 ? units : null });
   }
   return [...navs.values()];
+}
+
+export function parseEtfProducts(report) {
+  if (report?.status !== "success" || !Array.isArray(report.data) || !report.data.length ||
+      !("stockNo" in report.data[0]) || !("totalAv" in report.data[0]) || !("issuer" in report.data[0]))
+    throw new Error("TWSE ETF product list unavailable or format changed");
+  const products = new Map();
+  for (const row of report.data) {
+    const symbol = String(row.stockNo ?? "").trim();
+    if (!validSymbol(symbol)) continue;
+    const size = amount(row.totalAv), holders = amount(row.holders);
+    products.set(symbol, { symbol, issuer: text(row.issuer), assetSize: size > 0 ? size * 1e8 : null,
+      holders: Number.isInteger(holders) && holders >= 0 ? holders : null });
+  }
+  if (!products.size) throw new Error("TWSE ETF product list has no usable rows");
+  return [...products.values()];
 }

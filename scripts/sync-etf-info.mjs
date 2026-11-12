@@ -1,14 +1,16 @@
 // One-off refresh of ETF fund facts (profile, estimated NAV, distributions) into D1, using the same
 // parsers as the scheduled sync. For the first fill after the migration, or a manual catch-up.
-//   node scripts/sync-etf-info.mjs --local|--remote
+//   node scripts/sync-etf-info.mjs --local|--remote [--holdings-months N]
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
-import { ETF_NAV_URL, ETF_PROFILE_URL, etfDividendUrl, parseEtfDividends, parseEtfNav, parseEtfProfiles } from "../cloudflare/etf-info/source.js";
-import { ETF_DIVIDEND_LOOKBACK_DAYS } from "../cloudflare/etf-info/sync.js";
+import { ETF_NAV_URL, ETF_PRODUCT_URL, ETF_PROFILE_URL, etfDividendUrl, parseEtfDividends, parseEtfNav, parseEtfProducts, parseEtfProfiles } from "../cloudflare/etf-info/source.js";
+import { ETF_DIVIDEND_LOOKBACK_DAYS, ETF_HOLDING_MONTHS, fetchEtfHoldings } from "../cloudflare/etf-info/sync.js";
 
+const monthsFlag = process.argv.indexOf("--holdings-months");
+const holdingMonths = monthsFlag > 0 ? Math.max(1, Math.min(ETF_HOLDING_MONTHS, Number(process.argv[monthsFlag + 1]) || 1)) : ETF_HOLDING_MONTHS;
 const targets = process.argv.slice(2).filter((flag) => ["--local", "--remote"].includes(flag));
 if (targets.length !== 1) { console.error("用法：node scripts/sync-etf-info.mjs <--local|--remote>"); process.exit(1); }
 const wranglerBin = join(dirname(createRequire(import.meta.url).resolve("wrangler/package.json")), "bin", "wrangler.js");
@@ -25,12 +27,14 @@ const insert = (head, rows) => { const out = []; for (let at = 0; at < rows.leng
 
 const now = new Date().toISOString(), today = now.slice(0, 10), start = shift(today, -ETF_DIVIDEND_LOOKBACK_DAYS);
 const statements = [], summary = {};
+let names = null;
 const step = async (name, run) => {
   try { summary[name] = await run(); }
   catch (error) { summary[name] = `略過：${error.message}`; }
 };
 await step("profiles", async () => {
   const rows = parseEtfProfiles(await read(ETF_PROFILE_URL));
+  names = rows.filter((row) => row.name);
   statements.push("DELETE FROM etf_profiles;", ...insert("INSERT INTO etf_profiles(Symbol,FundType,IndexName,InceptionDate,ListedDate,Units,UpdatedAt)",
     values(rows, (row) => [row.symbol, row.fundType, row.indexName, row.inceptionDate, row.listedDate, row.units, now])));
   return rows.length;
@@ -40,6 +44,12 @@ await step("dividends", async () => {
   if (!rows.length) throw new Error("配息報表沒有資料");
   statements.push(`DELETE FROM etf_dividends WHERE ExDate>=${sql(start)};`, ...insert("INSERT INTO etf_dividends(Symbol,ExDate,RecordDate,PayDate,Amount)",
     values(rows, (row) => [row.symbol, row.exDate, row.recordDate, row.payDate, row.amount])));
+  return rows.length;
+});
+await step("products", async () => {
+  const rows = parseEtfProducts(await read(ETF_PRODUCT_URL));
+  statements.push("DELETE FROM etf_products;", ...insert("INSERT INTO etf_products(Symbol,Issuer,AssetSize,Holders,UpdatedAt)",
+    values(rows, (row) => [row.symbol, row.issuer, row.assetSize, row.holders, now])));
   return rows.length;
 });
 await step("nav", async () => {
@@ -52,6 +62,16 @@ await step("nav", async () => {
   statements.push(...insert("INSERT OR REPLACE INTO etf_nav(Symbol,Date,MarketPrice,EstimatedNav,PremiumPercent,PreviousNav,Units,UpdatedAt)",
     values(rows, (row) => [row.symbol, row.date, row.marketPrice, row.estimatedNav, row.premiumPercent, row.previousNav, row.units, now])));
   return rows.length;
+});
+await step("holdings", async () => {
+  if (!names) throw new Error("沒有基金名稱可供比對");
+  // The whole kept window, about a minute per month; `--holdings-months N` fetches fewer.
+  const { months, keepFrom } = await fetchEtfHoldings(fetch, names, new Set(), holdingMonths);
+  for (const { month, rows } of months) statements.push(`DELETE FROM etf_holdings WHERE Month=${sql(month)};`,
+    ...insert("INSERT INTO etf_holdings(Symbol,Month,Rank,Kind,Code,Name,Weight)",
+      values(rows, (row) => [row.symbol, row.month, row.rank, row.kind, row.code, row.name, row.weight])));
+  statements.push(`DELETE FROM etf_holdings WHERE Month<${sql(keepFrom)};`);
+  return months.map(({ month, rows }) => `${month}：${new Set(rows.map((row) => row.symbol)).size} 檔`).join("、");
 });
 console.log(JSON.stringify(summary));
 if (!statements.length) { console.error("沒有任何來源可用，未寫入。"); process.exit(1); }

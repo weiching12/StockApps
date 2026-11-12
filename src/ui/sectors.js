@@ -11,8 +11,25 @@ export const breadthText = (estimate) => estimate?.available ? `買超 ${estimat
 /** The ranking opens on its top rows; what matters sorts first, and the rest is one tap away. */
 export const visibleSectors = (sectors, expanded) => expanded ? sectors : sectors.slice(0, COLLAPSED_SUB_INDUSTRIES);
 
-/** The market list's sector choices: broader sectors with their sub-industries; ETFs stay a plain choice. */
-export function sectorTree(stocks) {
+/**
+ * Each sector's and sub-industry's turnover on the snapshots' day: Σ volume × close of its stocks, in TWD.
+ * A stock without a price or volume that day adds nothing, so a sector with no trading data has no entry.
+ */
+export function sectorTurnover(snapshots) {
+  const turnover = new Map();
+  for (const { sector, sectorGroup, latest } of snapshots) {
+    if (!Number.isFinite(latest?.volume) || !Number.isFinite(latest?.close) || latest.volume <= 0 || latest.close <= 0) continue;
+    for (const name of new Set([sector, sectorGroup].filter(Boolean))) turnover.set(name, (turnover.get(name) ?? 0) + latest.volume * latest.close);
+  }
+  return turnover;
+}
+
+/**
+ * The market list's sector choices: broader sectors with their sub-industries; ETFs stay a plain choice.
+ * With `turnover` the busiest sector comes first, at both levels; names break ties and order sectors
+ * that have no trading data, so the order is stable without it.
+ */
+export function sectorTree(stocks, turnover = null) {
   const groups = new Map(), plain = new Set();
   for (const { sector, sectorGroup } of stocks) {
     if (!sector) continue;
@@ -21,13 +38,14 @@ export function sectorTree(stocks) {
     groups.get(sectorGroup).add(sector);
   }
   const byName = (a, b) => a.localeCompare(b, "zh-Hant");
-  return { groups: [...groups].sort(([a], [b]) => byName(a, b)).map(([name, subs]) => ({ name, subs: [...subs].sort(byName) })),
-    plain: [...plain].sort(byName) };
+  const order = (a, b) => (turnover?.get(b) ?? -1) - (turnover?.get(a) ?? -1) || byName(a, b);
+  return { groups: [...groups].sort(([a], [b]) => order(a, b)).map(([name, subs]) => ({ name, subs: [...subs].sort(order) })),
+    plain: [...plain].sort(order) };
 }
 
 /** First row picks a sector; a sector with several sub-industries opens a second row. */
-export function sectorChipsMarkup(stocks, selected, esc) {
-  const { groups, plain } = sectorTree(stocks);
+export function sectorChipsMarkup(stocks, selected, esc, turnover = null) {
+  const { groups, plain } = sectorTree(stocks, turnover);
   const chip = (value, label, pressed) => `<button type="button" data-sector-chip="${esc(value)}" aria-pressed="${pressed}">${esc(label)}</button>`;
   const group = groups.find(({ name, subs }) => name === selected || subs.includes(selected));
   const first = [chip("all", "全部", selected === "all"), ...groups.map(({ name }) => chip(name, name, name === group?.name)),
@@ -103,12 +121,14 @@ function countUp(block, format, duration = 650) {
 }
 
 export function renderSectorNavView(context) {
-  const { state, dataset, esc } = context;
+  const { state, dataset, snapshots, esc } = context;
   const first = document.querySelector("#sector-chips");
   if (!first) return;
   const second = document.querySelector("#sub-sector-chips");
   // ETFs have their own view, so the market list's sector choices leave them out.
-  const markup = sectorChipsMarkup(dataset.stocks.filter((stock) => !isEtf(stock)), state.sector, esc);
+  // Busiest first on the selected market day; before prices load the order is by name.
+  const markup = sectorChipsMarkup(dataset.stocks.filter((stock) => !isEtf(stock)), state.sector, esc,
+    sectorTurnover((snapshots ?? []).filter((stock) => !isEtf(stock))));
   syncChipRow(first, markup.first);
   syncChipRow(second, markup.second);
   second.hidden = !markup.second;

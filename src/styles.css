@@ -787,6 +787,14 @@ h1 {
 .entry-price-chart svg .entry-chart-volume.down { fill: var(--down); opacity: .7; }
 .entry-price-chart svg circle { fill: var(--chart-tone); }
 .entry-price-chart svg circle.selected { r: 5; stroke: var(--surface); stroke-width: 2; vector-effect: non-scaling-stroke; }
+/* Past three months a dot per session only thickens the line: keep the selected one. */
+.entry-price-chart.dense svg circle:not(.selected) { opacity: 0; }
+.entry-chart-ranges { display: inline-flex; gap: 2px; margin: 0 0 8px; padding: 2px; border-radius: 999px; background: var(--border); }
+.entry-chart-ranges button { min-width: 44px; min-height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: var(--text-meta); font-weight: 600; cursor: pointer; }
+.entry-chart-ranges button[aria-pressed="true"] { background: var(--panel, #fff); color: var(--accent); }
+[data-theme="dark"] .entry-chart-ranges button[aria-pressed="true"] { background: rgba(255, 255, 255, .14); }
+.entry-chart-ranges button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.entry-price-chart[aria-busy="true"] .entry-chart-price-region { opacity: .45; transition: opacity .15s; }
 .entry-price-chart svg .entry-chart-cursor { stroke: var(--chart-tone); stroke-dasharray: 3 4; opacity: .55; }
 .entry-price-chart.hide-close :is(.entry-chart-close, .entry-chart-points),
 .entry-price-chart.hide-ma20 .entry-chart-ma20,
@@ -810,8 +818,10 @@ h1 {
 .entry-institution-net b { font-size: 14px; }
 .entry-institution-net b.up { color: var(--up); }
 .entry-institution-net b.down { color: var(--down); }
-.entry-institution-legend { display: flex; flex-wrap: wrap; gap: 2px 12px; }
-.entry-institution-legend span { white-space: nowrap; }
+.entry-institution-legend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 8px; }
+.entry-institution-legend span { min-width: 0; white-space: nowrap; }
+.entry-institution-legend span b { display: block; overflow: hidden; text-overflow: ellipsis; }
+.entry-institution-head > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry-institution-legend span::before { display: inline-block; width: 6px; height: 6px; margin-right: 4px; border-radius: 50%; vertical-align: 1px; background: var(--line-tone); content: ""; }
 .sector-stock-table [data-sector-target] > :is(th, td) { background: var(--accent-soft); }
 .entry-disclaimer { margin-top: 22px; }
@@ -3618,36 +3628,70 @@ dialog.sector-dialog {
 .sector-flow-price-read .up { color: var(--up); }
 .sector-flow-price-read .down { color: var(--down); }
 
-/* ETF detail: summary tiles, performance, flows and fund facts in place of the entry research. */
-.entry-dialog-header + .etf-summary { margin-top: 0; }
-.etf-summary, .etf-section { padding: 16px; border: 1px solid var(--border); border-radius: 12px; }
-.etf-summary { background: var(--accent-soft); border-color: transparent; }
+/* ETF detail: distributions lead, fund facts follow, the technical read is folded at the end. */
+.entry-dialog-header + .etf-dividend-card { margin-top: 0; }
+.etf-dividend-card, .etf-section { padding: 16px; border: 1px solid var(--border); border-radius: 12px; }
+.etf-dividend-card { background: var(--accent-soft); border-color: transparent; }
+.etf-dividend-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.etf-dividend-head h3 { margin: 0; font-size: var(--text-title); line-height: 1.3; }
+.etf-frequency { padding: 2px 10px; border-radius: 999px; background: var(--accent); color: #fff; font-size: var(--text-meta); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+.etf-dividend-when { margin: 0 0 8px; color: var(--ink); font-size: var(--text-secondary); font-weight: 600; }
+.etf-dividend-when small { margin-left: 6px; color: var(--muted); font-size: var(--text-meta); font-weight: 500; }
+.etf-dividend-dates > div { padding: 10px; border-radius: 10px; background: var(--surface, #fff); }
+[data-theme="dark"] .etf-dividend-dates > div { background: rgba(255, 255, 255, .06); }
+.etf-dividend-card .etf-dividend-year { margin-top: 14px; }
+.etf-note { margin: 12px 0 0; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; }
 .etf-section h3 { margin: 0 0 12px; font-size: var(--text-body); }
-.etf-section :is(h3, h4) small { margin-left: 6px; color: var(--muted); font-size: var(--text-meta); font-weight: 500; }
+.etf-dialog :is(h3, h4, summary) small { margin-left: 6px; color: var(--muted); font-size: var(--text-meta); font-weight: 500; }
 .etf-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
 .etf-tiles.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.etf-tiles.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .etf-tiles > div { min-width: 0; }
 .etf-tiles dt { color: var(--muted); font-size: var(--text-meta); line-height: 1.4; }
 .etf-tiles dd { margin: 2px 0 0; color: var(--ink); font-size: var(--text-body); font-weight: 600; line-height: 1.4; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .etf-tiles small { display: block; color: var(--muted); font-size: var(--text-meta); line-height: 1.4; overflow-wrap: anywhere; }
 .etf-dialog :is(dd, b).up { color: var(--up); }
 .etf-dialog :is(dd, b).down { color: var(--down); }
-.etf-flow-parts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 12px 0 0; color: var(--muted); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
-.etf-flow-parts b { color: var(--ink); font-weight: 600; }
 .etf-facts { display: grid; gap: 8px; margin: 0; }
 .etf-facts > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; font-size: var(--text-secondary); line-height: 1.5; }
 .etf-facts dt { color: var(--muted); }
 .etf-facts dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
 .etf-fund-block { margin-top: 16px; padding-top: 14px; box-shadow: inset 0 1px var(--border); }
-.etf-fund > .etf-fund-block:first-of-type:nth-child(2) { margin-top: 0; padding-top: 0; box-shadow: none; }
 .etf-fund-block h4 { margin: 0 0 10px; font-size: var(--text-secondary); }
-.etf-dividends { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
-.etf-dividends :is(th, td) { padding: 6px 0; border-top: 1px solid var(--border); text-align: left; }
+.etf-month .etf-empty, .etf-month .etf-note { margin: 0; }
+.etf-month-panel h3 { margin: 0 0 6px; }
+.etf-month-panel h4 { margin: 14px 0 8px; font-size: var(--text-secondary); }
+.etf-month-events { margin: 0; color: var(--ink); font-size: var(--text-secondary); line-height: 1.6; font-variant-numeric: tabular-nums; }
+/* Distribution lanes under the monthly chart, aligned to its plot (44px scale column + 2px gap). */
+.etf-chart-events { display: grid; gap: 4px; margin-top: 8px; }
+.etf-event-lane { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 2px; align-items: center; color: var(--muted); font-size: 11px; line-height: 1.3; }
+.etf-event-lane > div { position: relative; height: 12px; border-radius: 6px; background: var(--surface); }
+.etf-event-lane i { position: absolute; top: 2px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--event-tone); }
+.etf-event-lane.ex { --event-tone: var(--accent); }
+.etf-event-lane.pay { --event-tone: #c47f00; }
+.etf-event-lane.pay i { border-radius: 2px; transform: rotate(45deg); }
+[data-theme="dark"] .etf-event-lane > div { background: rgba(255, 255, 255, .06); }
+[data-theme="dark"] .etf-event-lane.pay { --event-tone: #f3bc66; }
+.etf-holding-list { display: grid; gap: 2px; margin: 0 0 8px; padding: 0; list-style: none; }
+.etf-holding-list li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 0 8px; padding: 6px 0 8px; }
+.etf-holding-rank { color: var(--muted); font-size: var(--text-meta); font-variant-numeric: tabular-nums; text-align: right; }
+.etf-holding-name { min-width: 0; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: var(--text-secondary); font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.etf-holding-name { min-height: 28px; color: var(--accent); cursor: pointer; }
+button.etf-holding-name:hover { text-decoration: underline; }
+.etf-holding-name small { margin-left: 4px; color: var(--muted); font-size: var(--text-meta); font-weight: 500; }
+.etf-holding-weight { color: var(--ink); font-size: var(--text-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
+.etf-holding-bar { grid-column: 2 / -1; height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--accent) var(--share), var(--border) var(--share)); }
+.etf-dividends { width: 100%; border-collapse: collapse; font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
+.etf-dividends :is(th, td) { padding: 7px 0; border-top: 1px solid var(--border); text-align: left; }
+.etf-dividends thead :is(th, td) { border-top: 0; padding-top: 0; }
 .etf-dividends th { color: var(--muted); font-weight: 500; }
 .etf-dividends :is(th, td):last-child { text-align: right; }
-.etf-empty { margin: 0; color: var(--muted); font-size: var(--text-secondary); }
-.etf-fund-pending { display: grid; place-items: center; min-height: 96px; }
+.etf-empty { margin: 0; color: var(--muted); font-size: var(--text-secondary); line-height: 1.6; }
+.etf-pending { display: grid; place-items: center; min-height: 120px; }
+.etf-technical > summary { display: flex; align-items: center; min-height: 32px; color: var(--ink); font-size: var(--text-body); font-weight: 600; cursor: pointer; }
+.etf-technical[open] > summary { margin-bottom: 12px; }
 @media (max-width: 520px) {
-  .etf-summary, .etf-section { padding: 12px; }
-  .etf-tiles:not(.three) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 8px; }
+  .etf-dividend-card, .etf-section { padding: 12px; }
+  .etf-tiles:not(.three):not(.two) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .etf-technical .etf-tiles:not(.three) { gap: 10px 8px; }
 }
