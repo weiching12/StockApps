@@ -754,7 +754,7 @@ h1 {
 .entry-price-chart[data-trend="down"] { --chart-tone: var(--down); }
 .entry-price-chart[data-trend="flat"] { --chart-tone: var(--accent); }
 .entry-chart-header { position: relative; height: 48px; }
-.entry-chart-default { position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.entry-chart-default { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .entry-price-chart h3 { flex: 1; min-width: 0; margin: 0; color: var(--muted); font-size: 14px; font-weight: 500; line-height: 1.4; }
 .entry-chart-default[hidden], .entry-chart-readout[hidden] { display: none; }
 .entry-chart-readout { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; font-variant-numeric: tabular-nums; }
@@ -2922,6 +2922,8 @@ dialog.sector-dialog {
   #info-dialog { transform: translateY(var(--mobile-drag-y, 0px)); transition: transform 180ms ease-out; }
   #info-dialog.is-dragging { transition: none; user-select: none; }
   #info-dialog[data-mobile-sheet="preview"] .entry-dialog > :not(.entry-dialog-header):not(.entry-price-chart) { display: none; }
+  /* With the card hidden the chart follows the header directly: no second divider under the header's. */
+  #info-dialog[data-mobile-sheet="preview"] .entry-price-chart { margin-top: 0; padding-top: 0; box-shadow: none; }
   #info-dialog .entry-dialog-header { --entry-header-inset: 16px; padding-right: 16px; }
   /* Phone sheet: the 28px drag handle stays, the padding around it and above the title shrinks.
      --entry-header-top must match the sheet's top padding for the sticky header. */
@@ -3204,10 +3206,8 @@ dialog.sector-dialog {
 .entry-chart-plan-labels span { position: absolute; left: 2px; transform: translateY(-50%); padding: 0 4px; border-radius: 3px; background: rgba(255, 255, 255, .88); color: #475569; font-size: 10px; line-height: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 [data-theme="dark"] .entry-chart-plan-labels span { background: rgba(17, 27, 43, .88); color: #cbd5e1; }
 [data-theme="dark"] .entry-price-chart svg .entry-chart-plan { stroke: #cbd5e1; }
-.entry-chart-plan-toggle { display: inline-flex; align-items: center; min-height: 32px; margin: 0 0 0 auto; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-size: var(--text-meta); cursor: pointer; }
+.entry-chart-plan-toggle { flex: none; display: inline-flex; align-items: center; min-height: 32px; margin: 0; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-size: var(--text-meta); cursor: pointer; }
 .entry-chart-plan-toggle[aria-pressed="true"] { background: var(--accent-soft); }
-.entry-chart-legend .entry-chart-plan-toggle { padding: 0 12px; border: 1px solid var(--border); color: var(--accent); font-size: var(--text-meta); opacity: 1; text-decoration: none; }
-.entry-chart-legend .entry-chart-plan-toggle::before { display: none; }
 .entry-chart-plan-toggle[aria-pressed="false"] .hide, .entry-chart-plan-toggle[aria-pressed="true"] .show { display: none; }
 .entry-price-chart.hide-plan :is(svg .entry-chart-plan, .entry-chart-plan-labels) { display: none; }
 [data-theme="dark"] .research-plan-card { background: #0d1726; }

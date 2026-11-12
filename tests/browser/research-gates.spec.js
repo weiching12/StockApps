@@ -180,7 +180,7 @@ test("one institution line sits right under the chart dates at the plot's width,
   await expect(bar.locator(".entry-institution-net b")).toHaveText(latestNet);
 });
 
-test("plan levels start on the chart for a next-day candidate and toggle from the legend; the signal day is not marked", async ({ page }) => {
+test("plan levels start on the chart for a next-day candidate and toggle from the chart heading; the signal day is not marked", async ({ page }) => {
   await page.goto("/");
   // Demo data may have no next-day plan today; check whichever stock carries one.
   const symbols = await page.locator("#stock-rows tr[data-symbol]").evaluateAll((rows) => rows.map((row) => row.dataset.symbol));
@@ -190,8 +190,12 @@ test("plan levels start on the chart for a next-day candidate and toggle from th
     await expect(chart.locator(".entry-chart-signal")).toHaveCount(0);
     const toggle = chart.locator(".entry-chart-plan-toggle");
     if (await toggle.count()) {
-      // The toggle is the last item of the legend row, not a button under the chart.
-      await expect(chart.locator(".entry-chart-legend > .entry-chart-plan-toggle")).toHaveCount(1);
+      // The toggle shares the heading row, right of the title, instead of taking a row of its own.
+      await expect(chart.locator(".entry-chart-default > .entry-chart-plan-toggle")).toHaveCount(1);
+      const row = await chart.evaluate((node) => { const title = node.querySelector("h3").getBoundingClientRect(), button = node.querySelector(".entry-chart-plan-toggle").getBoundingClientRect();
+        return { level: Math.abs(title.top + title.height / 2 - (button.top + button.height / 2)), right: button.left - title.left }; });
+      expect(row.level).toBeLessThan(4);
+      expect(row.right).toBeGreaterThan(0);
       // Shown from the start only when the card says the stock is a next-day candidate.
       const candidate = await page.locator("#info-dialog .research-buy-range").count() > 0;
       await expect(toggle).toHaveAttribute("aria-pressed", String(candidate));
