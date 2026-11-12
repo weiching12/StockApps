@@ -18,6 +18,8 @@ export class MarketApiClient {
     const params = new URLSearchParams({ ...settings, asOf: date });
     return this.http.json(`/api/v1/stocks/${encodeURIComponent(symbol)}/analysis?${params}`, options);
   }
+  /** ETF fund facts: profile, estimated NAV and distributions. */
+  fund(symbol, options) { return this.http.json(`/api/v1/stocks/${encodeURIComponent(symbol)}/fund`, options); }
   backtest(params, options) { return this.http.json(`/api/v1/research/backtest?${params}`, options); }
   researchSamples(params, options) { return this.http.json(`/api/v1/research/samples?${params}`, options); }
 }

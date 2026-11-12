@@ -11,6 +11,8 @@ import { CorporateActionRepository } from "./corporate-actions/repository.js";
 import { ResearchSnapshotRepository } from "./repositories/research-snapshot-repository.js";
 import { EntryResearchRepository } from "./repositories/entry-research-repository.js";
 import { EntryResearchService } from "./services/entry-research-service.js";
+import { EtfInfoRepository } from "./etf-info/repository.js";
+import { EtfInfoService } from "./services/etf-info-service.js";
 
 // Environment bindings are assembled here, outside application services.
 export const createMarketService = (env) => new MarketService(new MarketRepository(env.MARKET_DATA,
@@ -21,6 +23,7 @@ export function createApplicationServices(env) {
   const actions = env.CORPORATE_ACTIONS_ENABLED === "1" ? new CorporateActionRepository(env.T86_DB) : null;
   const research = env.T86_DB ? new ResearchSnapshotRepository(env.T86_DB) : null;
   return { market, actions, research, analysis: new AnalysisService(market, actions), summary: new MarketSummaryService(market, actions, research), history: new HistoryService(market, actions),
+    etfInfo: new EtfInfoService(market, env.ETF_INFO_ENABLED === "1" && env.T86_DB ? new EtfInfoRepository(env.T86_DB) : null),
     entryResearch: new EntryResearchService(env.T86_DB ? new EntryResearchRepository(env.T86_DB) : null),
     push: new PushService(new PushRepository(env.T86_DB), env),
     nativePush: new NativePushService(new NativePushRepository(env.T86_DB), env) };

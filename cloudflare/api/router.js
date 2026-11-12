@@ -2,6 +2,7 @@ import { authController } from "../auth/controller.js";
 import { createApplicationServices } from "../composition.js";
 import { AnalysisService } from "../services/analysis-service.js";
 import { HistoryService } from "../services/history-service.js";
+import { EtfInfoService } from "../services/etf-info-service.js";
 import { MarketSummaryService } from "../services/market-summary-service.js";
 import { resolveApiRoute } from "./routes.js";
 import { marketController } from "./market-controller.js";
@@ -28,7 +29,7 @@ export async function routeApi(request, env, injected) {
       if (failure) return failure;
     }
     const services = injected?.market && typeof injected.market !== "function" ? injected : injected
-      ? { market: injected, analysis: new AnalysisService(injected), summary: new MarketSummaryService(injected), history: new HistoryService(injected) }
+      ? { market: injected, analysis: new AnalysisService(injected), summary: new MarketSummaryService(injected), history: new HistoryService(injected), etfInfo: new EtfInfoService(injected) }
       : createApplicationServices(env);
     if (route.name === "pushConfig" || route.name === "pushSubscriptions")
       return await pushController(request, route, services.push);

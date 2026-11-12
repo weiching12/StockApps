@@ -31,6 +31,7 @@
     "T86_EVENING_RATIO": "0.95",
     "MARKET_HISTORY_ENABLED": "1",
     "CORPORATE_ACTIONS_ENABLED": "1",
+    "ETF_INFO_ENABLED": "1",
     "VAPID_PUBLIC_KEY": "BGansUEyeX9nFCl2LA9r_Va9cPozZo4NY3FByEjXNOB6CaPLsqex46OdZ9Xn2JOpUlQtX00avjjHYmcYj2045D4",
     "VAPID_SUBJECT": "https://stock-insight-tw.stock-insight-tw.workers.dev"
   },

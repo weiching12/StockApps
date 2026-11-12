@@ -1,3 +1,4 @@
+import { summarizeEtfDividends } from "../shared/etf-info.js";
 import { classifyStock } from "../shared/custom-sectors.js";
 
 /**
@@ -91,6 +92,23 @@ const stocks = catalog.map(createStock).map(classifyStock);
 /** Provider boundary: network-backed adapters can replace this object later. */
 export const demoProvider = {
   async load() {
-    return { info: DATA_INFO, stocks, dates };
+    return { info: DATA_INFO, stocks, dates, etfInfo: demoEtfInfo };
   },
 };
+
+// Illustrative fund facts for the demo ETFs, shaped like /api/v1/stocks/{symbol}/fund. Not real figures.
+const DEMO_FUNDS = {
+  "0050": { fundType: "國內成分證券指數股票型基金", indexName: "臺灣50指數", inceptionDate: "2003-06-25", listedDate: "2003-06-30", units: 25_000_000_000, premium: -0.1,
+    dividends: [["2026-07-21", "2026-08-10", 0.6], ["2026-01-22", "2026-02-11", 0.5]] },
+  "00878": { fundType: "國內成分證券指數股票型基金", indexName: "MSCI臺灣ESG永續高股息精選30指數", inceptionDate: "2020-07-10", listedDate: "2020-07-20", units: 19_700_000_000, premium: 0.18,
+    dividends: [["2026-11-17", "2026-12-11", null], ["2026-08-18", "2026-09-11", 0.42], ["2026-05-19", "2026-06-12", 0.42], ["2026-02-24", "2026-03-20", 0.4], ["2025-11-18", "2025-12-12", 0.4]] },
+};
+export function demoEtfInfo(symbol, asOf, close) {
+  const fund = DEMO_FUNDS[symbol];
+  if (!fund || !Number.isFinite(close)) return null;
+  const estimated = close / (1 + fund.premium / 100);
+  const dividends = fund.dividends.map(([exDate, payDate, amount]) => ({ exDate, recordDate: null, payDate, amount }));
+  return { symbol, profile: { fundType: fund.fundType, indexName: fund.indexName, inceptionDate: fund.inceptionDate, listedDate: fund.listedDate, units: fund.units },
+    nav: { date: asOf, estimated, marketPrice: close, premiumPercent: fund.premium, previous: null }, size: fund.units * estimated,
+    dividends, ...summarizeEtfDividends(dividends, asOf, close) };
+}

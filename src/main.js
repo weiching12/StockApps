@@ -263,6 +263,13 @@ function refreshData() {
     snapshot.entryResearch = entryResearchApplies(snapshot) ? evaluateEntryResearch({ stock: snapshot, tradingDates: dataset.dates, asOf: date,
       settings: state.settings, score: snapshot.entryScore }) : null;
     snapshot.priceHistory = dailyCloseSeries(snapshot.history, dataset.dates, date);
+    if (isEtf(snapshot)) {
+      // The ETF dialog reads the same shapes the API sends: per-window institutional money and fund facts.
+      const sessions = dataset.dates.filter((day) => day <= date);
+      snapshot.money = Object.fromEntries(["day", "5", "20"].map((window) => [window, Object.fromEntries(["total", "外資", "投信", "自營商"]
+        .map((name) => [name, getStockInstitutionEstimate(snapshot, name, window, sessions)]))]));
+      snapshot.etfInfo = dataset.etfInfo?.(snapshot.symbol, date, snapshot.latest?.close) ?? null;
+    }
     // The sentiment series needs 60 closes at its oldest point.
     snapshot.history = snapshot.history.slice(-80);
     return snapshot;
@@ -629,7 +636,7 @@ function openDialog(type, focusClose = true) {
     const symbol = type.slice(6);
     const stock = snapshots.find((item) => item.symbol === symbol);
     const detail = stockDetailCache.get(`${summaryKey(state.date)}:${symbol}`);
-    content.innerHTML = stock ? entryScoreDialogMarkup(detail ? { ...stock, ...detail } : stock, esc, number, percent,
+    content.innerHTML = stock ? entryScoreDialogMarkup(detail ? { ...stock, ...detail } : apiMode && isEtf(stock) ? { ...stock, etfInfoPending: true } : stock, esc, number, percent,
       state.favorites.includes(symbol), icon, loadingIcon) :
       `<h2 id="dialog-heading">個股進場評估</h2><p>找不到這檔股票。</p>`;
   } else if (type === "backtest-sample") {
@@ -688,7 +695,11 @@ async function openEntryScoreDialog(symbol, focusClose = true) {
   const settings = { ...state.settings };
   try {
     const entryDetail = await stockDetailCache.load(key, async () => {
+      // An ETF's fund facts load beside its analysis; failing to read them only blanks that section.
+      const fund = isEtf(snapshots.find((stock) => stock.symbol === symbol))
+        ? marketClient.fund(symbol).then(({ data: body }) => body.data ?? null, () => null) : null;
       const { data } = await marketClient.analysis(symbol, date, settings);
+      if (fund) data.data.etfInfo = await fund;
       const detail = data.data?.entryScore;
       if (data.meta?.asOf !== date || detail?.modelVersion !== summary?.modelVersion ||
           detail?.totalScore !== summary?.totalScore) throw new Error("清單與個股評分版本不一致");

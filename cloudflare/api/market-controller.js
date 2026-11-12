@@ -31,6 +31,7 @@ export async function marketController(route, url, services) {
     case "stock": return market.stock(route.params.symbol);
     case "history": return history.stock(route.params.symbol);
     case "review": return history.review(route.params.symbol);
+    case "fund": return services.etfInfo.fund(route.params.symbol);
     case "researchSamples": return services.entryResearch.samples(researchSampleOptions(url.searchParams));
     case "researchBacktest": return services.entryResearch.backtest(researchBacktestOptions(url.searchParams));
     default: throw new Error("Unregistered market controller");

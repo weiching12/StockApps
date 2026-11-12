@@ -1,6 +1,7 @@
 import { isEtf } from "../../shared/market-codec.js";
 import { dailyCloseSeries } from "../../shared/price-history.js";
 import { researchCardPreview, researchChartMarks, researchDialogSections } from "./entry-research.js";
+import { etfFlowMarkup, etfFundMarkup, etfPerformanceMarkup, etfSummaryMarkup } from "./etf-detail.js";
 
 export function priceTrend(series) {
   const valid = series.filter(({ close }) => Number.isFinite(close) && close > 0);
@@ -165,7 +166,19 @@ export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = f
       <section class="entry-price-chart entry-chart-pending"><div class="entry-chart-pending-head"><h3>30 個交易日走勢圖</h3></div><div class="entry-pending-body">${loadingIcon("走勢資料載入中")}</div></section>
       <section class="entry-pending">${loadingIcon("研究明細載入中")}</section></div>`;
   }
-  if (isEtf(stock)) return `${heading}<p class="research-not-evaluated">ETF 追蹤指數或一籃子標的，不判斷進場時機，也不列入回測樣本。</p>`;
+  if (isEtf(stock)) {
+    // No entry research for ETFs: the dialog shows the technical read, the trend, flows and the fund's facts.
+    const series = stock.priceHistory ?? (stock.history ? dailyCloseSeries(stock.history,
+      stock.tradingDates ?? stock.history.map((bar) => bar.date), stock.latest?.date) : null);
+    const latest = series?.at(-1) ?? stock.latest;
+    const format = { esc, number, percent };
+    const chart = series?.length ? priceChartMarkup(stock, esc, number, series)
+      : `<section class="entry-price-chart entry-chart-pending"><div class="entry-chart-pending-head"><h3>30 個交易日走勢圖</h3></div><div class="entry-pending-body">${loadingIcon("走勢資料載入中")}</div></section>`;
+    return `<div class="entry-dialog has-research etf-dialog"><header class="entry-dialog-header">${heading}
+      <div class="entry-dialog-subline"><p class="entry-dialog-meta">${esc(latest?.date ?? stock.latest?.date ?? "")}</p>${quoteMarkup(latest?.close ?? stock.latest?.close, latest?.changePercent ?? stock.latest?.changePercent, latest?.date, esc, number)}</div></header>
+      ${etfSummaryMarkup(stock, format)}${chart}${series?.length ? etfPerformanceMarkup(series) : ""}${etfFlowMarkup(stock.money, format)}${"etfInfo" in stock || stock.etfInfoPending ? etfFundMarkup(stock.etfInfo, format, loadingIcon) : ""}
+      <p class="helper-text entry-disclaimer">ETF 追蹤指數或一籃子標的，不判斷進場時機，也不列入回測樣本。以上為價量、法人與基金公開資料，非買賣建議；折溢價採收盤後的預估淨值，規模與殖利率為估算。</p></div>`;
+  }
   if (!score || !research) return `${heading}<p>資料不足，無法進行進場研究。</p>`;
   const chartSeries = stock.priceHistory ?? dailyCloseSeries(stock.history,
     stock.tradingDates ?? stock.history?.map((bar) => bar.date), score.asOf);

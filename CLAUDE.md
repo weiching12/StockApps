@@ -66,14 +66,14 @@ Durable Objects (`wrangler.jsonc`):
 ### Scheduled data pipeline
 Cron (weekdays, Taipei evening, see `wrangler.jsonc`) → `runScheduled` in `worker.js`:
 1. `coordinateMarketSync` — phases in `cloudflare/sync/` (plan → acquire → snapshot → publish → cleanup). T86 is validated (date, 19-column schema, integer/formula checks, dynamic row-count thresholds from `T86_*_RATIO` vars) and upserted into D1 transactionally before KV shards are published; identical content hashes are not rewritten; failure keeps the last good version. 30-min cooldown, 3-failure ceiling.
-2. Corporate-action sync (`corporate-actions/`).
+2. Corporate-action sync (`corporate-actions/`), then ETF fund facts (`etf-info/`: profile, estimated NAV/premium, distributions; three independent TWSE sources, a failed one keeps its last good rows and never blocks research capture). First fill or manual catch-up: `node scripts/sync-etf-info.mjs --local|--remote`.
 3. When sync phase is `done`, idempotent entry-research sample capture (`entry-research-capture.js`) into D1. Daily V1.2 snapshots are no longer written; `/api/v1/favorites/research` only reads existing ones.
 
 Data rules to preserve: prices are **unadjusted**; missing/suspended data is never zero-filled; indicators/scores return null/insufficient rather than redistributing weights; ETFs are searchable/favoritable but excluded from sector rankings.
 
 ### Storage
 - KV `MARKET_DATA`: published market manifest + 128 compact history shards (up to 260 trading days).
-- D1 `T86_DB` (`stockapps-t86`): T86, market history, corporate actions, push subscriptions, research snapshots, auth. Migrations are append-only in `cloudflare/migrations/`; apply with `npx wrangler d1 migrations apply stockapps-t86 --local|--remote`.
+- D1 `T86_DB` (`stockapps-t86`): T86, market history, corporate actions, ETF fund facts, push subscriptions, research snapshots, auth. Migrations are append-only in `cloudflare/migrations/`; apply with `npx wrangler d1 migrations apply stockapps-t86 --local|--remote`.
 
 ### Frontend (`src/`)
 `main.js` is the composition root: startup, data loading, render scheduling and cross-view event delegation. View modules in `src/ui/` receive models/formatters/callbacks and own only DOM. Favorites/settings live in `localStorage` (`ui/preferences.js`, with one-time migrations) or Capacitor Preferences in native (`src/native/`). Typography uses a fixed six-step scale (12/14/16/20/24/32px) centralised in `src/typography.css` — see `docs/typography.md`. Standalone pages in `public/` (`login`, `change-password`, `admin-visitors`) are plain HTML/JS.

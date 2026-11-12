@@ -22,3 +22,10 @@ Operational acceptance: confirm a subsequent evening round publishes/finishes,
 review `market-sync-metrics` totals and `twse-sync-delayed` errors, and compare the
 published generation in KV with the D1 manifest. Deployment itself does not fetch
 today's TWSE report or claim a successful future Cron run.
+
+## ETF 基金資料
+
+- 資料表在 migration `0011_etf_info.sql`；部署前先套用：`npx wrangler d1 migrations apply stockapps-t86 --remote`（`npm run deploy` 發現有未套用的 migration 會拒絕部署）。
+- 平日晚間市場資料發布後自動同步（`ETF_INFO_ENABLED=1`），每個市場日最多嘗試兩次、間隔 30 分鐘；排程日誌的 `etfInfo` 為 `complete`／`partial`／`delayed`，個別來源失敗另有 `etf-info-delayed` 事件並標明 `source`。
+- 首次建立或需要手動補資料時執行 `node scripts/sync-etf-info.mjs --local|--remote`：使用與排程相同的解析規則，印出各來源筆數後寫入 D1；單一來源失敗會略過該來源、其餘照常寫入。
+- 折溢價來源（`mis.twse.com.tw`）不在 TWSE OpenAPI 目錄內，若格式變動或無法連線，畫面只會少掉折溢價與估算規模，其餘不受影響。

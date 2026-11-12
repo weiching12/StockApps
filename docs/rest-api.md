@@ -30,6 +30,7 @@ with versioned API routes added only when those capabilities exist.
 | GET / HEAD | `/api/v1/stocks/{symbol}` | Stock metadata and available history, existing snapshot format |
 | GET / HEAD | `/api/v1/stocks/{symbol}/history` | `{data: [...], meta: {symbol, asOf, updatedAt, tradingDates}}` |
 | GET / HEAD | `/api/v1/stocks/{symbol}/analysis` | Shared indicator rules, latest bar, signal, institutional summary, and up to 30 daily closes through `asOf` |
+| GET / HEAD | `/api/v1/stocks/{symbol}/fund` | ETF fund facts: `profile` (index, type, dates, units), `nav` (latest estimated NAV and premium), `size` (units × estimated NAV), `dividends` (latest 12), `trailing` (12-month distributions and yield) and `upcoming`. Ordinary shares and ETFs without synced facts return null fields, not an error |
 | GET / HEAD | `/api/v1/favorites/research` | Saved snapshots and sparse history through `asOf`, covering up to 120 market sessions; `asOf` remains limited to the latest 30 sessions |
 | GET / HEAD | `/api/v1/research/samples` | Signed-in accounts only (401 otherwise, `no-store`). Saved daily entry research samples (never overwritten) with outcomes; filters and paging, `detail=1` adds the saved explanation |
 | GET / HEAD | `/api/v1/research/backtest` | Signed-in accounts only (401 otherwise, `no-store`). SQL aggregates over the same filters plus `horizon=5\|10\|20`: totals, simulated trades, forward returns, readiness buckets, setup and horizon comparison, equity curve, daily counts, return histogram |

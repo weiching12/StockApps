@@ -644,6 +644,29 @@
       },
       "head": { "operationId": "getResearchPriceReviewHead", "responses": { "200": { "description": "Same status and headers as GET, no body" } } }
     },
+    "/api/v1/stocks/{symbol}/fund": {
+      "get": {
+        "operationId": "getEtfFund",
+        "description": "ETF fund facts from TWSE: profile, the latest estimated NAV with its premium or discount, and cash distributions. Ordinary shares and ETFs without synced facts return null fields and an empty list, never an error.",
+        "parameters": [{ "name": "symbol", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^(?:[0-9]{4,6}|[0-9]{5}[A-Z])$" } }],
+        "responses": {
+          "200": { "description": "Fund facts", "content": { "application/json": { "schema": { "type": "object", "required": ["data", "meta"], "properties": {
+            "data": { "type": "object", "required": ["symbol", "profile", "nav", "size", "dividends", "trailing", "upcoming"], "properties": {
+              "symbol": { "type": "string" },
+              "profile": { "anyOf": [{ "type": "null" }, { "type": "object", "required": ["fundType", "indexName", "inceptionDate", "listedDate", "units"] }] },
+              "nav": { "anyOf": [{ "type": "null" }, { "type": "object", "required": ["date", "estimated", "marketPrice", "premiumPercent", "previous"], "properties": { "date": { "type": "string" }, "estimated": { "type": "number" } } }] },
+              "size": { "anyOf": [{ "type": "null" }, { "type": "number" }] },
+              "dividends": { "type": "array", "maxItems": 12, "items": { "type": "object", "required": ["exDate", "recordDate", "payDate", "amount"], "properties": { "exDate": { "type": "string" } } } },
+              "trailing": { "anyOf": [{ "type": "null" }, { "type": "object", "required": ["from", "to", "count", "amount", "yieldPercent"], "properties": { "count": { "type": "integer", "minimum": 1 }, "amount": { "type": "number" } } }] },
+              "upcoming": { "anyOf": [{ "type": "null" }, { "type": "object", "required": ["exDate", "payDate", "amount"] }] }
+            } },
+            "meta": { "type": "object", "required": ["asOf", "priceBasis", "navBasis", "updatedAt"] }
+          } } } } },
+          "404": { "description": "Stock not found" }, "503": { "description": "Source unavailable" }
+        }
+      },
+      "head": { "operationId": "getEtfFundHead", "responses": { "200": { "description": "Same status and headers as GET, no body" } } }
+    },
     "/api/v1/stocks/{symbol}/history": {
       "get": {
         "operationId": "getHistory",

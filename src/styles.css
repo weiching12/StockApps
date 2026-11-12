@@ -3617,3 +3617,37 @@ dialog.sector-dialog {
 .sector-flow-price-read strong { font-weight: 600; }
 .sector-flow-price-read .up { color: var(--up); }
 .sector-flow-price-read .down { color: var(--down); }
+
+/* ETF detail: summary tiles, performance, flows and fund facts in place of the entry research. */
+.entry-dialog-header + .etf-summary { margin-top: 0; }
+.etf-summary, .etf-section { padding: 16px; border: 1px solid var(--border); border-radius: 12px; }
+.etf-summary { background: var(--accent-soft); border-color: transparent; }
+.etf-section h3 { margin: 0 0 12px; font-size: var(--text-body); }
+.etf-section :is(h3, h4) small { margin-left: 6px; color: var(--muted); font-size: var(--text-meta); font-weight: 500; }
+.etf-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.etf-tiles.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.etf-tiles > div { min-width: 0; }
+.etf-tiles dt { color: var(--muted); font-size: var(--text-meta); line-height: 1.4; }
+.etf-tiles dd { margin: 2px 0 0; color: var(--ink); font-size: var(--text-body); font-weight: 600; line-height: 1.4; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.etf-tiles small { display: block; color: var(--muted); font-size: var(--text-meta); line-height: 1.4; overflow-wrap: anywhere; }
+.etf-dialog :is(dd, b).up { color: var(--up); }
+.etf-dialog :is(dd, b).down { color: var(--down); }
+.etf-flow-parts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 12px 0 0; color: var(--muted); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
+.etf-flow-parts b { color: var(--ink); font-weight: 600; }
+.etf-facts { display: grid; gap: 8px; margin: 0; }
+.etf-facts > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; font-size: var(--text-secondary); line-height: 1.5; }
+.etf-facts dt { color: var(--muted); }
+.etf-facts dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.etf-fund-block { margin-top: 16px; padding-top: 14px; box-shadow: inset 0 1px var(--border); }
+.etf-fund > .etf-fund-block:first-of-type:nth-child(2) { margin-top: 0; padding-top: 0; box-shadow: none; }
+.etf-fund-block h4 { margin: 0 0 10px; font-size: var(--text-secondary); }
+.etf-dividends { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
+.etf-dividends :is(th, td) { padding: 6px 0; border-top: 1px solid var(--border); text-align: left; }
+.etf-dividends th { color: var(--muted); font-weight: 500; }
+.etf-dividends :is(th, td):last-child { text-align: right; }
+.etf-empty { margin: 0; color: var(--muted); font-size: var(--text-secondary); }
+.etf-fund-pending { display: grid; place-items: center; min-height: 96px; }
+@media (max-width: 520px) {
+  .etf-summary, .etf-section { padding: 12px; }
+  .etf-tiles:not(.three) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 8px; }
+}
