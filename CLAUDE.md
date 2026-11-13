@@ -8,6 +8,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All user-facing text and `docs/*.md` / `README.md` are written in Traditional Chinese; code, comments and commit messages are in English (sentence-case imperative, no `feat:` prefix, e.g. "Keep research price and score metrics side by side on phones"). Taiwan convention: red = up, green = down.
 
+## Cloudflare free-plan limits — read first, before every change
+
+The app runs on Cloudflare's **free plan**. Before changing anything that touches the Worker, Durable Objects, D1, KV, cron work or an API that reads D1, read `docs/cloudflare-limits.md` and go through its checklist; after the change, state in your reply how the change affects each limit. Exceeding a limit stops the scheduled sync and leaves production data stale (this happened on 2026-11-13).
+
+Hard limits to design for:
+- **50 D1 queries per invocation** (a Worker request or cron run, and each Durable Object request, counts separately); also 50 outbound `fetch` per invocation. Never query D1 inside a per-row loop; batch with `IN (...)` / `json_each(?)` and stay under ~40.
+- **5M D1 rows read / 100k rows written per day**; rows read = rows scanned. New queries must use an index (`EXPLAIN QUERY PLAN` shows `SEARCH`, not `SCAN`); anything that grows with retained data needs a bound or a cache keyed by data revision.
+- **500 MB per D1 database**; every growing table needs a retention rule and a size estimate.
+- **1,000 KV writes per day**, already ~530 used by publication — do not add KV caches or counters.
+- Cache API does not work on `*.workers.dev`; cache derived results in a Durable Object (see `MARKET_SUMMARY`).
+- Cron fires every minute 18:30–23:59 Taipei (~330 runs/day): work that is already done must exit on its first query.
+
+Measure with `wrangler.getPlatformProxy()` at full-market size (`meta.rows_read`, `meta.rows_written`, query count) and pin query budgets in unit tests where practical.
+
 ## Commands
 
 Node 22.12+ (or 24 LTS).
@@ -61,8 +75,6 @@ The Vite dev server proxies `/api/v1/auth`, `/api/v1/presence`, `/api/presence` 
 Durable Objects (`wrangler.jsonc`):
 - `MARKET_SYNC` (`sync/coordinator.js`) — single named object that serializes every scheduled sync phase; its SQLite storage is the **authoritative** checkpoint/manifest (not KV). Never publish KV heads outside it.
 - `MARKET_SUMMARY` (`summary-coordinator.js`) — derived summary cache keyed by validated query options (6h TTL, 64-entry LRU, 16 MiB budget). A separate instance (`stock-insight-research-cache`) caches the signed-in research backtest/samples responses keyed by the entry-research capture revision.
-
-D1 free-plan limits shape the code: at most 50 D1 queries per invocation (each DO request counts), 5M rows read / 100k rows written per day, 500 MB per database. Keep per-tick work batched (see `docs/cloudflare.md`).
 - `ONLINE_PRESENCE` (`presence.js`) — daily visits / admin visitor analytics.
 
 ### Scheduled data pipeline

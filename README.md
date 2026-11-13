@@ -2,6 +2,8 @@
 
 繁體中文的股票分析前端，使用原生 JavaScript、CSS、SVG 與 Vite。支援本機示範模式，以及 Cloudflare Workers Static Assets + Workers KV 的正式資料模式。部署與資料來源設定見 [docs/cloudflare.md](docs/cloudflare.md)。
 
+> **本專案使用 Cloudflare 免費方案。修改 Worker、D1、KV、Durable Object 或排程前，必須先讀 [Cloudflare 免費方案限制](docs/cloudflare-limits.md) 並完成檢查表**（每次執行最多 50 個 D1 查詢、D1 每日讀取 500 萬列／寫入 10 萬列、資料庫 500 MB、KV 每日寫入 1,000 次）。
+
 正式網站：[株研台股研究室](https://stock-insight-tw.stock-insight-tw.workers.dev/)。2026-10-18 已部署 TWSE 全上市公司資料與每日排程，並通過正式網站 API 與瀏覽器驗證。
 
 ## 目前資料狀態
@@ -99,6 +101,7 @@ src/market-codec.js        緊湊數值歷史展開
 cloudflare/                TWSE 正規化、Worker 快取 API 與分批排程
 scripts/seed-market.js     單線限速、可續接的全市場歷史回補
 wrangler.jsonc             部署、KV、排程設定
+docs/cloudflare-limits.md  Cloudflare 免費方案限制與修改前檢查表（必讀）
 docs/data-contract.md      正式資料格式與串接注意事項
 tests/                     計算與瀏覽器測試
 ```
