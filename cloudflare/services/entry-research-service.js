@@ -67,6 +67,12 @@ function equityCurve(daily, horizon) {
 export class EntryResearchService {
   constructor(repository) { this.repository = repository; }
 
+  /** The capture revision derived results are keyed on; see EntryResearchRepository.revision. */
+  async revision() {
+    if (!this.repository) throw new DomainError("DATA_UNAVAILABLE", "進場研究樣本資料庫尚未啟用");
+    return this.repository.revision();
+  }
+
   async samples(options) {
     if (!this.repository) throw new DomainError("DATA_UNAVAILABLE", "進場研究樣本資料庫尚未啟用");
     const { includeDetail, ...filters } = options;

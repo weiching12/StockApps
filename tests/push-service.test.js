@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PushService, allowedPushEndpoint } from "../cloudflare/services/push-service.js";
+import { WEB_PUSH_BATCH, PushService, allowedPushEndpoint } from "../cloudflare/services/push-service.js";
 import { pushController } from "../cloudflare/api/push-controller.js";
 import { ApnsClient } from "../cloudflare/services/apns-client.js";
 
@@ -265,4 +265,22 @@ test("push status is administrator-only", async () => {
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("Cache-Control"), "no-store");
   assert.deepEqual(await response.json(), { data: { asOf: "2026-11-03", web, native: null } });
+});
+
+test("one tick sends at most a small batch so outbound requests fit a free-plan invocation", async () => {
+  const encode = (value) => Buffer.from(value).toString("base64url");
+  const server = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const client = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const key = encode(await crypto.subtle.exportKey("raw", client.publicKey));
+  const rows = Array.from({ length: 30 }, (_, index) => ({ endpoint: `https://fcm.googleapis.com/fcm/send/s${index}`,
+    p256dh: key, auth: encode(crypto.getRandomValues(new Uint8Array(16))) }));
+  let limit = null, sends = 0;
+  const service = new PushService({ pending: async (_date, requested) => (limit = requested, rows.slice(0, requested)),
+    mark: async () => {}, removeMany: async () => {} }, { VAPID_SUBJECT: "https://app.test",
+    VAPID_PUBLIC_KEY: encode(await crypto.subtle.exportKey("raw", server.publicKey)),
+    VAPID_PRIVATE_KEY: (await crypto.subtle.exportKey("jwk", server.privateKey)).d }, async () => (sends++, new Response(null, { status: 201 })));
+  const result = await service.notifyPublished({ generation: "g", asOf: "2026-11-13" });
+  assert.equal(limit, WEB_PUSH_BATCH + 1);
+  assert.equal(sends, WEB_PUSH_BATCH);
+  assert.equal(result.hasMore, true);
 });

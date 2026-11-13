@@ -1,6 +1,8 @@
 // D1 persistence for entry research samples, outcomes and capture runs. Rows travel as JSON
 // arrays so a whole market fits in a few statements (D1 limits bound parameters, not rows).
-const CHUNK = 200;
+// A group closes at about 1 MB of JSON, half of D1's 2 MB value limit: a capture of every listed
+// stock and its pending outcomes stays far below the 50 queries a free-plan invocation may issue.
+const CHUNK_BYTES = 1_000_000;
 const SAMPLE_COLUMNS = ["Symbol", "TradeDate", "ModelVersion", "Name", "Source", "RevisionId", "Close", "GateStatus",
   "GatePassed", "Trend", "Momentum", "PriceVolume", "Institutional", "EntryRisk", "ReadinessScore", "StructureScore",
   "SignalScore", "TimingScore", "EntryStatus", "SetupType", "SignalDate", "NextDayStatus", "EntryReferencePrice",
@@ -9,7 +11,17 @@ const OUTCOME_COLUMNS = ["Symbol", "TradeDate", "ModelVersion", "Status", "Retur
   "Mfe20", "Mae20", "HitInvalidation", "HitTarget", "TradeStatus", "FillDate", "FillPrice", "TradeReturn5",
   "TradeReturn10", "TradeReturn20", "DetailJson", "UpdatedAt"];
 const changes = (result) => result?.meta?.changes ?? result?.changes ?? 0;
-const chunks = (rows) => Array.from({ length: Math.ceil(rows.length / CHUNK) }, (_, index) => rows.slice(index * CHUNK, (index + 1) * CHUNK));
+function chunks(rows) {
+  const groups = [];
+  let group = [], bytes = 0;
+  for (const row of rows) {
+    const size = JSON.stringify(row).length;
+    if (group.length && bytes + size > CHUNK_BYTES) { groups.push(group); group = []; bytes = 0; }
+    group.push(row); bytes += size;
+  }
+  if (group.length) groups.push(group);
+  return groups;
+}
 const extract = (columns) => columns.map((column) => `json_extract(value,'$.${column}')`).join(",");
 
 export class EntryResearchRepository {
@@ -71,14 +83,37 @@ export class EntryResearchRepository {
     return rows.length;
   }
 
-  /** Remove samples (with their outcomes) and runs dated before `cutoff`. */
+  /**
+   * Remove samples (with their outcomes) and runs dated before `cutoff`. The small runs table says
+   * whether anything is old enough, so repeat captures of a day skip the deletes entirely; each
+   * delete names a model version so it walks that version's date index instead of every row.
+   */
   async prune(cutoff) {
-    const [outcomes, samples, runs] = await this.db.batch([
-      this.db.prepare("DELETE FROM entry_research_outcomes WHERE TradeDate<?").bind(cutoff),
-      this.db.prepare("DELETE FROM entry_research_samples WHERE TradeDate<?").bind(cutoff),
-      this.db.prepare("DELETE FROM entry_research_runs WHERE TradeDate<?").bind(cutoff),
-    ]);
-    return { outcomes: changes(outcomes), samples: changes(samples), runs: changes(runs) };
+    const totals = { outcomes: 0, samples: 0, runs: 0 };
+    const versions = (await this.db.prepare(`SELECT ModelVersion FROM entry_research_runs
+      GROUP BY ModelVersion HAVING MIN(TradeDate)<?`).bind(cutoff).all()).results ?? [];
+    for (const { ModelVersion: version } of versions) {
+      const [outcomes, samples, runs] = await this.db.batch([
+        this.db.prepare(`DELETE FROM entry_research_outcomes WHERE ModelVersion=?
+          AND Status IN ('PENDING','COMPLETE','UNAVAILABLE') AND TradeDate<?`).bind(version, cutoff),
+        this.db.prepare("DELETE FROM entry_research_samples WHERE ModelVersion=? AND TradeDate<?").bind(version, cutoff),
+        this.db.prepare("DELETE FROM entry_research_runs WHERE ModelVersion=? AND TradeDate<?").bind(version, cutoff),
+      ]);
+      totals.outcomes += changes(outcomes); totals.samples += changes(samples); totals.runs += changes(runs);
+    }
+    return totals;
+  }
+
+  /**
+   * A stamp that changes whenever a capture starts, finishes or fails, read from the small runs
+   * table. Derived results keyed on it never outlive the samples they were computed from.
+   * `settled` is false while a capture is writing, when results must not be cached.
+   */
+  async revision() {
+    const row = await this.db.prepare(`SELECT COUNT(*) AS Runs, MAX(StartedAt) AS Started, MAX(CompletedAt) AS Completed,
+      SUM(Status='running') AS Running, SUM(Status='failed') AS Failed FROM entry_research_runs`).first();
+    return { id: [row?.Runs ?? 0, row?.Started ?? "-", row?.Completed ?? "-", row?.Failed ?? 0].join("|"),
+      settled: !(row?.Running > 0) };
   }
 
   /** Filtered sample list with outcomes, newest first. */

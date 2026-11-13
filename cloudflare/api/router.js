@@ -13,6 +13,8 @@ import { json, error } from "./http.js";
 import { signedInUser } from "./session-guard.js";
 
 const SIGNED_IN_ROUTES = new Set(["researchSamples", "researchBacktest"]);
+// A MarketSummaryCoordinator instance of its own, so research entries never evict summaries.
+const RESEARCH_CACHE_NAME = "stock-insight-research-cache";
 
 export async function routeApi(request, env, injected) {
   const url = new URL(request.url), route = resolveApiRoute(url.pathname);
@@ -27,6 +29,8 @@ export async function routeApi(request, env, injected) {
     if (SIGNED_IN_ROUTES.has(route.name)) {
       const { failure } = await (injected?.signedInUser ?? signedInUser)(request, env);
       if (failure) return failure;
+      // Each backtest or sample page aggregates every saved sample; serve repeats from the cache.
+      if (!injected && env.MARKET_SUMMARY) return await env.MARKET_SUMMARY.getByName(RESEARCH_CACHE_NAME).fetch(request);
     }
     const services = injected?.market && typeof injected.market !== "function" ? injected : injected
       ? { market: injected, analysis: new AnalysisService(injected), summary: new MarketSummaryService(injected), history: new HistoryService(injected), etfInfo: new EtfInfoService(injected) }

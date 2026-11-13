@@ -6,6 +6,9 @@ const PUSH_SERVICE_HOSTS = ["fcm.googleapis.com", "android.googleapis.com", "pus
 const MAX_ENDPOINT_LENGTH = 1024;
 // Trade dates a push service may refuse a subscription before it is deleted.
 const MAX_REJECTION_DAYS = 3;
+// Each send is an outbound request; a free-plan invocation may make 50 in all, shared with the
+// native sends and data fetches of the same scheduled tick. The rest go on the next ticks.
+export const WEB_PUSH_BATCH = 10;
 const validEndpoint = (value) => {
   try { return new URL(value).protocol === "https:"; } catch { return false; }
 };
@@ -58,12 +61,12 @@ export class PushService {
 
   async notifyPublished(manifest) {
     if (!this.config().enabled) return { sent: 0, skipped: true };
-    const rows = await this.repository.pending(manifest.asOf, 501);
+    const rows = await this.repository.pending(manifest.asOf, WEB_PUSH_BATCH + 1);
     const stale = [];
     let sent = 0, failed = 0, rejected = 0, pruned = 0;
     const data = JSON.stringify({ title: "株研資料已更新", body: `${manifest.asOf} 台股行情與法人資料已完成更新`,
       url: "/", tag: `market-${manifest.asOf}`, generation: manifest.generation });
-    for (const row of rows.slice(0, 500)) {
+    for (const row of rows.slice(0, WEB_PUSH_BATCH)) {
       // Rows saved before the host allowlist existed are dropped instead of contacted.
       if (!allowedPushEndpoint(row.endpoint)) { stale.push(row.endpoint); continue; }
       const subscription = { endpoint: row.endpoint, expirationTime: null, keys: { p256dh: row.p256dh, auth: row.auth } };
@@ -91,7 +94,7 @@ export class PushService {
       } catch (error) { failed++; console.error(JSON.stringify({ event: "push-failed", error: error.message })); }
     }
     await this.repository.removeMany(stale);
-    return { sent, removed: stale.length + pruned, failed, rejected, hasMore: rows.length > 500 };
+    return { sent, removed: stale.length + pruned, failed, rejected, hasMore: rows.length > WEB_PUSH_BATCH };
   }
 }
 

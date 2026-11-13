@@ -34,7 +34,8 @@ export const createPushService = (env) => {
   const native = new NativePushService(new NativePushRepository(env.T86_DB), env);
   return { async notifyPublished(manifest) {
     const result = await web.notifyPublished(manifest);
-    if (!native.config().enabled) return result;
+    // Native devices wait while browser sends remain, so one tick never doubles its outbound requests.
+    if (!native.config().enabled || result.hasMore) return result;
     const nativeResult = await native.notifyPublished(manifest);
     return { sent: result.sent + nativeResult.sent, removed: (result.removed ?? 0) + nativeResult.removed,
       failed: (result.failed ?? 0) + nativeResult.failed, rejected: result.rejected ?? 0,

@@ -12,10 +12,22 @@ export class HistoryRepository {
       .bind(generation, index).first();
     return row ? JSON.parse(row.Payload) : null;
   }
-  async saveShard(chunk) {
+  /** Several shards of one generation in one query (D1 allows 100 bound parameters), keyed by index. */
+  async shards(generation, indices) {
+    const found = new Map();
+    for (let offset = 0; offset < indices.length; offset += 99) {
+      const group = indices.slice(offset, offset + 99);
+      const rows = await this.db.prepare(`SELECT ShardIndex, Payload FROM market_history_shards
+        WHERE Generation=? AND ShardIndex IN (${group.map(() => "?").join(",")})`).bind(generation, ...group).all();
+      for (const row of rows.results ?? []) found.set(row.ShardIndex, JSON.parse(row.Payload));
+    }
+    return found;
+  }
+  /** `existing` is the stored copy when the caller already read it (null: known absent). */
+  async saveShard(chunk, existing) {
     if (!Number.isInteger(chunk.index) || chunk.index < 0 || chunk.index >= SHARD_COUNT || !chunk.generation)
       throw new Error("Invalid history shard");
-    const existing = await this.shard(chunk.generation, chunk.index);
+    if (existing === undefined) existing = await this.shard(chunk.generation, chunk.index);
     if (existing && JSON.stringify(existing) !== JSON.stringify(chunk)) throw new Error("Immutable D1 history conflict");
     if (existing) return;
     await this.db.prepare("INSERT INTO market_history_shards VALUES(?,?,?)")

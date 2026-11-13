@@ -60,7 +60,9 @@ The Vite dev server proxies `/api/v1/auth`, `/api/v1/presence`, `/api/presence` 
 
 Durable Objects (`wrangler.jsonc`):
 - `MARKET_SYNC` (`sync/coordinator.js`) — single named object that serializes every scheduled sync phase; its SQLite storage is the **authoritative** checkpoint/manifest (not KV). Never publish KV heads outside it.
-- `MARKET_SUMMARY` (`summary-coordinator.js`) — derived summary cache keyed by validated query options (6h TTL, 64-entry LRU, 16 MiB budget).
+- `MARKET_SUMMARY` (`summary-coordinator.js`) — derived summary cache keyed by validated query options (6h TTL, 64-entry LRU, 16 MiB budget). A separate instance (`stock-insight-research-cache`) caches the signed-in research backtest/samples responses keyed by the entry-research capture revision.
+
+D1 free-plan limits shape the code: at most 50 D1 queries per invocation (each DO request counts), 5M rows read / 100k rows written per day, 500 MB per database. Keep per-tick work batched (see `docs/cloudflare.md`).
 - `ONLINE_PRESENCE` (`presence.js`) — daily visits / admin visitor analytics.
 
 ### Scheduled data pipeline

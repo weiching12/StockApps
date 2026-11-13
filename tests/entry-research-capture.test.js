@@ -11,6 +11,8 @@ import { isEtf } from "../shared/market-codec.js";
 import { EntryResearchRepository } from "../cloudflare/repositories/entry-research-repository.js";
 import { EntryResearchService } from "../cloudflare/services/entry-research-service.js";
 import { routeApi } from "../cloudflare/api/router.js";
+import { MarketSummaryCoordinator } from "../cloudflare/summary-coordinator.js";
+import { durableStorage } from "./helpers/durable-storage.js";
 
 const dates = Array.from({ length: 40 }, (_, index) => new Date(Date.UTC(2026, 2, 1 + index)).toISOString().slice(0, 10));
 const covered = (extra = {}) => ({ coveredDates: new Set(dates), eventsBySymbol: new Map(), ...extra });
@@ -180,6 +182,57 @@ test("samples, outcomes and runs older than six months are removed after each ca
   const dates = db.sqlite.prepare("SELECT DISTINCT TradeDate FROM entry_research_samples").all().map((row) => row.TradeDate);
   assert.deepEqual(dates, [asOf]);
   assert.ok(old < asOf);
+  // With nothing old enough, a repeat capture reads the runs table only and deletes nothing.
+  const statements = [];
+  const counting = { prepare: (sql) => (statements.push(sql), db.prepare(sql)), batch: (list) => db.batch(list) };
+  assert.deepEqual(await new EntryResearchRepository(counting).prune(old), { outcomes: 0, samples: 0, runs: 0 });
+  assert.deepEqual(statements.map((sql) => sql.trim().split(/\s+/)[0]), ["SELECT"]);
+  db.sqlite.close();
+});
+
+test("backtest and sample pages are cached per capture revision and recomputed after a new capture", async () => {
+  const db = database(), env = { T86_DB: db };
+  await captureEntryResearch(env, { createServices: marketAt(dataset.dates[120], "g1") });
+  let backtests = 0;
+  const original = EntryResearchRepository.prototype.backtest;
+  EntryResearchRepository.prototype.backtest = function (filters) { backtests++; return original.call(this, filters); };
+  try {
+    const coordinator = new MarketSummaryCoordinator({ storage: durableStorage() }, env);
+    const get = async (query) => {
+      const response = await coordinator.fetch(new Request(`https://example.test/api/v1/research/backtest${query}`));
+      return { status: response.status, cache: response.headers.get("Cache-Control"), body: await response.json() };
+    };
+    const first = await get("?horizon=10&gate=PASS");
+    assert.equal(first.status, 200);
+    assert.equal(first.cache, "no-store");
+    // Parameter order and an explicit default do not create another entry.
+    assert.deepEqual((await get("?gate=PASS")).body, first.body);
+    assert.equal(backtests, 1);
+    await get("?horizon=5");
+    assert.equal(backtests, 2);
+    await captureEntryResearch(env, { createServices: marketAt(dataset.dates[150], "g2") });
+    const fresh = await get("?horizon=10&gate=PASS");
+    assert.equal(backtests, 3);
+    assert.ok(fresh.body.data.totals.samples > first.body.data.totals.samples);
+    assert.equal((await get("?horizon=7")).status, 400);
+    const samples = await coordinator.fetch(new Request("https://example.test/api/v1/research/samples?limit=5"));
+    assert.equal((await samples.json()).data.length, 5);
+  } finally {
+    EntryResearchRepository.prototype.backtest = original;
+    db.sqlite.close();
+  }
+});
+
+test("a capture still writing is never cached", async () => {
+  const db = database(), env = { T86_DB: db };
+  await captureEntryResearch(env, { createServices: marketAt(dataset.dates[120], "g1") });
+  db.sqlite.prepare("UPDATE entry_research_runs SET Status='running'").run();
+  const revision = await new EntryResearchRepository(db).revision();
+  assert.equal(revision.settled, false);
+  const data = new Map();
+  const coordinator = new MarketSummaryCoordinator({ storage: durableStorage(data) }, env);
+  assert.equal((await coordinator.fetch(new Request("https://example.test/api/v1/research/backtest"))).status, 200);
+  assert.equal([...data.keys()].some((key) => key.startsWith("research:")), false);
   db.sqlite.close();
 });
 
