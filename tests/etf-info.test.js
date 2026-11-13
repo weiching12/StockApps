@@ -475,3 +475,84 @@ test("performance needs both ends of a window and measures from the closing high
   assert.ok(Math.abs(performance.fromLow - 10) < 1e-9);
   assert.equal(etfPerformance([{ close: null }]), null);
 });
+
+test("saving the same facts again writes nothing, and a change writes only the rows that differ", async () => {
+  const { db, repository } = fixture();
+  const profileRows = [{ symbol: "0050", fundType: "A", indexName: "I", inceptionDate: "2003-06-25", listedDate: "2003-06-30", units: 25042000000 },
+    { symbol: "0056", fundType: "B", indexName: null, inceptionDate: null, listedDate: null, units: null }];
+  assert.equal(await repository.saveProfiles(profileRows, "t1"), 2);
+  assert.equal(await repository.saveProfiles(profileRows, "t2"), 0, "an unchanged list is not rewritten, not even its timestamp");
+  assert.equal(db.sqlite.prepare("SELECT UpdatedAt FROM etf_profiles WHERE Symbol='0050'").get().UpdatedAt, "t1");
+  assert.equal(await repository.saveProfiles([{ ...profileRows[0], units: 25042000001 }, profileRows[1]], "t3"), 1);
+  assert.equal(db.sqlite.prepare("SELECT UpdatedAt FROM etf_profiles WHERE Symbol='0050'").get().UpdatedAt, "t3");
+  assert.equal(db.sqlite.prepare("SELECT UpdatedAt FROM etf_profiles WHERE Symbol='0056'").get().UpdatedAt, "t1");
+  // A fund that left the list is removed; a null turning into a value counts as a change.
+  assert.equal(await repository.saveProfiles([{ ...profileRows[1], indexName: "新指數" }], "t4"), 2);
+  assert.deepEqual(db.sqlite.prepare("SELECT Symbol, IndexName FROM etf_profiles").all().map((row) => ({ ...row })), [{ Symbol: "0056", IndexName: "新指數" }]);
+
+  const productRows = [{ symbol: "0050", issuer: "元大", assetSize: 2.6e12, holders: 3874009 }];
+  assert.equal(await repository.saveProducts(productRows, "t1"), 1);
+  assert.equal(await repository.saveProducts(productRows, "t2"), 0);
+  assert.equal(await repository.saveProducts([{ ...productRows[0], holders: 3874010 }], "t3"), 1);
+
+  const navRows = [{ symbol: "0050", date, marketPrice: 100.95, estimatedNav: 101.05, premiumPercent: (100.95 / 101.05 - 1) * 100, previousNav: 103.81, units: 25042000000 }];
+  assert.equal(await repository.saveNav(navRows, "t1"), 1);
+  assert.equal(await repository.saveNav(navRows, "t2"), 0);
+  assert.equal(await repository.saveNav([{ ...navRows[0], date: "2026-11-13" }], "t3"), 1, "a new session replaces the row");
+
+  const dividendRows = [{ symbol: "0050", exDate: "2026-07-21", recordDate: "2026-07-27", payDate: "2026-08-10", amount: 0.6 },
+    { symbol: "0050", exDate: "2026-12-16", recordDate: null, payDate: null, amount: null }];
+  assert.equal(await repository.saveDividends(dividendRows, "2025-10-08"), 2);
+  assert.equal(await repository.saveDividends(dividendRows, "2025-10-08"), 0);
+  // The amount is announced: one row changes. A withdrawn announcement is removed.
+  assert.equal(await repository.saveDividends([dividendRows[0], { ...dividendRows[1], amount: 0.7 }], "2025-10-08"), 1);
+  assert.equal(await repository.saveDividends([dividendRows[0]], "2025-10-08"), 1);
+  // Rows before the kept window are pruned even though the report no longer mentions them.
+  db.sqlite.exec("INSERT INTO etf_dividends VALUES('0050','2024-07-16',NULL,NULL,1)");
+  assert.equal(await repository.saveDividends([dividendRows[0]], "2025-10-08"), 1);
+  assert.deepEqual(db.sqlite.prepare("SELECT ExDate FROM etf_dividends").all().map((row) => row.ExDate), ["2026-07-21"]);
+});
+
+test("stored holding months are found without reading every holdings row", async () => {
+  const { db, repository } = fixture();
+  assert.deepEqual([...await repository.holdingMonths()], []);
+  const insert = db.sqlite.prepare("INSERT INTO etf_holdings VALUES(?,?,?,?,?,?,?)");
+  for (const month of ["2026-09", "2026-07", "2026-08"]) for (let rank = 1; rank <= 10; rank++) for (const symbol of ["0050", "0056", "00878"])
+    insert.run(symbol, month, rank, "國內上市", "2330", "台積電", 1);
+  assert.deepEqual([...await repository.holdingMonths()], ["2026-07", "2026-08", "2026-09"]);
+  const plan = db.sqlite.prepare(`EXPLAIN QUERY PLAN WITH RECURSIVE months(Month) AS (SELECT MIN(Month) FROM etf_holdings
+    UNION ALL SELECT (SELECT MIN(Month) FROM etf_holdings WHERE Month>months.Month) FROM months WHERE months.Month IS NOT NULL)
+    SELECT Month FROM months WHERE Month IS NOT NULL`).all().map((row) => row.detail).join(" | ");
+  assert.match(plan, /etf_holdings_by_month/);
+  assert.doesNotMatch(plan, /SCAN etf_holdings(?! USING)/, "never a full table scan");
+});
+
+test("the evening sync stays inside a free-plan invocation and a finished day costs one row read", async () => {
+  const { db } = fixture();
+  let kvReads = 0, fetches = 0, queries = [];
+  const env = { ETF_INFO_ENABLED: "1", T86_DB: db, MARKET_DATA: { get: async () => { kvReads++; return { asOf: date }; } } };
+  const counting = async (url, init) => { fetches++; return respond()(url, init); };
+  db.beforeStatement = (sql) => queries.push(sql.trim().split(/\s+/).slice(0, 3).join(" "));
+  const state = { phase: "done", date };
+  // The working run: every source, including a new month of holdings.
+  assert.equal((await syncDailyEtfInfo(env, state, new Date(`${date}T12:40:00Z`), counting)).status, "complete");
+  assert.ok(queries.length <= 16, `${queries.length} D1 queries: ${queries.join("; ")}`);
+  assert.ok(fetches <= 8, `${fetches} outbound requests with two ETF classes in the fixture`);
+  const detail = JSON.parse(db.sqlite.prepare("SELECT Detail FROM etf_info_runs WHERE Date=?").get(date).Detail);
+  assert.equal(detail.written, 1 + 3 + 2 + 1 + 2, "profile, distributions, products, NAV and holdings rows, each written once");
+  // Every later tick of the evening: one single-row read, no KV read, no request, no write.
+  for (const minute of ["12:41", "13:30", "15:59"]) {
+    kvReads = 0; fetches = 0; queries = [];
+    assert.equal((await syncDailyEtfInfo(env, state, new Date(`${date}T${minute}:00Z`), counting)).status, "already-checked");
+    assert.deepEqual(queries, ["SELECT Status, Attempts,"]);
+    assert.equal(kvReads + fetches, 0);
+  }
+  // The next market day with nothing new but the NAV session: only the NAV row is written.
+  const next = "2026-11-13", nextEnv = { ...env, MARKET_DATA: { get: async () => ({ asOf: next }) } };
+  queries = []; fetches = 0;
+  await syncDailyEtfInfo(nextEnv, { phase: "done", date: next }, new Date(`${next}T12:40:00Z`),
+    async (url, init) => { fetches++; return respond({ nav: { a1: [{ msgArray: [{ ...nav.a1[0].msgArray[0], i: "20261113" }] }] } })(url, init); });
+  assert.equal(JSON.parse(db.sqlite.prepare("SELECT Detail FROM etf_info_runs WHERE Date=?").get(next).Detail).written, 1);
+  assert.ok(queries.length <= 12, `${queries.length} D1 queries on an ordinary evening`);
+  assert.equal(fetches, 5, "four reports and one look at the holdings form");
+});

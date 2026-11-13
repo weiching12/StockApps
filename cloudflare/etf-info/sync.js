@@ -52,13 +52,19 @@ export const ETF_DIVIDEND_LOOKBACK_DAYS = 400;
 /**
  * Refreshes ETF fund facts once the day's market data is published. The sources are independent:
  * one failing leaves its own table at the last good rows and never blocks the others.
+ *
+ * Free-plan budget (docs/cloudflare-limits.md): the cron calls this every minute, so a day that needs
+ * nothing ends after one single-row D1 read and no KV read. A working run issues about 12 D1 queries
+ * (14 when a new month of holdings arrives) and 5 outbound requests (about 23 with a new month), and
+ * writes only the rows that changed since the last run; `written` in the run's detail records how many.
  */
 export async function syncDailyEtfInfo(env, state, now, fetcher = fetch) {
   if (env.ETF_INFO_ENABLED !== "1" || !env.T86_DB || state?.phase !== "done") return { status: "skipped" };
   if (now.toISOString().slice(11, 16) < "12:30") return { status: "before-evening-refresh" };
+  const repository = new EtfInfoRepository(env.T86_DB);
+  if (!await repository.due(state.date, now)) return { status: "already-checked" };
   const manifest = await env.MARKET_DATA.get(MANIFEST_KEY, "json");
   if (!manifest || manifest.asOf !== state.date) return { status: "no-current-market-day" };
-  const repository = new EtfInfoRepository(env.T86_DB);
   const attempt = await repository.claim(state.date, now);
   if (!attempt) return { status: "already-checked" };
   const read = async (url) => {
@@ -67,23 +73,23 @@ export async function syncDailyEtfInfo(env, state, now, fetcher = fetch) {
     return response.json();
   };
   const start = shift(state.date, -ETF_DIVIDEND_LOOKBACK_DAYS), stamp = now.toISOString();
-  let names = null;
+  let names = null, written = 0;
   const steps = {
-    profiles: async () => { const rows = parseEtfProfiles(await read(ETF_PROFILE_URL)); await repository.saveProfiles(rows, stamp);
+    profiles: async () => { const rows = parseEtfProfiles(await read(ETF_PROFILE_URL)); written += await repository.saveProfiles(rows, stamp);
       names = rows.filter((row) => row.name); return rows.length; },
     dividends: async () => { const rows = parseEtfDividends(await read(etfDividendUrl(start, shift(state.date, 120))), start);
       // An empty year of distributions means the report changed, not that every ETF stopped paying.
       if (!rows.length) throw new Error("TWSE ETF dividend report is empty");
-      await repository.saveDividends(rows, start); return rows.length; },
-    products: async () => { const rows = parseEtfProducts(await read(ETF_PRODUCT_URL)); await repository.saveProducts(rows, stamp); return rows.length; },
+      written += await repository.saveDividends(rows, start); return rows.length; },
+    products: async () => { const rows = parseEtfProducts(await read(ETF_PRODUCT_URL)); written += await repository.saveProducts(rows, stamp); return rows.length; },
     nav: async () => { const rows = parseEtfNav(await read(ETF_NAV_URL), state.date);
       if (!rows.length) throw new Error("TWSE ETF NAV file has no rows for the market day");
-      await repository.saveNav(rows, stamp); return rows.length; },
+      written += await repository.saveNav(rows, stamp); return rows.length; },
     // Monthly: most evenings this is one request that finds the latest month already stored (0 rows written).
     holdings: async () => {
       if (!names) throw new Error("fund names unavailable for matching holdings");
       const { months, keepFrom } = await fetchEtfHoldings(fetcher, names, await repository.holdingMonths());
-      for (const { month, rows } of months) await repository.saveHoldings(month, rows, keepFrom);
+      for (const { month, rows } of months) written += await repository.saveHoldings(month, rows, keepFrom);
       return months.reduce((count, { rows }) => count + rows.length, 0); },
   };
   const detail = {};
@@ -95,6 +101,7 @@ export async function syncDailyEtfInfo(env, state, now, fetcher = fetch) {
     }
   }
   const complete = Object.values(detail).every((count) => count !== null);
-  await repository.finish(state.date, complete, detail, now);
+  // Rows this run changed (table rows, before index entries), kept beside the counts for the write budget.
+  await repository.finish(state.date, complete, { ...detail, written }, now);
   return { status: complete ? "complete" : "partial", ...detail };
 }
