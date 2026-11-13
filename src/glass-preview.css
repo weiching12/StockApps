@@ -1,0 +1,365 @@
+/*
+ * Glass-style preview, opt-in with ?glass in the URL (adds html.glass-preview).
+ * Frame (navigation, top bar, dialogs) is frosted glass; data areas stay
+ * near-opaque so prices and red/green changes keep a stable background.
+ */
+html.glass-preview {
+  --glass-glow-1: rgb(96 165 250 / 34%);
+  --glass-glow-2: rgb(167 139 250 / 26%);
+  --glass-glow-3: rgb(45 212 191 / 22%);
+  --glass-base: #eef2f8;
+  --glass-frame: rgb(255 255 255 / 55%);
+  --glass-frame-border: rgb(255 255 255 / 70%);
+  --glass-nav: rgb(20 36 59 / 86%);
+  --glass-nav-border: rgb(255 255 255 / 10%);
+  --glass-data: rgb(255 255 255 / 94%);
+  --glass-shadow: 0 10px 30px -12px rgb(15 23 42 / 18%), 0 1px 0 rgb(255 255 255 / 70%) inset;
+}
+html.glass-preview[data-theme="dark"] {
+  --glass-glow-1: rgb(59 130 246 / 30%);
+  --glass-glow-2: rgb(139 92 246 / 24%);
+  --glass-glow-3: rgb(20 184 166 / 18%);
+  --glass-base: #070d18;
+  --glass-frame: rgb(17 27 43 / 55%);
+  --glass-frame-border: rgb(255 255 255 / 8%);
+  --glass-nav: rgb(8 14 25 / 62%);
+  --glass-nav-border: rgb(255 255 255 / 8%);
+  --glass-data: rgb(17 27 43 / 94%);
+  --glass-shadow: 0 12px 34px -14px rgb(0 0 0 / 60%), 0 1px 0 rgb(255 255 255 / 6%) inset;
+}
+
+/* Soft light glows instead of a photo, so text never sits on busy detail. */
+html.glass-preview,
+html.glass-preview body {
+  background:
+    radial-gradient(42vw 42vw at 12% 8%, var(--glass-glow-1), transparent 70%),
+    radial-gradient(38vw 38vw at 88% 18%, var(--glass-glow-2), transparent 70%),
+    radial-gradient(46vw 46vw at 60% 96%, var(--glass-glow-3), transparent 70%),
+    var(--glass-base);
+  background-attachment: fixed;
+}
+
+/* Frame: frosted glass. */
+html.glass-preview .sidebar {
+  background: var(--glass-nav);
+  border-right: 1px solid var(--glass-nav-border);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+}
+html.glass-preview .nav-item { border-radius: 12px; transition: background .15s, transform .15s; }
+html.glass-preview .nav-item:hover { background: rgb(255 255 255 / 8%); }
+html.glass-preview .nav-item.active {
+  background: rgb(255 255 255 / 14%);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 14%) inset, 0 6px 18px -8px rgb(96 165 250 / 60%);
+}
+html.glass-preview .brand-mark { border-radius: 12px; box-shadow: 0 6px 18px -6px rgb(96 165 250 / 70%); }
+
+html.glass-preview .topbar {
+  margin: 14px 24px 0;
+  border: 1px solid var(--glass-frame-border);
+  border-radius: 16px;
+  background: var(--glass-frame);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+}
+html.glass-preview .demo-badge { border-radius: 999px; background: rgb(255 255 255 / 35%); }
+html.glass-preview[data-theme="dark"] .demo-badge { background: rgb(255 255 255 / 6%); }
+
+/* Data: near-opaque cards with soft depth. */
+html.glass-preview :is(.panel, .research-center, .sentiment-card, .sentiment-summary, .sector-card) {
+  background: var(--glass-data);
+  border: 1px solid var(--glass-frame-border);
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow);
+}
+
+/* Prices line up in columns. */
+html.glass-preview :is(td, .mobile-chip, .change-chip) { font-variant-numeric: tabular-nums; }
+
+/* Dialogs: glass edge, solid enough inside to read. */
+html.glass-preview dialog {
+  border: 1px solid var(--glass-frame-border);
+  border-radius: 20px;
+  box-shadow: 0 30px 80px -20px rgb(15 23 42 / 45%);
+}
+html.glass-preview dialog::backdrop {
+  background: rgb(15 23 42 / 30%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+}
+
+@media (max-width: 1100px) {
+  html.glass-preview .sidebar { border-right: 0; border-bottom: 1px solid var(--glass-nav-border); }
+  html.glass-preview .topbar { margin: 12px 16px 0; }
+}
+
+/*
+ * Page switch: the new page's cards "frost in" — they start blurred,
+ * transparent and slightly low, then sharpen into place one after another.
+ * Re-runs on every switch because hidden panels leave the render tree.
+ */
+@keyframes glass-frost-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(.985);
+    filter: blur(10px);
+  }
+  60% { filter: blur(0); }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+html.glass-preview :is(
+  [data-page-panel]:not([hidden], .market-sentiment),
+  .market-sentiment:not([hidden]) .sentiment-board > *
+) {
+  animation: glass-frost-in .52s cubic-bezier(.22, 1, .36, 1) var(--glass-enter-delay, 0ms) backwards;
+}
+/* During a page switch the new cards wait for the old page to start fading. */
+html.glass-preview.glass-switching { --glass-enter-delay: 120ms; }
+/* Stagger: later cards follow the first by a beat. */
+html.glass-preview .market-sentiment:not([hidden]) .sentiment-board > :nth-child(2) { animation-delay: calc(var(--glass-enter-delay, 0ms) + 90ms); }
+html.glass-preview [data-page-panel]:not([hidden]) ~ [data-page-panel]:not([hidden]) { animation-delay: calc(var(--glass-enter-delay, 0ms) + 90ms); }
+html.glass-preview .market-sentiment:not([hidden]) ~ [data-page-panel]:not([hidden]) { animation-delay: calc(var(--glass-enter-delay, 0ms) + 180ms); }
+
+/*
+ * Page switch, leaving: the content area gets its own view-transition snapshot,
+ * which blurs, drops slightly and fades out over the new page. The rest of the
+ * screen (navigation, background) switches instantly.
+ */
+html.glass-preview.glass-switching #main { view-transition-name: glass-main; }
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(glass-main),
+::view-transition-new(glass-main) { animation: none; }
+::view-transition-old(glass-main) {
+  animation: glass-frost-out .26s cubic-bezier(.4, 0, 1, 1) both;
+}
+@keyframes glass-frost-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(.985);
+    filter: blur(10px);
+  }
+}
+
+/* The clicked navigation item gives a small press. */
+html.glass-preview .nav-item:active { transform: scale(.96); }
+
+@media (prefers-reduced-motion: reduce) {
+  html.glass-preview :is([data-page-panel], .sentiment-board > *) { animation: none !important; }
+}
+
+/*
+ * Indicator guide: thin scrollbar that stays inside the rounded corners, and a
+ * pinned frosted header (eyebrow, close, chapter chips) the text scrolls under.
+ */
+html.glass-preview dialog {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(100 116 139 / 35%) transparent;
+}
+html.glass-preview #info-dialog:has(.guide-toc) .dialog-top {
+  position: sticky;
+  top: -25px;
+  z-index: 2;
+  flex-wrap: wrap;
+  row-gap: 12px;
+  margin: -25px -30px 4px;
+  padding: 22px 30px 12px;
+  border-bottom: 1px solid rgb(148 163 184 / 22%);
+  background: rgb(255 255 255 / 72%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+}
+html.glass-preview[data-theme="dark"] #info-dialog:has(.guide-toc) .dialog-top { background: rgb(17 27 43 / 72%); }
+html.glass-preview .guide-toc {
+  position: relative; /* chip offsets are measured from the row */
+  order: 3;
+  flex: 1 0 100%;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -4px;
+  padding: 2px 4px;
+}
+html.glass-preview .guide-toc button {
+  flex: none;
+  padding: 5px 12px;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 55%);
+  color: var(--muted);
+  font-size: var(--text-meta, 14px);
+  white-space: nowrap;
+  transition: background .15s, color .15s, border-color .15s;
+}
+html.glass-preview .guide-toc button:hover { color: var(--ink); }
+html.glass-preview .guide-toc button.active {
+  border-color: var(--capsule-ring);
+  background: var(--capsule-bg);
+  color: var(--capsule-ink);
+  box-shadow: var(--capsule-shadow);
+}
+html.glass-preview[data-theme="dark"] .guide-toc button { background: rgb(255 255 255 / 5%); }
+@media (max-width: 520px) {
+  html.glass-preview #info-dialog:has(.guide-toc) .dialog-top {
+    top: -18px;
+    margin: -18px -20px 4px;
+    padding: 16px 20px 10px;
+  }
+}
+
+/*
+ * Selected-option capsule: a muted, frosted blue (not a bright fill) shared by
+ * the segmented controls and the phone filter chips.
+ */
+/* Light theme keeps the original colours: white pills, a pale slate capsule, blue text. */
+html.glass-preview {
+  --capsule-bg: #eef2f7;
+  --capsule-ring: #e2e8f0;
+  --capsule-shadow: 0 1px 2px rgb(15 23 42 / 8%);
+  --capsule-ink: #245cac;
+  --pill-bg: #fff;
+  --pill-ring: var(--border);
+  --pill-hover-bg: #f1f5fb;
+  --pill-hover-ink: #245cac;
+}
+html.glass-preview[data-theme="dark"] {
+  --capsule-bg: linear-gradient(180deg, rgb(84 118 178 / 62%) 0%, rgb(48 78 136 / 66%) 100%);
+  --capsule-ring: rgb(150 180 230 / 30%);
+  --capsule-shadow: inset 0 1px 0 rgb(255 255 255 / 26%), inset 0 -2px 6px rgb(10 25 60 / 22%), 0 6px 16px -9px rgb(30 60 120 / 55%);
+  --capsule-ink: #f1f5ff;
+  --pill-bg: rgb(255 255 255 / 6%);
+  --pill-ring: rgb(255 255 255 / 13%);
+  --pill-hover-bg: rgb(255 255 255 / 11%);
+  --pill-hover-ink: var(--ink);
+}
+
+/*
+ * Split capsules (list filters on wider screens): the
+ * options sit in frosted pills, and the chosen option detaches into its own
+ * capsule, splitting the bar into "before", "chosen" and "after" pieces.
+ * Margins and corners animate, so the gaps open and close as the choice moves.
+ */
+@media (min-width: 701px) {
+  html.glass-preview .filter-tabs {
+    gap: 0;
+    padding: 4px 2px; /* room for the chosen capsule's shadow inside the scrolling row */
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  html.glass-preview .filter-tabs .segmented-indicator { display: none; }
+}
+/* The favorites filters split the same way at every width (they scroll on phones). */
+html.glass-preview .research-filter-tabs { gap: 0; padding: 4px 2px; border: 0; background: transparent; box-shadow: none; }
+html.glass-preview .research-filter-tabs .segmented-indicator { display: none; }
+
+html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button {
+  --r: 10px; /* same rounded rectangle as the research and sort menus beside it */
+  min-height: 36px;
+  padding-block: 6px;
+  margin: 0;
+  border: 1px solid var(--pill-ring);
+  border-inline-width: 0;
+  border-radius: 0;
+  background: var(--pill-bg);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  transition:
+    margin .42s cubic-bezier(.34, 1.4, .5, 1),
+    border-radius .32s ease,
+    background .25s ease, color .25s ease, box-shadow .25s ease;
+}
+/* Piece starts: the first option, and the option right after the chosen one. */
+html.glass-preview :is(.filter-tabs, .research-filter-tabs) > :is(button:first-of-type, [aria-pressed="true"] + button) {
+  border-left-width: 1px;
+  border-start-start-radius: var(--r);
+  border-end-start-radius: var(--r);
+}
+/* Piece ends: the last option, and the option right before the chosen one. */
+html.glass-preview :is(.filter-tabs, .research-filter-tabs) > :is(button:last-of-type, button:has(+ [aria-pressed="true"])) {
+  border-right-width: 1px;
+  border-start-end-radius: var(--r);
+  border-end-end-radius: var(--r);
+}
+/* The chosen option: its own capsule with a gap on each side. */
+html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button[aria-pressed="true"] {
+  margin-inline: 7px;
+  border: 1px solid var(--capsule-ring);
+  border-radius: var(--r);
+  background: var(--capsule-bg);
+  color: var(--capsule-ink) !important;
+  box-shadow: var(--capsule-shadow);
+  animation: capsule-detach .5s cubic-bezier(.34, 1.4, .5, 1);
+}
+html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button[aria-pressed="true"]:first-of-type { margin-left: 0; }
+html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button[aria-pressed="true"]:last-of-type { margin-right: 0; }
+html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button:hover:not([aria-pressed="true"]) {
+  background: var(--pill-hover-bg);
+  color: var(--pill-hover-ink);
+}
+/* On selection the capsule pops out as clear glass with a blue rim, then fills. */
+@keyframes capsule-detach {
+  from {
+    transform: scale(.94);
+    background: rgb(96 132 194 / 14%);
+    border-color: rgb(140 175 235 / 80%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 30%);
+  }
+  55% { transform: scale(1.03); }
+  to { transform: none; }
+}
+
+/* Other segmented controls keep the sliding indicator, in the same muted capsule. */
+html.glass-preview .segmented-control:not(.filter-tabs, .research-filter-tabs, .sector-sort-tabs, .sector-period) {
+  border: 1px solid var(--pill-ring);
+  border-radius: 999px;
+  background: var(--pill-bg);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+}
+html.glass-preview .segmented-control:not(.filter-tabs, .research-filter-tabs) button { border-radius: 999px; }
+html.glass-preview .segmented-indicator {
+  border: 1px solid var(--capsule-ring);
+  border-radius: 999px;
+  background: var(--capsule-bg);
+  box-shadow: var(--capsule-shadow);
+  transition:
+    left .42s cubic-bezier(.34, 1.36, .5, 1),
+    width .42s cubic-bezier(.34, 1.36, .5, 1),
+    background .22s ease, border-color .22s ease, transform .22s ease;
+}
+html.glass-preview .segmented-control.is-moving .segmented-indicator {
+  border-color: rgb(140 175 235 / 80%);
+  background: rgb(96 132 194 / 14%);
+  transform: scaleY(1.08);
+}
+html.glass-preview .segmented-control:not(.filter-tabs, .research-filter-tabs, .sector-sort-tabs, .sector-period) [aria-pressed="true"] { color: var(--capsule-ink) !important; }
+
+/* Phones show the list filters as separate chips; the chosen chip gets the capsule. */
+@media (max-width: 700px) {
+  html.glass-preview .table-toolbar > .filter-tabs button { border-radius: 999px !important; margin: 0 !important; border-width: 1px !important; }
+  html.glass-preview .table-toolbar > .filter-tabs button[aria-pressed="true"] { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button { transition: none; animation: none !important; }
+  html.glass-preview .segmented-indicator { transition: none; }
+  html.glass-preview .segmented-control.is-moving .segmented-indicator { transform: none; }
+}
+
+/* Sector chips: the chosen chip uses the same muted capsule. */
+html.glass-preview[data-theme="dark"] .sector-chip-row button[aria-pressed="true"] {
+  background: var(--capsule-bg) !important;
+  color: var(--capsule-ink) !important;
+  box-shadow: inset 0 0 0 1px var(--capsule-ring), var(--capsule-shadow);
+}
+html.glass-preview[data-theme="dark"] .market-header .sector-toolbar .segmented-control button[aria-pressed="true"] {
+  background: var(--capsule-bg);
+  color: var(--capsule-ink);
+  box-shadow: inset 0 0 0 1px var(--capsule-ring), var(--capsule-shadow);
+}

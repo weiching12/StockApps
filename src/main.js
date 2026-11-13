@@ -2,6 +2,11 @@ import { onAccountChange, startAccountMenu } from "./account.js";
 import { renderMarketView } from "./ui/market.js";
 import "./styles.css";
 import "./typography.css";
+import "./glass-preview.css";
+import { withPageTransition } from "./glass-transition.js";
+import { refreshRows } from "./glass-refresh.js";
+import { enhanceGuideDialog } from "./glass-guide.js";
+if (new URLSearchParams(location.search).has("glass")) document.documentElement.classList.add("glass-preview");
 import { loadDataset, loadMarketSummary } from "./provider.js";
 import { MarketApiClient } from "./api/market-client.js";
 import { RequestCache } from "./api/request-cache.js";
@@ -179,7 +184,10 @@ function renderResearch() {
   document.querySelector("#research-stats").innerHTML = result.stats;
   document.querySelector("#research-list").innerHTML = result.cards;
   document.querySelector("#research-sort").value = researchSort;
-  document.querySelector("#research-filter").value = researchFilter;
+  const tabs = document.querySelector(".research-filter-tabs");
+  tabs.querySelectorAll("[data-research-filter]").forEach((button) =>
+    button.setAttribute("aria-pressed", String(button.dataset.researchFilter === researchFilter)));
+  controls.updateSegmented(tabs);
 }
 
 function applyTheme() {
@@ -469,13 +477,17 @@ async function refreshWithVersionCheck() {
 }
 
 /** Home and 自選 read the latest session, so open a stock's dialog with its data rather than a browsed one. */
-function showLatestPage(page) {
-  state.page = page;
-  if (["favorites", "search"].includes(page) && state.date !== dataset.info.asOf) {
-    state.date = dataset.info.asOf;
-    void selectSummary(state.date).catch((error) => toast(error.message));
-  }
-  renderPage();
+function showLatestPage(page, afterRender) {
+  if (page === state.page) { renderPage(); afterRender?.(); return; }
+  withPageTransition(() => {
+    state.page = page;
+    if (["favorites", "search"].includes(page) && state.date !== dataset.info.asOf) {
+      state.date = dataset.info.asOf;
+      void selectSummary(state.date).catch((error) => toast(error.message));
+    }
+    renderPage();
+    afterRender?.();
+  });
 }
 
 function renderPage() {
@@ -522,8 +534,7 @@ function renderSearch() {
 /** Search reads the latest session and takes the keyboard straight away. */
 function openSearch() {
   closeEntryDrawer();
-  showLatestPage("search");
-  document.querySelector("#stock-search").focus();
+  showLatestPage("search", () => document.querySelector("#stock-search").focus());
 }
 
 function renderHome() {
@@ -652,7 +663,7 @@ function openDialog(type, focusClose = true) {
   } else if (type === "source") {
     content.innerHTML = `<h2 id="dialog-heading">關於株研</h2>${sourceAbout()}<section class="source-data" aria-labelledby="source-data-heading"><h3 id="source-data-heading">資料來源與更新規則</h3><p class="dialog-intro">這是可操作的前端示範版，目前沒有連接交易所或即時行情服務。</p><div class="source-banner">${icon("info")} ${esc(dataset.info.note)}</div><dl class="source-details"><div><dt>市場與標的</dt><dd>14 檔台灣上市、上櫃股票與 ETF 範例</dd></div><div><dt>資料截止日</dt><dd>${dataset.info.asOf}（固定資料，不會自動更新）</dd></div><div><dt>法人資料</dt><dd>模擬外資、投信與自營商買進、賣出股數，畫面依功能換算為張或億元</dd></div><div><dt>指標計算</dt><dd>由模擬 OHLC 歷史資料在瀏覽器計算，並非預先填入指標數值</dd></div><div><dt>正式版本</dt><dd>正式資料須涵蓋交易日曆、除權息還原與法人分類定義；示範資料不可用於實際交易</dd></div></dl></section>`;
   } else {
-    content.innerHTML = `<h2 id="dialog-heading">讀懂價格背後的訊號</h2><p class="dialog-intro">指標提供觀察角度。搭配價量與籌碼，建立更完整的判斷。</p><article class="guide-item"><span>01</span><div><h3>季線 MA60</h3><p>最近 60 個交易日收盤價的簡單移動平均，包含選定資料日。股價高於季線時，位置顯示為正值。</p><code>乖離率 = (收盤價 ÷ MA60 − 1) × 100%</code></div></article><article class="guide-item"><span>02</span><div><h3>KD 隨機指標</h3><p>預設以 9 日最高、最低與當日收盤價計算 RSV，再以平滑係數 3 遞推 K、D。K、D 初始值為 50；不足 9 日不顯示。最高與最低相同時 RSV 採 50。</p><code>RSV = (收盤 − 最低) ÷ (最高 − 最低) × 100<br>K = 前日 K × 2/3 + RSV × 1/3<br>D = 前日 D × 2/3 + 當日 K × 1/3</code><p>K &gt; 80 為高檔區，K &lt; 20 為低檔區，不能單獨視為買賣訊號。你可以在指標設定調整參數。</p></div></article><article class="guide-item"><span>03</span><div><h3>三大法人買賣超</h3><p>外資、投信及自營商的買進股數減去賣出股數。正值為買超，負值為賣超。1 張 = 1,000 股；法人買賣量與全市場成交量的統計範圍不同。近 5／20 日累計包含資料日，依實際交易日加總後換算為張；資料不足不補零。外資、投信的連買／連賣日數從資料日回溯，遇反向、持平或缺漏即中止；若回溯到資料起點或缺漏，顯示「至少」。</p></div></article><article class="guide-item"><span>04</span><div><h3>前一交易日</h3><p>目前預設資料日為 ${dataset.info.asOf}。日期選單可回看最近 30 個${isDemo ? "模擬" : "實際"}交易日，所有指標僅使用選定日及之前的資料。</p></div></article><article class="guide-item"><span>05</span><div><h3>KD 技術建議</h3>${technicalSignalGuide()}</div></article><article class="guide-item"><span>06</span><div><h3>今日量價</h3><p>比較選定交易日的成交量與此前 20 個市場交易日的平均成交量；平均量不包含當日。成交量均以股計算，畫面顯示倍數至小數點後兩位。</p><code>RVOL20 = 當日成交量 ÷ 前 20 個交易日平均成交量</code><p>RVOL20 ≥ 1.20 為量增；0.80 ≤ RVOL20 &lt; 1.20 為量平；RVOL20 &lt; 0.80 為量縮。收盤價相對前一有效交易日上漲超過 0.50% 為價漲、下跌超過 0.50% 為價跌，介於 ±0.50%（含邊界）為價格變動有限。依價格與量能的組合顯示量價術語；量增且價格變動有限為「量增價滯」，量平為「量價持平」，量縮為「量縮盤整」。即使 RVOL20 ≥ 2.00，只要價格變動有限仍為「量增價滯」。</p><p>當日或前 20 個市場交易日任一天缺少成交量、歷史不足、前 20 日平均量為 0，或漲跌無法計算時，顯示「資料不足」；不會以更早日期補足缺漏。切換歷史日期時只使用該日及以前的資料。量價狀態僅供觀察，不代表買賣訊號。</p></div></article>`;
+    content.innerHTML = `<h2 id="dialog-heading">讀懂價格背後的訊號</h2><p class="dialog-intro">指標提供觀察角度。搭配價量與籌碼，建立更完整的判斷。</p><article class="guide-item" id="guide-ma60"><span>01</span><div><h3>季線 MA60</h3><p>最近 60 個交易日收盤價的簡單移動平均，包含選定資料日。股價高於季線時，位置顯示為正值。</p><code>乖離率 = (收盤價 ÷ MA60 − 1) × 100%</code></div></article><article class="guide-item" id="guide-kd"><span>02</span><div><h3>KD 隨機指標</h3><p>預設以 9 日最高、最低與當日收盤價計算 RSV，再以平滑係數 3 遞推 K、D。K、D 初始值為 50；不足 9 日不顯示。最高與最低相同時 RSV 採 50。</p><code>RSV = (收盤 − 最低) ÷ (最高 − 最低) × 100<br>K = 前日 K × 2/3 + RSV × 1/3<br>D = 前日 D × 2/3 + 當日 K × 1/3</code><div class="kd-zone-bar" role="img" aria-label="K 值 0 到 100：20 以下為低檔區，80 以上為高檔區"><span class="kd-zone low">低檔區</span><span class="kd-zone mid">中間區</span><span class="kd-zone high">高檔區</span><span class="kd-zone-tick" style="--at: 0%">0</span><span class="kd-zone-tick" style="--at: 20%">20</span><span class="kd-zone-tick" style="--at: 80%">80</span><span class="kd-zone-tick" style="--at: 100%">100</span></div><p>K &gt; 80 為高檔區，K &lt; 20 為低檔區，不能單獨視為買賣訊號。你可以在指標設定調整參數。</p></div></article><article class="guide-item" id="guide-institutional"><span>03</span><div><h3>三大法人買賣超</h3><dl class="signal-rules"><div><dt>定義</dt><dd>外資、投信及自營商的買進股數減去賣出股數。正值為買超，負值為賣超。</dd></div><div><dt>單位</dt><dd>1 張 = 1,000 股；法人買賣量與全市場成交量的統計範圍不同。</dd></div><div><dt>近 5／20 日累計</dt><dd>包含資料日，依實際交易日加總後換算為張；資料不足不補零。</dd></div><div><dt>連買／連賣</dt><dd>外資、投信的連買／連賣日數從資料日回溯，遇反向、持平或缺漏即中止；若回溯到資料起點或缺漏，顯示「至少」。</dd></div></dl></div></article><article class="guide-item" id="guide-session"><span>04</span><div><h3>前一交易日</h3><p>目前預設資料日為 ${dataset.info.asOf}。日期選單可回看最近 30 個${isDemo ? "模擬" : "實際"}交易日，所有指標僅使用選定日及之前的資料。</p></div></article><article class="guide-item" id="guide-signal"><span>05</span><div><h3>KD 技術建議</h3>${technicalSignalGuide()}</div></article><article class="guide-item" id="guide-price-volume"><span>06</span><div><h3>今日量價</h3><p>比較選定交易日的成交量與此前 20 個市場交易日的平均成交量；平均量不包含當日。成交量均以股計算，畫面顯示倍數至小數點後兩位。</p><code>RVOL20 = 當日成交量 ÷ 前 20 個交易日平均成交量</code><p>RVOL20 ≥ 1.20 為量增；0.80 ≤ RVOL20 &lt; 1.20 為量平；RVOL20 &lt; 0.80 為量縮。收盤價相對前一有效交易日上漲超過 0.50% 為價漲、下跌超過 0.50% 為價跌，介於 ±0.50%（含邊界）為價格變動有限。依價格與量能的組合顯示量價術語；量增且價格變動有限為「量增價滯」，量平為「量價持平」，量縮為「量縮盤整」。即使 RVOL20 ≥ 2.00，只要價格變動有限仍為「量增價滯」。</p><p>當日或前 20 個市場交易日任一天缺少成交量、歷史不足、前 20 日平均量為 0，或漲跌無法計算時，顯示「資料不足」；不會以更早日期補足缺漏。切換歷史日期時只使用該日及以前的資料。量價狀態僅供觀察，不代表買賣訊號。</p></div></article>`;
   }
   const dialog = document.querySelector("#info-dialog");
   const entryDrawer = type.startsWith("entry:") && matchMedia("(min-width: 900px)").matches;
@@ -664,6 +675,7 @@ function openDialog(type, focusClose = true) {
   }
   dialog.scrollTop = 0;
   content.scrollTop = 0;
+  enhanceGuideDialog(dialog, content);
 
   const close = dialog.querySelector(matchMedia("(max-width: 520px)").matches && dialog.querySelector(".entry-dialog")
     ? ".info-dialog-handle" : "#close-dialog");
@@ -1036,6 +1048,10 @@ function bindEvents() {
       return;
     }
       if (button.dataset.dialog) openDialog(button.dataset.dialog, !touchInteraction);
+    if (button.dataset.guide) {
+      openDialog("methodology", !touchInteraction);
+      document.getElementById(button.dataset.guide)?.scrollIntoView({ block: "start" });
+    }
     if (button.dataset.entryScore) void openEntryScoreDialog(button.dataset.entryScore, !touchInteraction,
       state.page === "favorites" && Boolean(button.closest("#research-list")));
     if (button.dataset.searchSuggestion) {
@@ -1053,21 +1069,32 @@ function bindEvents() {
       renderPage(); renderSectorOverview(); renderTable();
     }
     if (button.dataset.sectorChip) {
+      const changed = state.sector !== button.dataset.sectorChip;
       state.sector = button.dataset.sectorChip;
       renderTable(); renderSectorOverview();
+      if (changed) refreshRows([...document.querySelectorAll("#stock-rows > tr")]);
     }
     if (button.dataset.sectorOpen) openSectorDialog(button.dataset.sectorOpen, !touchInteraction);
     if (button.dataset.homeExpand !== undefined) {
       state.homeExpanded = true;
       renderHome();
     }
+    if (button.dataset.researchFilter) {
+      researchFilter = button.dataset.researchFilter;
+      renderResearch();
+      return;
+    }
     if (button.dataset.sectorWindow) {
+      const changed = state.sectorWindow !== button.dataset.sectorWindow;
       state.sectorWindow = button.dataset.sectorWindow;
       renderSectorOverview();
+      if (changed) refreshRows([...document.querySelectorAll("#sector-grid .sector-card")]);
     }
     if (button.dataset.sectorSort) {
+      const changed = state.sectorSort !== button.dataset.sectorSort;
       state.sectorSort = button.dataset.sectorSort;
       renderSectorOverview();
+      if (changed) refreshRows([...document.querySelectorAll("#sector-grid .sector-card")]);
     }
     if (button.dataset.sectorExpand !== undefined) {
       state.sectorExpanded = true;
@@ -1181,7 +1208,6 @@ function bindEvents() {
   });
   document.addEventListener("change", (event) => {
     if (event.target.id === "research-sort") { researchSort = event.target.value; renderResearch(); return; }
-    if (event.target.id === "research-filter") { researchFilter = event.target.value; renderResearch(); return; }
     if (event.target.id !== "theme" && event.target.name !== "moodStyle") return;
     if (event.target.id === "theme") state.theme = event.target.value === "dark" ? "dark" : "light";
     else state.moodStyle = event.target.value === "scale" ? "scale" : "gauge";

@@ -96,14 +96,16 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
       const stats = node.querySelector("#research-stats").getBoundingClientRect();
       const list = node.querySelector("#research-list").getBoundingClientRect();
       const date = node.querySelector("#research-date").getBoundingClientRect();
-      const controls = [...node.querySelectorAll(".research-controls select")].map((item) => item.getBoundingClientRect());
+      // Filters are tabs that scroll inside their own row; the sort menu stays on screen.
+      const tabs = node.querySelector(".research-filter-tabs").getBoundingClientRect();
+      const sort = node.querySelector("#research-sort").getBoundingClientRect();
       return { statsTop: stats.top, listBottom: list.bottom, dateTop: date.top, dateRight: date.right, viewportWidth: window.innerWidth,
-        controlsOneRow: Math.abs(controls[0].top - controls[1].top) < 1 };
+        controlsFit: tabs.left >= 0 && tabs.right <= window.innerWidth + 1 && sort.left >= 0 && sort.right <= window.innerWidth + 1 };
     });
     expect(layout.statsTop).toBeLessThan(110);
     expect(layout.dateTop).toBeGreaterThanOrEqual(layout.listBottom);
     expect(layout.dateRight).toBeLessThanOrEqual(layout.viewportWidth + 1);
-    expect(layout.controlsOneRow).toBe(true);
+    expect(layout.controlsFit).toBe(true);
     const bounds = await page.locator(".research-center").evaluate((node) => ({
       left: node.getBoundingClientRect().left, right: node.getBoundingClientRect().right,
       width: window.innerWidth,
@@ -129,8 +131,10 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
     expect(badgeLayout.badgesTop).toBeGreaterThan(badgeLayout.headingBottom);
     expect(badgeLayout.badgesRight).toBeLessThanOrEqual(badgeLayout.cellRight);
   }
-  await page.locator("#research-filter").selectOption("gatePass");
-  await page.locator("#research-filter").selectOption("all");
+  await page.locator('[data-research-filter="gatePass"]').click();
+  await expect(page.locator('[data-research-filter="gatePass"]')).toHaveAttribute("aria-pressed", "true");
+  await page.locator('[data-research-filter="all"]').click();
+  await expect(page.locator('[data-research-filter="all"]')).toHaveAttribute("aria-pressed", "true");
   await page.locator("#research-list .research-card-main").first().click();
   await expect(page.locator("#info-dialog")).toBeVisible();
 });

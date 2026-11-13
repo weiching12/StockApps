@@ -6,6 +6,23 @@ import { RESEARCH_TRACKING_FILTERS, RESEARCH_TRACKING_SORTS } from "./research.j
 
 const appVersion = `v${appPackage.version}`;
 
+/** Market table columns that link to their section of the indicator guide. */
+const GUIDE_SECTIONS = {
+  priceVolume: ["guide-price-volume", "今日量價"],
+  trend: ["guide-signal", "趨勢判斷"],
+  institutionalNetMobile: ["guide-institutional", "法人買賣超"],
+  k: ["guide-kd", "K 值"],
+  signal: ["guide-signal", "KD 技術建議"],
+  deviation: ["guide-ma60", "與季線位置"],
+  institutionalNet: ["guide-institutional", "法人買賣超"],
+};
+
+function guideHint(key, icon) {
+  const section = GUIDE_SECTIONS[key];
+  if (!section) return "";
+  return `<button type="button" class="guide-hint" data-guide="${section[0]}" aria-label="${section[1]}說明">${icon("info")}</button>`;
+}
+
 export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) {
   return `
     <aside class="sidebar">
@@ -40,7 +57,7 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
         <div id="app-status" class="app-status" role="status" hidden><span></span></div>
         <div id="load-status" class="load-status" role="status" hidden><span></span><button class="text-button" id="reload-data" hidden>重新載入</button></div>
         <section id="watchlist" data-page-panel="favorites" aria-label="自選" hidden>
-          <section class="research-center" aria-label="自選股票的進場研究"><div id="research-stats" class="research-stats"></div><div class="research-controls"><label>排序 <select id="research-sort">${RESEARCH_TRACKING_SORTS.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label><label>篩選 <select id="research-filter">${RESEARCH_TRACKING_FILTERS.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label></div><div id="research-list" class="research-list"></div><p id="research-date" class="research-date" hidden></p></section>
+          <section class="research-center" aria-label="自選股票的進場研究"><div id="research-stats" class="research-stats"></div><div class="research-controls"><div class="research-filter-tabs segmented-control" role="group" aria-label="自選篩選"><span class="segmented-indicator" aria-hidden="true"></span>${RESEARCH_TRACKING_FILTERS.map(([value, label, short]) => `<button type="button" data-research-filter="${value}" aria-pressed="${value === "all"}" title="${label}">${short}</button>`).join("")}</div><label class="research-sort">排序 <select id="research-sort">${RESEARCH_TRACKING_SORTS.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label></div><div id="research-list" class="research-list"></div><p id="research-date" class="research-date" hidden></p></section>
         </section>
         <section id="market-sentiment" class="market-sentiment" data-page-panel="home" data-sentiment="unknown" aria-labelledby="sentiment-title">
           <div class="sentiment-board">
@@ -80,14 +97,15 @@ export function shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc }) 
           ]
             .map(
               ([key, label]) => {
-                if (key === "priceVolume" || key === "trend") return `<th scope="col">${label}</th>`;
+                const hint = guideHint(key, icon);
+                if (key === "priceVolume" || key === "trend") return `<th scope="col">${label}${hint}</th>`;
                 const sortKey = key === "institutionalNetMobile" ? "institutionalNet" : key;
                 const className = key === "institutionalNetMobile"
                   ? ' class="net-heading-mobile"'
                   : key === "institutionalNet"
                     ? ' class="net-heading-desktop"'
                     : "";
-                return `<th scope="col"${className} data-sort-heading="${sortKey}" aria-sort="none"><button data-sort="${sortKey}">${label} ${icon("sort", "sort-icon")}</button></th>${key === "k" ? '<th scope="col" class="signal-heading">KD 技術建議</th>' : ""}`;
+                return `<th scope="col"${className} data-sort-heading="${sortKey}" aria-sort="none"><button data-sort="${sortKey}">${label} ${icon("sort", "sort-icon")}</button>${hint}</th>${key === "k" ? `<th scope="col" class="signal-heading">KD 技術建議${guideHint("signal", icon)}</th>` : ""}`;
               },
             )
             .join(

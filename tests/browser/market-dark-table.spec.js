@@ -40,5 +40,5 @@ test("the KD reading note lives in the indicator guide, not above the market lis
   await expect(guide.locator("#dialog-heading")).toHaveText("讀懂價格背後的訊號");
   await expect(guide).toContainText("依資料日 KD 交叉與 MA20 趨勢判讀");
   await expect(guide).toContainText("需搭配風險控管");
-  await expect(guide.locator(".signal-rules dt").first()).toHaveText("留意買點");
+  await expect(guide.locator("#guide-signal .signal-rules dt").first()).toHaveText("留意買點");
 });
