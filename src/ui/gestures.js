@@ -2,7 +2,10 @@ export function bindInputMode(onChange) {
   const update = (mode) => { onChange(mode === "touch"); document.documentElement.dataset.inputMode = mode; };
   document.addEventListener("pointerdown", (event) => update(event.pointerType === "touch" ? "touch" : "pointer"), { capture: true, passive: true });
   document.addEventListener("touchstart", () => update("touch"), { capture: true, passive: true });
-  document.addEventListener("keydown", () => update("keyboard"), true);
+  // Only keys that move or activate focus mean keyboard use; Escape (closing a dialog
+  // opened with the mouse) or a modifier keeps the current mode, so no focus ring appears.
+  const navigationKeys = new Set(["Tab", "Enter", " ", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);
+  document.addEventListener("keydown", (event) => { if (navigationKeys.has(event.key)) update("keyboard"); }, true);
 }
 
 export function bindPullToRefresh(pullRefresh) {

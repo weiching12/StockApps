@@ -24,6 +24,8 @@ export function loadPreferences(state, storage) {
       state.settings = saved.settings;
     if (["light", "dark"].includes(saved?.theme)) state.theme = saved.theme;
     if (["gauge", "scale"].includes(saved?.moodStyle)) state.moodStyle = saved.moodStyle;
+    if (["glass", "classic"].includes(saved?.uiStyle)) state.uiStyle = saved.uiStyle;
+    if (typeof saved?.reduceEffects === "boolean") state.reduceEffects = saved.reduceEffects;
   } catch {
     state.favorites = ["2330", "2317", "0050", "3026", "6488"];
   }
@@ -33,7 +35,8 @@ export function persistPreferences(state, toast, storage) {
   try {
     storage.setItem(
       "stock-insight-v1",
-      JSON.stringify({ favorites: state.favorites, settings: state.settings, theme: state.theme, moodStyle: state.moodStyle, catalogVersion: 2 }),
+      JSON.stringify({ favorites: state.favorites, settings: state.settings, theme: state.theme, moodStyle: state.moodStyle,
+        uiStyle: state.uiStyle, reduceEffects: state.reduceEffects, catalogVersion: 2 }),
     );
   } catch {
     toast("瀏覽器無法保存設定，本次操作仍可使用。");

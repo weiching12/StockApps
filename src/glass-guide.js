@@ -3,6 +3,8 @@
  * chips. A chip scrolls to its section; scrolling highlights the section in view.
  * Runs after every dialog render so a stale chip row never stays on another dialog.
  */
+import { effectsReduced } from "./glass-mode.js";
+
 let detachSpy = null;
 
 export function enhanceGuideDialog(dialog, content) {
@@ -35,7 +37,7 @@ export function enhanceGuideDialog(dialog, content) {
     if (!chip) return;
     const section = content.querySelector(`#${chip.dataset.target}`);
     const top = section.getBoundingClientRect().top - dialog.getBoundingClientRect().top + dialog.scrollTop - headerOffset() + 4;
-    dialog.scrollTo({ top, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    dialog.scrollTo({ top, behavior: effectsReduced() ? "auto" : "smooth" });
   });
 
   const chips = [...toc.children];

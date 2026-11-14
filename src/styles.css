@@ -97,7 +97,8 @@ body { background: var(--surface); }
 .sentiment-chip.down .sentiment-chip-icon, .sentiment-chip.down b { color: var(--down); }
 .sentiment-chip b { font-size: var(--text-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
 .sentiment-chip small { color: var(--muted); font-size: var(--text-meta); }
-.sentiment-chip:hover { border-color: var(--accent); }
+/* Hover tints the chip instead of a blue border, which read as a stuck focus ring. */
+@media (hover: hover) { .sentiment-chip:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); } }
 .sentiment-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sentiment-breadth-bar { flex: 1; display: flex; gap: 2px; min-width: 0; height: 4px; overflow: hidden; border-radius: 2px; background: var(--border); }
 .sentiment-breadth-bar i { flex: 0 1 0; min-width: 0; }
@@ -126,6 +127,11 @@ body { background: var(--surface); }
 .settings-group { margin: 0 0 16px; padding: 0; border: 0; }
 .settings-group legend { padding-top: 5px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
 .settings-theme { margin-bottom: 16px; }
+/* Settings → 減少動畫與特效: a checkbox row with its explanation underneath. */
+.settings-toggle { display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 0; cursor: pointer; }
+.settings-toggle input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); }
+.settings-toggle span { display: grid; gap: 2px; color: var(--ink); font-size: var(--text-secondary); font-weight: 600; }
+.settings-toggle small { color: var(--muted); font-size: var(--text-meta); font-weight: 400; }
 .settings-theme h3 { margin: 0; color: var(--accent); font-size: 12px; }
 .settings-theme h3 span { color: var(--muted); font-weight: 400; }
 .form-field select { min-width: 120px; padding: 9px 28px 9px 10px; border: 1px solid var(--border); border-radius: 4px; color: var(--ink); background: var(--surface); }

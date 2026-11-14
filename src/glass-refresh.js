@@ -4,12 +4,13 @@
  * refresh: from top to bottom each row fades in from a light blur. Nothing rolls
  * or moves, and only rows on screen animate.
  */
+import { effectsReduced } from "./glass-mode.js";
+
 const MAX_ROWS = 18;
 const ROW_STAGGER = 35;
 
 export function refreshRows(rowElements) {
-  if (!document.documentElement.classList.contains("glass-preview") ||
-      matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!document.documentElement.classList.contains("glass-preview") || effectsReduced()) return;
   rowElements.filter((row) => {
     const box = row.getBoundingClientRect();
     return box.height > 0 && box.bottom > 0 && box.top < innerHeight;

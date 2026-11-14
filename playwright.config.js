@@ -8,6 +8,11 @@ export default defineConfig({
   workers: 2,
   use: {
     baseURL: "http://127.0.0.1:5173",
+    // Layout specs measure the classic style; tests/browser/ui-style.spec.js covers the glass default.
+    storageState: {
+      cookies: [],
+      origins: [{ origin: "http://127.0.0.1:5173", localStorage: [{ name: "stock-insight-v1", value: JSON.stringify({ uiStyle: "classic" }) }] }],
+    },
     viewport: { width: 1440, height: 1100 },
     launchOptions: {
       executablePath:

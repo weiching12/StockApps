@@ -20,4 +20,7 @@ export const createState = () => ({
   settings: { ...DEFAULT_SETTINGS },
   theme: "light",
   moodStyle: "gauge",
+  // Interface style: "glass" (default) or "classic"; reduceEffects turns off motion and blur.
+  uiStyle: "glass",
+  reduceEffects: false,
 });

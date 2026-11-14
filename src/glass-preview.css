@@ -1,5 +1,6 @@
 /*
- * Glass-style preview, opt-in with ?glass in the URL (adds html.glass-preview).
+ * Glass style, on for windows at least 440px wide (src/glass-mode.js adds
+ * html.glass-preview; ?glass=1 / ?glass=0 force it on or off).
  * Frame (navigation, top bar, dialogs) is frosted glass; data areas stay
  * near-opaque so prices and red/green changes keep a stable background.
  */
@@ -28,15 +29,23 @@ html.glass-preview[data-theme="dark"] {
   --glass-shadow: 0 12px 34px -14px rgb(0 0 0 / 60%), 0 1px 0 rgb(255 255 255 / 6%) inset;
 }
 
-/* Soft light glows instead of a photo, so text never sits on busy detail. */
-html.glass-preview,
-html.glass-preview body {
+/*
+ * Soft light glows instead of a photo, so text never sits on busy detail. They sit
+ * on their own fixed layer: a fixed background attachment makes phones repaint the
+ * whole page on every scroll.
+ */
+html.glass-preview { background: var(--glass-base); }
+html.glass-preview body { background: transparent; }
+html.glass-preview body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background:
-    radial-gradient(42vw 42vw at 12% 8%, var(--glass-glow-1), transparent 70%),
-    radial-gradient(38vw 38vw at 88% 18%, var(--glass-glow-2), transparent 70%),
-    radial-gradient(46vw 46vw at 60% 96%, var(--glass-glow-3), transparent 70%),
-    var(--glass-base);
-  background-attachment: fixed;
+    radial-gradient(42vmax 42vmax at 12% 8%, var(--glass-glow-1), transparent 70%),
+    radial-gradient(38vmax 38vmax at 88% 18%, var(--glass-glow-2), transparent 70%),
+    radial-gradient(46vmax 46vmax at 60% 96%, var(--glass-glow-3), transparent 70%);
 }
 
 /* Frame: frosted glass. */
@@ -90,7 +99,13 @@ html.glass-preview dialog::backdrop {
 }
 
 @media (max-width: 1100px) {
-  html.glass-preview .sidebar { border-right: 0; border-bottom: 1px solid var(--glass-nav-border); }
+  /* The top bar stays on screen while the page scrolls under it; a lighter blur keeps phones smooth. */
+  html.glass-preview .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--glass-nav-border);
+    -webkit-backdrop-filter: blur(10px) saturate(150%);
+    backdrop-filter: blur(10px) saturate(150%);
+  }
   html.glass-preview .topbar { margin: 12px 16px 0; }
 }
 
@@ -363,3 +378,22 @@ html.glass-preview[data-theme="dark"] .market-header .sector-toolbar .segmented-
   color: var(--capsule-ink);
   box-shadow: inset 0 0 0 1px var(--capsule-ring), var(--capsule-shadow);
 }
+
+/*
+ * Settings → 減少動畫與特效 (html[data-effects="reduced"]), in either style: no
+ * transitions, animations or background blur. Translucent glass surfaces turn
+ * nearly solid so text keeps its contrast without the blur behind it.
+ */
+html[data-effects="reduced"] *,
+html[data-effects="reduced"] *::before,
+html[data-effects="reduced"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html[data-effects="reduced"] dialog::backdrop { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html.glass-preview[data-effects="reduced"] { --glass-nav: rgb(20 36 59 / 97%); --glass-frame: rgb(255 255 255 / 92%); }
+html.glass-preview[data-effects="reduced"][data-theme="dark"] { --glass-nav: rgb(8 14 25 / 97%); --glass-frame: rgb(17 27 43 / 94%); }
+html.glass-preview[data-effects="reduced"] :is(.filter-tabs, .research-filter-tabs) > button:not([aria-pressed="true"]) { background: var(--surface); }
