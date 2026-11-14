@@ -245,7 +245,7 @@ html.glass-preview {
 }
 html.glass-preview[data-theme="dark"] {
   --capsule-bg: linear-gradient(180deg, rgb(84 118 178 / 62%) 0%, rgb(48 78 136 / 66%) 100%);
-  --capsule-ring: rgb(150 180 230 / 30%);
+  --capsule-ring: rgb(150 180 230 / 16%);
   --capsule-shadow: inset 0 1px 0 rgb(255 255 255 / 26%), inset 0 -2px 6px rgb(10 25 60 / 22%), 0 6px 16px -9px rgb(30 60 120 / 55%);
   --capsule-ink: #f1f5ff;
   --pill-bg: rgb(255 255 255 / 6%);
@@ -283,8 +283,8 @@ html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button {
   border-inline-width: 0;
   border-radius: 0;
   background: var(--pill-bg);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  backdrop-filter: blur(14px) saturate(150%);
+  /* No backdrop blur per button: joined buttons each blurring their own backdrop showed seams
+     between them while the panel faded in. The panel behind is near-opaque, so nothing is lost. */
   transition:
     margin .75s cubic-bezier(.3, 1.55, .45, 1),
     border-radius .6s cubic-bezier(.22, 1, .36, 1),
@@ -310,6 +310,9 @@ html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button[aria-presse
   background: var(--capsule-bg);
   color: var(--capsule-ink) !important;
   box-shadow: var(--capsule-shadow);
+}
+/* The pop plays only while the control is switching (src/ui/controls.js), not each time a page shows it. */
+html.glass-preview :is(.filter-tabs, .research-filter-tabs).is-switching > button[aria-pressed="true"] {
   animation: capsule-detach .8s cubic-bezier(.3, 1.45, .45, 1);
 }
 html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button[aria-pressed="true"]:first-of-type { margin-left: 0; }
@@ -366,6 +369,8 @@ html.glass-preview .segmented-control:not(.filter-tabs, .research-filter-tabs, .
   html.glass-preview .table-toolbar > .filter-tabs { gap: 0; padding-block: 4px; }
   html.glass-preview .table-toolbar > .filter-tabs > button { min-height: 34px; }
   html.glass-preview .table-toolbar > .filter-tabs > button:not([aria-pressed="true"]) { background: var(--pill-bg); color: var(--muted); }
+  /* The classic dark chip colour outranks the glass capsule here; restate the capsule. */
+  html.glass-preview .table-toolbar > .filter-tabs > button[aria-pressed="true"] { background: var(--capsule-bg); color: var(--capsule-ink); }
 }
 @media (prefers-reduced-motion: reduce) {
   html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button { transition: none; animation: none !important; }
