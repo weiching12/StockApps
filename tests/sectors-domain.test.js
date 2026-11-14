@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { demoProvider } from "../src/data.js";
 import { isEtf } from "../src/market-codec.js";
-import { getSectorOverview, getSectorDetail, getSectorStockReturn, groupSectorStocks } from "../shared/sectors.js";
+import { getSectorOverview, getSectorDetail, getSectorStockReturn, groupSectorStocks, sectorsForSort } from "../shared/sectors.js";
 import {
   getSnapshot, getSectorInstitutionSummary, getSectorInstitutionEstimate,
   getDirectionalLeader, getStockInstitutionEstimate, getStockInstitutionValue, getInstitutionVolumeRatio,
@@ -265,4 +265,14 @@ test("the leader's institution streak counts consecutive net sessions up to the 
   assert.equal(getStockInstitutionStreak(stock([1, 1, 1, null, 4]), dates), 1);
   assert.equal(getStockInstitutionStreak(stock([1, 1, 1, 1, 0]), dates), 0);
   assert.equal(getStockInstitutionStreak(stock([2, 2, 2, 2, 2]), dates.slice(0, 3)), 3);
+});
+
+test("the net buying and selling orderings list only their own side, ranked from 1", () => {
+  const sector = (name, amount, rank) => ({ name, rank, estimate: { amount } });
+  const buying = [sector("A", 5e8, 1), sector("B", 1e6, 2), sector("C", 0, 3), sector("D", -1e5, 4), sector("E", null, null)];
+  assert.deepEqual(sectorsForSort(buying, "net-desc").map(({ name, rank }) => [name, rank]), [["A", 1], ["B", 2]]);
+  const selling = [sector("D", -3e8, 1), sector("F", -1e5, 2), sector("C", 0, 3), sector("A", 5e8, 4)];
+  // A loss that rounds to -0.00 億 is still selling.
+  assert.deepEqual(sectorsForSort(selling, "net-asc").map(({ name, rank }) => [name, rank]), [["D", 1], ["F", 2]]);
+  assert.equal(sectorsForSort(buying, "activity-desc").length, buying.length);
 });

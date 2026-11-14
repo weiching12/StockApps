@@ -105,6 +105,17 @@ export function sortSectors(sectors, sort) {
   });
 }
 
+/**
+ * The 買超 ordering lists only sectors with net buying, and 賣超 only those with net
+ * selling; a sector exactly flat or without data is in neither. Other orderings keep all.
+ * Applied after ranking, so ranks stay 1, 2, 3… within the side shown.
+ */
+export function sectorsForSort(sectors, sort) {
+  if (sort === "net-desc") return sectors.filter((sector) => sector.estimate.amount > 0);
+  if (sort === "net-asc") return sectors.filter((sector) => sector.estimate.amount < 0);
+  return sectors;
+}
+
 /** Ranks count only sectors with a value for the active ordering. */
 export function rankSectors(sectors, sort) {
   let rank = 0;

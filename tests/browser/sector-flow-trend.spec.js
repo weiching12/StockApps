@@ -77,6 +77,14 @@ test("tapping or arrowing through the chart reads out that day and returns to th
   await page.mouse.click(box.x + 6, box.y + box.height / 2);
   await expect(date).toHaveText(/^累計至 \d{2}\/\d{2}$/);
   await expect(plot).toHaveAttribute("aria-valuenow", "1");
+  // As on the stock price chart, the picked day's readout takes the title's place.
+  const pick = page.locator("#sector-dialog [data-flow-pick]");
+  await expect(pick).toBeVisible();
+  await expect(pick.locator("[data-flow-pick-date]")).toHaveText(/^\d{2}\/\d{2} 累計$/);
+  await expect(page.locator("#sector-dialog [data-flow-title]")).toBeHidden();
+  // Like the stock chart, moving the mouse without pressing previews nothing.
+  await page.mouse.move(box.x + box.width - 6, box.y + box.height / 2);
+  await expect(plot).toHaveAttribute("aria-valuenow", "1");
   // The price readout follows the same day.
   const price = page.locator("#sector-dialog [data-flow-price]");
   const firstDayPrice = await price.textContent();
@@ -95,4 +103,11 @@ test("tapping or arrowing through the chart reads out that day and returns to th
   await page.keyboard.press("End");
   await expect(date).toHaveText(latest);
   await expect(plot).toHaveAttribute("aria-valuetext", /外資 [+-]?[\d,.]+、投信/);
+  // A click outside the chart brings back the title and the latest session.
+  await page.mouse.click(box.x + 6, box.y + box.height / 2);
+  await expect(page.locator("#sector-dialog [data-flow-pick]")).toBeVisible();
+  await page.locator("#sector-dialog .sector-flow-note").click();
+  await expect(page.locator("#sector-dialog [data-flow-title]")).toBeVisible();
+  await expect(page.locator("#sector-dialog [data-flow-pick]")).toBeHidden();
+  await expect(date).toHaveText(latest);
 });

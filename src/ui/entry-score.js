@@ -163,10 +163,21 @@ export function selectEntryChartPoint(plot, index, number) {
 
 export function restoreEntryChartTitle(plot, number) {
   const chart = plot.closest(".entry-price-chart");
+  if (!chart || chart.querySelector(".entry-chart-readout").hidden) return;
   chart.querySelector(".entry-chart-default").hidden = false;
   chart.querySelector(".entry-chart-readout").hidden = true;
-  // Back to the latest session, matching the title.
-  showInstitutionPoint(chart, JSON.parse(plot.dataset.points).at(-1), number);
+  // Back to the latest session, matching the title: the cursor and marked point move there too.
+  const points = JSON.parse(plot.dataset.points), last = points.length - 1;
+  plot.dataset.index = String(last);
+  plot.setAttribute("aria-valuenow", String(last + 1));
+  const x = (8 + last * 584 / Math.max(1, last)).toFixed(1);
+  const cursor = plot.querySelector(".entry-chart-cursor");
+  cursor?.setAttribute("x1", x);
+  cursor?.setAttribute("x2", x);
+  plot.querySelector(".entry-chart-points .selected")?.classList.remove("selected");
+  plot.querySelector(`.entry-chart-points [data-index="${last}"]`)?.classList.add("selected");
+  // An ETF's month details below keep the month last picked, as before.
+  showInstitutionPoint(chart, points.at(-1), number);
 }
 /** The chart alone, for another range: the same marks and series toggles as the dialog's first render. */
 export function entryChartMarkup(stock, esc, number, series, range) {

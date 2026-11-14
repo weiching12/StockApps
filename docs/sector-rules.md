@@ -29,7 +29,9 @@ functions without constructing a UI context or supplying formatting callbacks.
   institution rows present. An industry's share is its activity divided by the
   sum across all listed-company industries (ETFs excluded) for the same window.
 - The default 交易量 ordering (`activity-desc`) sorts by that activity, highest
-  first; 買超／賣超 sort by net monetary amount. Unknown values stay last and
+  first; 買超／賣超 sort by net monetary amount and list only their own side
+  (買超: net amount above zero, 賣超: below zero, so a flat or unknown industry is
+  in neither; `sectorsForSort` in `shared/sectors.js`, ranks still start at 1). Unknown values stay last and
   equal values keep input order. `name-asc` (zh-Hant, i.e. stroke order) remains
   available to callers but is no longer offered in the UI. Ranks count only
   industries with a finite value for the active ordering, in display order, so

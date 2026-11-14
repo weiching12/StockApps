@@ -1,4 +1,4 @@
-import { getSectorGroupOverview, getSectorOverview, getSectorDetail, rankSectors, sortSectors } from "../../shared/sectors.js";
+import { getSectorGroupOverview, getSectorOverview, getSectorDetail, rankSectors, sectorsForSort, sortSectors } from "../../shared/sectors.js";
 import { isEtf } from "../../shared/market-codec.js";
 import { bindFlowTrend, flowTrendMarkup } from "./sector-flow.js";
 
@@ -149,11 +149,12 @@ export function renderSectorOverviewView(context) {
     return;
   }
   const days = state.sectorWindow === "day" ? 1 : Number(state.sectorWindow);
-  const sectors = sectorOverviews ? [...(sectorOverviews[state.sectorWindow] ?? [])] : getSectorOverview(snapshots, {
+  const allSectors = sectorOverviews ? [...(sectorOverviews[state.sectorWindow] ?? [])] : getSectorOverview(snapshots, {
     window: state.sectorWindow, sort: state.sectorSort,
     tradingDates: dataset.dates.filter((date) => date <= asOf), asOf,
   });
-  if (sectorOverviews) rankSectors(sortSectors(sectors, state.sectorSort), state.sectorSort);
+  if (sectorOverviews) rankSectors(sortSectors(allSectors, state.sectorSort), state.sectorSort);
+  const sectors = sectorsForSort(allSectors, state.sectorSort);
   document.querySelectorAll("[data-sector-window]").forEach((button) =>
     button.setAttribute("aria-pressed", button.dataset.sectorWindow === state.sectorWindow));
   document.querySelectorAll("[data-sector-sort]").forEach((button) =>
@@ -180,7 +181,8 @@ export function renderSectorOverviewView(context) {
     const share = ranked ? Math.max(4, Math.round((Math.abs(sector.estimate.amount) / maxAmount) * 100)) : 0;
     const bar = ranked ? `<i class="${direction(sector.estimate.amount)}" style="--sector-bar:${share}%;--sector-share:${share / 100};--i:${Math.min(index, 12)}"></i>` : "";
     return `<article class="sector-card" data-sector-name="${esc(sector.name)}" data-sector-details="${esc(sector.name)}" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="sector-dialog" aria-label="查看${esc(sector.name)}產業個股與法人買賣超"><div class="sector-main"><span class="sector-rank">${sector.rank ?? ""}</span><span class="sector-marker ${direction(sector.estimate.amount)}"></span><div class="sector-identity"><div class="sector-title"><h3>${esc(sector.name)}</h3><small class="sector-breadth" data-sector-breadth title="所選區間淨買賣超金額為正的個股數／產業內個股總檔數；資料不足的個股不計入買超">${breadthText(sector.estimate)}</small></div>${leaderLine}${state.sectorSort === "activity-desc" ? `<small class="sector-activity" data-sector-activity title="法人買進＋賣出金額占全市場法人交易的比重">${Number.isFinite(sector.activity?.share) ? `法人交易占 ${sector.activity.share.toFixed(1)}%` : "法人交易資料不足"}</small>` : ""}</div><strong class="sector-change ${direction(sector.change)}">${percent(sector.change)}</strong><div class="sector-total"><strong class="institution-money ${direction(sector.estimate.amount)}" data-sector-amount>${institutionalMoney(sector.estimate.amount).replace(" 億", '<span class="money-unit"> 億</span>')}</strong>${bar}</div></div></article>`;
-  }).join("") + showAll;
+  }).join("") + showAll || (state.sectorSort === "net-asc" || state.sectorSort === "net-desc"
+    ? `<p class="sector-empty">${days === 1 ? "當日" : `近 ${days} 日`}沒有法人淨${state.sectorSort === "net-desc" ? "買超" : "賣超"}的產業。</p>` : "");
   if (document.querySelector("#sector-dialog")?.open) renderSectorDialog(state.sectorName);
 }
 

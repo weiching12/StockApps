@@ -30,7 +30,9 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   await page.touchscreen.tap(first.x + first.width / 2, first.y + first.height / 2);
   await expect(plot).toHaveAttribute("aria-valuenow", "1");
   expect(await plot.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe("none");
-  await expect(chart.locator("h3")).toBeVisible();
+  // A tap keeps that day's readout in place of the title after the finger lifts.
+  await expect(chart.locator(".entry-chart-readout")).toBeVisible();
+  await expect(chart.locator("h3")).toBeHidden();
   await expect(chart.locator(".entry-chart-hint")).toHaveCount(0);
   const last = await chart.locator(".entry-chart-points circle").last().boundingBox();
   await page.touchscreen.tap(last.x + last.width / 2, last.y + last.height / 2);
@@ -51,8 +53,16 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   await expect(chart.locator(".entry-chart-selected-date")).toHaveText(firstDate);
   await expect(chart.locator(".entry-chart-selected-volume")).toContainText("張");
   await expect(chart.locator(".entry-chart-selected-change")).toContainText("%");
+  // The dragged-to day stays on show after release…
+  await expect(chart.locator(".entry-chart-readout")).toBeVisible();
+  expect((await plot.boundingBox()).y).toBe(stableY);
+  // …until a tap elsewhere, which brings back the title and the latest session.
+  // Tap well clear of the plot: Chrome's touch adjustment moves taps that land just beside it onto it.
+  const readout = await chart.locator(".entry-chart-readout").boundingBox();
+  await page.touchscreen.tap(readout.x + readout.width / 2, readout.y + 4);
   await expect(chart.locator("h3")).toBeVisible();
   await expect(chart.locator(".entry-chart-readout")).toBeHidden();
+  await expect(plot).toHaveAttribute("aria-valuenow", "30");
   expect((await plot.boundingBox()).y).toBe(stableY);
   expect(await chart.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });

@@ -86,8 +86,10 @@ const sameSessions = (flow, price) => Boolean(price) && price.dates.length === f
   && price.dates.every((date, index) => date === flow.dates[index]);
 
 export function flowTrendMarkup(flow, price) {
-  const heading = `<div class="sector-detail-heading"><div><h3 id="sector-trend-heading">法人累計淨買賣超（億）</h3></div></div>`;
-  if (!flow) return `<section class="sector-flow-trend" aria-labelledby="sector-trend-heading">${heading}<p class="sector-flow-empty">近 20 個交易日的法人資料不足，無法畫出累計走勢。</p></section>`;
+  const title = `<div class="sector-detail-heading"><div><h3 id="sector-trend-heading">法人累計淨買賣超（億）</h3></div></div>`;
+  if (!flow) return `<section class="sector-flow-trend" aria-labelledby="sector-trend-heading">${title}<p class="sector-flow-empty">近 20 個交易日的法人資料不足，無法畫出累計走勢。</p></section>`;
+  // A picked day replaces the title with its own readout, as on the stock price chart.
+  const heading = `<div class="sector-flow-header"><div class="sector-detail-heading" data-flow-title><div><h3 id="sector-trend-heading">法人累計淨買賣超（億）</h3></div></div><div class="sector-flow-pick" data-flow-pick hidden><strong data-flow-pick-date></strong><span data-flow-pick-price></span></div></div>`;
   const last = flow.dates.length - 1, geo = flowScale(flow), y = (amount) => geo.y(toYi(amount));
   const paths = LINES.map(([key, toneClass]) => `<path class="${toneClass}" d="${path(flow.lines[key], y, last)}"/>`).join("");
   const cells = [...INSTITUTIONS, LINES[0]].map(([key, toneClass, label]) => `<div class="sector-flow-cell ${toneClass}" data-flow-cell="${key}"><span>${label}</span><strong class="institution-money"></strong>${key === "total" ? "" : `<div class="sector-flow-run-slot"><span class="sector-flow-badge" data-flow-run="${key}" hidden></span></div>`}</div>`).join("");
@@ -131,7 +133,7 @@ function layoutTurnLabels(plot) {
   }
 }
 
-/** Wires hover, tap, drag and arrow keys; a click or key pins a day, and hovering only previews one. */
+/** Wires tap, drag and arrow keys: a press or key picks a day and keeps it until the chart loses focus or leaves the screen. */
 export function bindFlowTrend(root, flow, price, { money, direction }) {
   const plot = root.querySelector("[data-flow-plot]");
   if (!plot || !flow) return;
@@ -145,6 +147,21 @@ export function bindFlowTrend(root, flow, price, { money, direction }) {
     const streak = getFlowStreak(flow.daily[key], flow.dates);
     if (priceGeo && getRunDivergence(streak, flow.dates, price)) highlighted[key] = flow.dates.indexOf(streak.since);
   }
+  // While a day is picked (tap, drag, arrow keys) the readout replaces the title; leaving the chart
+  // returns to the latest session and the title, as the stock price chart does.
+  const title = root.querySelector("[data-flow-title]"), pick = root.querySelector("[data-flow-pick]");
+  const setPicked = (index) => {
+    const picked = index !== null;
+    title.hidden = picked;
+    pick.hidden = !picked;
+    // The small date and price line repeats the readout, so it steps aside (keeping its space) meanwhile.
+    root.querySelector(".sector-flow-date").style.visibility = picked ? "hidden" : "";
+    if (!picked) return;
+    root.querySelector("[data-flow-pick-date]").textContent = `${shortDate(flow.dates[index])} 累計`;
+    const change = root.querySelector("[data-flow-pick-price]");
+    change.textContent = priceGeo ? `平均股價 ${signedPercent(price.returns[index])}` : "";
+    change.className = priceGeo ? tone(price.returns[index]) : "";
+  };
   const show = (index) => {
     const date = shortDate(flow.dates[index]), left = percentOf(x(index, last), W);
     root.querySelector("[data-flow-date]").textContent = index === last ? `近 ${flow.dates.length} 日累計 · 至 ${date}` : `累計至 ${date}`;
@@ -188,19 +205,33 @@ export function bindFlowTrend(root, flow, price, { money, direction }) {
     const position = ((clientX - rect.left) / rect.width * W - PAD_X) / (W - 2 * PAD_X);
     return Math.round(Math.max(0, Math.min(1, position)) * last);
   };
-  plot.addEventListener("pointerdown", (event) => { pinned = indexAt(event.clientX); show(pinned); plot.focus({ preventScroll: true }); });
-  plot.addEventListener("pointermove", (event) => {
-    if (event.buttons) pinned = indexAt(event.clientX);
-    if (event.buttons || event.pointerType === "mouse") show(event.buttons ? pinned : indexAt(event.clientX));
+  // Like the stock price chart: nothing on hover; a press picks a day and dragging scrubs (the pointer is
+  // captured, so the drag keeps going outside the plot). Releasing keeps the day on show.
+  const pickAt = (clientX) => { pinned = indexAt(clientX); show(pinned); setPicked(pinned); };
+  plot.addEventListener("pointerdown", (event) => {
+    pickAt(event.clientX);
+    plot.focus({ preventScroll: true });
+    try { plot.setPointerCapture(event.pointerId); } catch { /* pointer already gone */ }
   });
-  plot.addEventListener("pointerleave", (event) => { if (event.pointerType === "mouse") show(pinned); });
+  plot.addEventListener("pointermove", (event) => { if (plot.hasPointerCapture?.(event.pointerId)) pickAt(event.clientX); });
   plot.addEventListener("keydown", (event) => {
     const next = { ArrowLeft: pinned - 1, ArrowRight: pinned + 1, Home: 0, End: last }[event.key];
     if (next === undefined) return;
     event.preventDefault();
     pinned = Math.max(0, Math.min(last, next));
     show(pinned);
+    setPicked(pinned);
   });
+  // A click or tap anywhere else, or the chart scrolling out of view, returns it to the latest session.
+  const reset = () => { if (title.hidden) { pinned = last; show(last); setPicked(null); } };
+  plot.addEventListener("focusout", reset);
+  // A tap on a phone does not always move focus, so a press anywhere outside the chart resets it as well.
+  const outside = (event) => {
+    if (!plot.isConnected) { document.removeEventListener("pointerdown", outside, true); return; }
+    if (!plot.contains(event.target)) reset();
+  };
+  document.addEventListener("pointerdown", outside, true);
+  globalThis.IntersectionObserver && new IntersectionObserver(([entry]) => { if (!entry.isIntersecting) reset(); }).observe(plot);
   show(pinned);
   layoutTurnLabels(plot);
   globalThis.ResizeObserver && new ResizeObserver(() => layoutTurnLabels(plot)).observe(plot);

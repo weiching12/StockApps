@@ -169,7 +169,8 @@ test("one institution line sits right under the chart dates at the plot's width,
     expect(new Set(layout.colors).size).toBe(3);
     layout.widths.forEach((partWidth) => expect(partWidth).toBeGreaterThan(0));
   }
-  // The line follows the day selected on the price chart, then returns to the latest session.
+  // The line follows the day selected on the price chart, keeps it after release, and returns to the
+  // latest session once something else is clicked.
   const bar = page.locator("#info-dialog .entry-institution-bar");
   const latestNet = await bar.locator(".entry-institution-net b").textContent();
   const box = await page.locator("#info-dialog .entry-chart-plot svg").boundingBox();
@@ -177,6 +178,8 @@ test("one institution line sits right under the chart dates at the plot's width,
   await page.mouse.down();
   await expect(bar.locator(".entry-institution-net b")).not.toHaveText(latestNet);
   await page.mouse.up();
+  await expect(bar.locator(".entry-institution-net b")).not.toHaveText(latestNet);
+  await page.locator("#info-dialog .entry-institution-bar").click();
   await expect(bar.locator(".entry-institution-net b")).toHaveText(latestNet);
 });
 

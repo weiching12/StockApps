@@ -930,21 +930,36 @@ function bindEvents() {
         clearTimeout(timer);
         plot.removeEventListener("touchmove", preventEntryTouchScroll);
         entryTouch = null;
-        // A short tap still selects the touched trading day.
+        // A short tap still selects the touched trading day. Releasing keeps the day on show; it
+        // returns to the latest when the chart loses focus or scrolls away (watchEntryChart).
         if (!active && eventName === "pointerup") {
           plot.focus({ preventScroll: true });
           selectEntryChartPoint(plot, chartIndexAt(plot, x), number);
         }
-        restoreEntryChartTitle(plot, number);
+        watchEntryChart(plot);
         return;
       }
       const plot = event.target.closest(".entry-chart-plot");
-      if (plot) restoreEntryChartTitle(plot, number);
+      if (plot) watchEntryChart(plot);
     });
+  // A click or tap anywhere else blurs the chart and brings back its title and latest session.
   document.addEventListener("focusout", (event) => {
     const plot = event.target.closest(".entry-chart-plot");
     if (plot) restoreEntryChartTitle(plot, number);
   });
+  // A tap on a phone does not always move focus, so any press outside a picked chart restores it too.
+  document.addEventListener("pointerdown", (event) => {
+    for (const plot of document.querySelectorAll(".entry-chart-plot"))
+      if (!plot.contains(event.target)) restoreEntryChartTitle(plot, number);
+  }, true);
+  // So does scrolling the chart out of view.
+  const entryChartViews = globalThis.IntersectionObserver && new IntersectionObserver((entries) => {
+    for (const entry of entries) if (!entry.isIntersecting) {
+      entryChartViews.unobserve(entry.target);
+      if (entry.target.isConnected) restoreEntryChartTitle(entry.target, number);
+    }
+  });
+  function watchEntryChart(plot) { entryChartViews?.observe(plot); }
   document.addEventListener("keydown", (event) => {
     const plot = event.target.closest(".entry-chart-plot");
     if (!plot || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;

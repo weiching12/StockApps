@@ -76,7 +76,7 @@ html.glass-preview .demo-badge { border-radius: 999px; background: rgb(255 255 2
 html.glass-preview[data-theme="dark"] .demo-badge { background: rgb(255 255 255 / 6%); }
 
 /* Data: near-opaque cards with soft depth. */
-html.glass-preview :is(.panel, .research-center, .sentiment-card, .sentiment-summary, .sector-card) {
+html.glass-preview :is(.panel, .research-center, .sentiment-card, .sentiment-summary) {
   background: var(--glass-data);
   border: 1px solid var(--glass-frame-border);
   border-radius: 16px;
@@ -286,8 +286,8 @@ html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button {
   -webkit-backdrop-filter: blur(14px) saturate(150%);
   backdrop-filter: blur(14px) saturate(150%);
   transition:
-    margin .42s cubic-bezier(.34, 1.4, .5, 1),
-    border-radius .32s ease,
+    margin .75s cubic-bezier(.3, 1.55, .45, 1),
+    border-radius .6s cubic-bezier(.22, 1, .36, 1),
     background .25s ease, color .25s ease, box-shadow .25s ease;
 }
 /* Piece starts: the first option, and the option right after the chosen one. */
@@ -304,13 +304,13 @@ html.glass-preview :is(.filter-tabs, .research-filter-tabs) > :is(button:last-of
 }
 /* The chosen option: its own capsule with a gap on each side. */
 html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button[aria-pressed="true"] {
-  margin-inline: 7px;
+  margin-inline: 10px;
   border: 1px solid var(--capsule-ring);
   border-radius: var(--r);
   background: var(--capsule-bg);
   color: var(--capsule-ink) !important;
   box-shadow: var(--capsule-shadow);
-  animation: capsule-detach .5s cubic-bezier(.34, 1.4, .5, 1);
+  animation: capsule-detach .8s cubic-bezier(.3, 1.45, .45, 1);
 }
 html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button[aria-pressed="true"]:first-of-type { margin-left: 0; }
 html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button[aria-pressed="true"]:last-of-type { margin-right: 0; }
@@ -321,12 +321,13 @@ html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button:hover:not([
 /* On selection the capsule pops out as clear glass with a blue rim, then fills. */
 @keyframes capsule-detach {
   from {
-    transform: scale(.94);
+    transform: scale(.88);
     background: rgb(96 132 194 / 14%);
     border-color: rgb(140 175 235 / 80%);
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 30%);
   }
-  55% { transform: scale(1.03); }
+  45% { transform: scale(1.06); }
+  70% { transform: scale(.985); }
   to { transform: none; }
 }
 
@@ -356,10 +357,15 @@ html.glass-preview .segmented-control.is-moving .segmented-indicator {
 }
 html.glass-preview .segmented-control:not(.filter-tabs, .research-filter-tabs, .sector-sort-tabs, .sector-period) [aria-pressed="true"] { color: var(--capsule-ink) !important; }
 
-/* Phones show the list filters as separate chips; the chosen chip gets the capsule. */
+/*
+ * Phones: the market list filters split and pop like the favorites filters do at
+ * every width, instead of the classic separate chips. The chip row's own gaps and
+ * dark-theme chip colours give way to the glass pills.
+ */
 @media (max-width: 700px) {
-  html.glass-preview .table-toolbar > .filter-tabs button { border-radius: 999px !important; margin: 0 !important; border-width: 1px !important; }
-  html.glass-preview .table-toolbar > .filter-tabs button[aria-pressed="true"] { animation: none; }
+  html.glass-preview .table-toolbar > .filter-tabs { gap: 0; padding-block: 4px; }
+  html.glass-preview .table-toolbar > .filter-tabs > button { min-height: 34px; }
+  html.glass-preview .table-toolbar > .filter-tabs > button:not([aria-pressed="true"]) { background: var(--pill-bg); color: var(--muted); }
 }
 @media (prefers-reduced-motion: reduce) {
   html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button { transition: none; animation: none !important; }
@@ -397,3 +403,29 @@ html[data-effects="reduced"] dialog::backdrop { -webkit-backdrop-filter: none !i
 html.glass-preview[data-effects="reduced"] { --glass-nav: rgb(20 36 59 / 97%); --glass-frame: rgb(255 255 255 / 92%); }
 html.glass-preview[data-effects="reduced"][data-theme="dark"] { --glass-nav: rgb(8 14 25 / 97%); --glass-frame: rgb(17 27 43 / 94%); }
 html.glass-preview[data-effects="reduced"] :is(.filter-tabs, .research-filter-tabs) > button:not([aria-pressed="true"]) { background: var(--surface); }
+
+/*
+ * Sector ranking: rows are plain lines inside the one glass panel (no card per row,
+ * which framed every row a second time), divided by hairlines and tinted on hover.
+ */
+html.glass-preview .sector-ranking .sector-card {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+html.glass-preview .sector-ranking .sector-card:last-child { border-bottom: 0; }
+@media (hover: hover) {
+  html.glass-preview .sector-ranking .sector-card:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+}
+
+/* Sector flow inside the market header: a section of that panel, set off by a hairline, not a second box. */
+html.glass-preview .market-header .sector-flow {
+  margin-top: 8px;
+  padding: 12px 2px 2px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}

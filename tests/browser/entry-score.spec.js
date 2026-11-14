@@ -115,7 +115,8 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   expect(stroke).toBe(tone);
   const box = await plot.boundingBox();
   await page.mouse.click(box.x + 10, box.y + box.height / 2);
-  await expect(chart.locator("h3")).toBeVisible();
+  // The clicked day stays in place of the title after the button is released.
+  await expect(chart.locator("h3")).toBeHidden();
   await expect(plot).toHaveAttribute("aria-valuenow", "1");
   await page.keyboard.press("ArrowRight");
   await expect(plot).toHaveAttribute("aria-valuenow", "2");

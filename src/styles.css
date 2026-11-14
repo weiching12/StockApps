@@ -26,6 +26,10 @@
   --down: #55c8a8;
 }
 body { background: var(--surface); }
+/* Page text is not selectable (no blue selection highlight on taps, drags or double clicks);
+   fields stay selectable so typing, editing and pasting work as usual. */
+body { -webkit-user-select: none; user-select: none; }
+:is(input, textarea, [contenteditable]:not([contenteditable="false"])) { -webkit-user-select: text; user-select: text; }
 .market-sentiment { margin: 0 0 18px; }
 .market-sentiment[hidden] { display: none; }
 .market-sentiment { container-type: inline-size; }
@@ -2932,6 +2936,7 @@ dialog.sector-dialog {
 /* The list sits straight in the page card, without a second frame. */
 #research-list .research-table tbody tr:last-child > * { border-bottom: 0; }
 .research-muted-cell { color: var(--muted); font-size: var(--text-meta); }
+.sector-empty { margin: 0; padding: 28px 16px; color: var(--muted); font-size: var(--text-secondary); text-align: center; }
 .research-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .research-table th, .research-table td { padding: .8rem .65rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .research-table thead th { color: var(--muted); font-size: .76rem; font-weight: 500; text-align: left; white-space: nowrap; }
@@ -3682,7 +3687,17 @@ dialog.sector-dialog {
 .sector-flow-plot path { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .sector-flow-plot path.total { stroke-width: 1.5; stroke-dasharray: 5 4; }
 .sector-flow-zero { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.sector-flow-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--muted); opacity: .45; pointer-events: none; }
+/* Dashed, like the stock price chart's cursor. */
+.sector-flow-cursor { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--muted); opacity: .6; pointer-events: none; }
+/* The title and the picked day's readout share one slot, so picking a day does not move the chart. */
+.sector-flow-header { position: relative; }
+.sector-flow-header .sector-detail-heading[hidden] { visibility: hidden; display: flex; }
+.sector-flow-pick { position: absolute; inset: 0 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+.sector-flow-pick[hidden] { display: none; }
+.sector-flow-pick strong { color: var(--ink); font-size: var(--text-title); font-weight: 600; }
+.sector-flow-pick span { color: var(--muted); font-size: var(--text-secondary); font-weight: 600; }
+.sector-flow-pick span.up { color: var(--up); }
+.sector-flow-pick span.down { color: var(--down); }
 .sector-flow-dot { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--tone); box-shadow: 0 0 0 2px var(--surface); pointer-events: none; }
 .sector-flow-dates { display: flex; justify-content: space-between; margin-top: 4px; padding-left: 42px; color: var(--muted); font-size: var(--text-meta); }
 .sector-flow-note, .sector-flow-empty { margin: 8px 0 0; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; }
