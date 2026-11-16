@@ -78,6 +78,23 @@ test("simulated trades fill at the next open only within the plan and include co
   assert.equal(stopped.exitPrice, 94.5);
 });
 
+test("a research limit at the signal close fills only when the next session trades there", () => {
+  const limit = { ...ENTRY_RESEARCH_MODEL, plan: { ...ENTRY_RESEARCH_MODEL.plan, entryMode: "limitAtClose" } };
+  const run = (history, overrides) => evaluateResearchOutcome(sample(overrides), { tradingDates: dates, history, corporateActions: covered(), model: limit }).trade;
+  // The next session opens at 105.5 and trades down to 105, the signal close: the limit fills at 105, not the open.
+  const filled = run(bars());
+  assert.equal(filled.status, "FILLED");
+  assert.equal(filled.fillPrice, 105);
+  assert.equal(evaluateResearchOutcome(sample(), { tradingDates: dates, history: bars(), corporateActions: covered() }).trade.fillPrice, 105.5, "the live rule still fills at the open");
+  const lower = bars(); lower[6] = { ...lower[6], open: 104, low: 103.5 };
+  assert.equal(run(lower).fillPrice, 104, "an open below the limit fills at the open");
+  const away = bars(); away[6] = { ...away[6], low: 105.2 };
+  assert.equal(run(away).status, "LIMIT_NOT_REACHED");
+  const collapse = bars(); collapse[6] = { ...collapse[6], open: 100, low: 99 };
+  assert.equal(run(collapse).status, "OPEN_BELOW_INVALIDATION");
+  assert.equal(run(bars(), { referenceClose: 107 }).status, "LIMIT_OUTSIDE_PLAN");
+});
+
 // --- Capture job against real SQLite with the D1 interface ---
 const dataset = await demoProvider.load();
 // ETFs are not researched, so only companies are saved as samples.

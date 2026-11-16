@@ -12,7 +12,7 @@
 import { writeFile } from "node:fs/promises";
 import { analyzeHistory, DEFAULT_SETTINGS } from "../shared/indicators.js";
 import { getEntryScore } from "../shared/entry-score.js";
-import { evaluateEntryResearch } from "../shared/entry-research.js";
+import { entryResearchApplies, evaluateEntryResearch } from "../shared/entry-research.js";
 import { evaluateResearchOutcome } from "../shared/entry-research-outcome.js";
 import { ENTRY_RESEARCH_MODEL_V2 } from "../shared/entry-research-model.js";
 import { cliArgs, DEFAULT_ORIGIN, loadActions, loadDataset } from "./lib/research-history.mjs";
@@ -23,7 +23,9 @@ if (!args.actions || !args.out) throw new Error("Usage: --actions <dir> --out <r
 
 const MAX_DAYS = 5, HORIZONS = [5, 10];
 const model = { ...ENTRY_RESEARCH_MODEL_V2, signal: { ...ENTRY_RESEARCH_MODEL_V2.signal, validSessions: MAX_DAYS } };
-const dataset = await loadDataset(origin, args.cache);
+const loaded = await loadDataset(origin, args.cache);
+// Entry research never evaluates ETFs in production (entryResearchApplies); the studies match that.
+const dataset = { ...loaded, stocks: loaded.stocks.filter(entryResearchApplies) };
 const actions = await loadActions(args.actions);
 const dates = dataset.dates;
 // v2's G1 needs 80 sessions; earlier gate results are UNKNOWN, so only signals from then on are studied.
@@ -80,8 +82,8 @@ const lines = [];
 const push = (...text) => lines.push(...text);
 
 push("# 進場訊號效期與初步門檻規則研究", "",
-  `產生時間：${new Date().toISOString()}；資料來源：${origin} 公開市場快照（${dataset.info.generation}），公司行動為 D1 唯讀匯出。`,
-  "重跑：`node scripts/entry-research-signal-study.mjs --actions <dir> --out <report.md>`（`<dir>` 與 entry-research-compare.mjs 相同）。",
+  `產生時間：${new Date().toISOString()}；資料來源：${args.cache ? `本機資料集 ${args.cache}` : `${origin} 公開市場快照`}（${dataset.info.generation}），公司行動來自 ${args.actions}。`,
+  `重跑：\`node scripts/entry-research-signal-study.mjs --actions ${args.actions} --out ${args.out}${args.cache ? ` --cache ${args.cache}` : ""}\`（公司行動目錄與 entry-research-compare.mjs 相同）。`,
   `期間：${dates[firstIndex]} ～ ${dates[lastIndex]}，共 ${sessions} 個交易日；只納入訊號日在期間內的明日候選，共 ${candidates.length} 筆（效期放寬為 ${MAX_DAYS} 日以便比較）。`, "",
   "訊號日為第 1 天。每筆候選以隔日開盤在價格計畫內模擬成交，持有 5／10 日後扣除成本計算淨報酬；未滿持有期不計。成交率為隔日開盤落在計畫範圍內的比例。", "",
   "## 1. 訊號第幾天成為候選（規則 A）", "",
@@ -110,6 +112,6 @@ for (const key of ["C", "D", "CD"]) {
 push("", "## 限制", "",
   `- 期間只有 ${sessions} 個交易日，第 3 天以後與規則 C／D 排除的樣本都很少，只能看方向。`,
   "- 10 日持有需要訊號後 11 個交易日的行情，期間後段的候選尚無結果。",
-  "- 名錄為目前上市公司；歷史資料為交易所更正後版本。", "");
+  "- 名錄為目前上市公司（存活者偏差）；歷史資料為交易所更正後版本；與正式站相同，ETF 不納入。", "");
 await writeFile(args.out, lines.join("\n"));
 console.error(`Wrote ${args.out}: ${candidates.length} candidates in ${Math.round((Date.now() - started) / 1000)}s`);

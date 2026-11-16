@@ -39,3 +39,6 @@ playwright-report/
 !.dev.vars.example
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode
+
+# Offline history backfill (local research data, never committed)
+.backfill/

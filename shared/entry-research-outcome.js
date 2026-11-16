@@ -48,8 +48,23 @@ function tradeExit(context, fillIndex, fill, horizon, costs) {
     grossReturnPercent: round4(percent(exitPrice, fill.price)), netReturnPercent: round4(percent(sell, buy)) };
 }
 
+/** A limit order at the plan's reference close for the next session: it fills when that session trades
+ * at or below the limit (at the open when it opens lower), and is cancelled like the open-price rule
+ * when the limit sits outside the plan or the session opens at or below invalidation. */
+export function checkLimitAtClose(plan, referenceClose, nextBar) {
+  if (plan?.status !== "NEXT_DAY_CANDIDATE") return { status: "NOT_APPLICABLE", fillPrice: null };
+  if (!validBar(nextBar)) return { status: "AWAITING_PRICE", fillPrice: null, reason: "等待下一交易日實際價格確認" };
+  if (!(referenceClose > plan.invalidationPrice && referenceClose <= plan.entryPriceUpper))
+    return { status: "LIMIT_OUTSIDE_PLAN", fillPrice: null, reason: "限價不在計畫範圍內" };
+  if (nextBar.open <= plan.invalidationPrice)
+    return { status: "OPEN_BELOW_INVALIDATION", fillPrice: null, reason: `開盤價 ${nextBar.open} 已不高於失效價 ${plan.invalidationPrice}，計畫取消` };
+  if (nextBar.low > referenceClose) return { status: "LIMIT_NOT_REACHED", fillPrice: null, reason: `當日最低 ${nextBar.low} 未回到限價 ${referenceClose}` };
+  return { status: "WITHIN_PLAN", fillPrice: Math.min(nextBar.open, referenceClose), reason: "限價成交" };
+}
+
 /**
  * sample: { symbol, tradeDate, referenceClose, nextDayPlan } as saved.
+ * model.plan.entryMode: "nextOpen" (default, the live rule) or "limitAtClose" (research only).
  * history: the symbol's bars (any range); only sessions after tradeDate are read.
  */
 export function evaluateResearchOutcome(sample, { tradingDates, history, corporateActions, model = ENTRY_RESEARCH_MODEL }) {
@@ -93,7 +108,8 @@ export function evaluateResearchOutcome(sample, { tradingDates, history, corpora
     if (next.status === "PENDING") trade = { status: "PENDING", reason: next.reason };
     else if (next.status !== "COMPLETE") trade = { status: "UNAVAILABLE", reason: next.reason };
     else {
-      const check = checkNextDayPlan(sample.nextDayPlan, next.values[0]);
+      const check = model.plan?.entryMode === "limitAtClose"
+        ? checkLimitAtClose(sample.nextDayPlan, base, next.values[0]) : checkNextDayPlan(sample.nextDayPlan, next.values[0]);
       if (check.status !== "WITHIN_PLAN") trade = { status: check.status, reason: check.reason };
       else {
         const fill = { price: check.fillPrice, date: next.dates[0], invalidationPrice: sample.nextDayPlan.invalidationPrice };
