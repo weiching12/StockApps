@@ -1944,6 +1944,11 @@ dialog h2 {
     border-radius: 5px;
   }
 }
+/* Tablet top bar: a signed-in account adds 策略回測 as a fifth page, so the row gains a column for it
+   instead of pushing the guide icons onto a second line. Phones (520px and below) keep four pages and a menu. */
+@media (min-width: 521px) and (max-width: 1100px) {
+  .sidebar nav:has([data-page="backtest"]:not([hidden])) { grid-template-columns: repeat(5, minmax(44px, 1fr)) 44px 44px; }
+}
 /* Phone bar: the four pages beside the brand; the backtest, guides and settings move into one menu. */
 .nav-more { display: none; position: relative; }
 @media (max-width: 520px) {

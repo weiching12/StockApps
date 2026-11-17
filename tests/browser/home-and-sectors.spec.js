@@ -185,6 +185,16 @@ test.describe("backtest needs an account", () => {
     expect(fit).toEqual({ pageOverflow: false, inside: true });
   });
 
+  for (const width of [560, 967, 1100]) test(`on a ${width}px top bar the extra page keeps every item on one row`, async ({ page }) => {
+    await account(page, signedIn);
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/");
+    await expect(page.locator('.sidebar nav [data-page="backtest"]')).toBeVisible();
+    const rows = await page.locator(".sidebar nav").evaluate((nav) => new Set([...nav.children]
+      .filter((item) => item.getClientRects().length).map((item) => Math.round(item.getBoundingClientRect().top))).size);
+    expect(rows).toBe(1);
+  });
+
   test("an account still on a temporary password does not get it", async ({ page }) => {
     await account(page, { user: { ...signedIn.user, mustChangePassword: true } });
     await page.goto("/");
