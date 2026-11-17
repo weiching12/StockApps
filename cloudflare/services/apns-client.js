@@ -1,3 +1,4 @@
+import { DEFAULT_DAILY_TEMPLATE, renderDailyMessage } from "./push-message.js";
 const tokens = new Map();
 const encode = (value) => btoa(String.fromCharCode(...new Uint8Array(value)))
   .replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
@@ -26,16 +27,16 @@ export class ApnsClient {
     promise.catch(() => { if (tokens.get(key) === entry) tokens.delete(key); });
     return promise;
   }
-  async send(row, manifest) {
+  /** `message`: { title, body, collapseId? } — the daily default text when omitted. */
+  async send(row, manifest, message = renderDailyMessage(DEFAULT_DAILY_TEMPLATE, manifest.asOf)) {
     const host = row.environment === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
     const response = await this.fetcher(`https://${host}/3/device/${row.token}`, {
       method: "POST", signal: AbortSignal.timeout(10_000), headers: { authorization: `bearer ${await this.authorization()}`,
         "apns-topic": this.env.APNS_BUNDLE_ID, "apns-push-type": "alert", "apns-priority": "10",
-        "apns-collapse-id": `market-${manifest.asOf}`,
+        "apns-collapse-id": message.collapseId ?? `market-${manifest.asOf}`,
         "apns-expiration": String(Math.floor(this.now() / 1000) + 86400), "Content-Type": "application/json" },
-      body: JSON.stringify({ aps: { alert: { title: "株研資料已更新",
-        body: `${manifest.asOf} 台股行情與法人資料已完成更新` }, sound: "default" },
-        generation: manifest.generation, asOf: manifest.asOf, page: "market" }),
+      body: JSON.stringify({ aps: { alert: { title: message.title, body: message.body }, sound: "default" },
+        generation: manifest.generation ?? null, asOf: manifest.asOf ?? null, page: message.collapseId ? "home" : "market" }),
     });
     let body;
     try { body = await response.json(); } catch { body = null; }

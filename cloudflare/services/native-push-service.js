@@ -32,18 +32,35 @@ export class NativePushService {
     await this.repository.remove(subscription, await hash(input.secret));
     return { subscribed: false };
   }
-  async notifyPublished(manifest) {
+  async notifyPublished(manifest, message = undefined) {
     if (!this.config().enabled) return { sent: 0, removed: 0, failed: 0, hasMore: false };
     const rows = await this.repository.pending(manifest.asOf, this.config().environment, 21);
     let sent = 0, removed = 0, failed = 0;
     for (const row of rows.slice(0, 20)) {
       try {
-        const result = await this.transport.send(row, manifest);
+        const result = await this.transport.send(row, manifest, message);
         if (result.ok) { await this.repository.mark(row, manifest.asOf); sent++; }
         else if (result.invalidToken) { await this.repository.retire(row); removed++; }
         else { failed++; console.error(JSON.stringify({ event: "apns-send-failed", status: result.status })); }
       } catch { failed++; console.error(JSON.stringify({ event: "apns-send-failed" })); }
     }
     return { sent, removed, failed, hasMore: rows.length > 20 };
+  }
+  /** One batch of an announcement; a failed device is marked too, so a refusal is not retried. */
+  async sendAnnouncement(announcement, batch = 10) {
+    if (!this.config().enabled) return { sent: 0, removed: 0, failed: 0, hasMore: false };
+    const rows = await this.repository.pendingAnnouncement(announcement.id, this.config().environment, batch + 1);
+    const message = { title: announcement.title, body: announcement.body, collapseId: `announcement-${announcement.id}` };
+    let sent = 0, removed = 0, failed = 0;
+    for (const row of rows.slice(0, batch)) {
+      try {
+        const result = await this.transport.send(row, {}, message);
+        if (result.ok) sent++;
+        else if (result.invalidToken) { await this.repository.retire(row); removed++; continue; }
+        else { failed++; console.error(JSON.stringify({ event: "apns-announcement-failed", status: result.status })); }
+      } catch { failed++; console.error(JSON.stringify({ event: "apns-announcement-failed" })); }
+      await this.repository.markAnnouncement(row, announcement.id);
+    }
+    return { sent, removed, failed, hasMore: rows.length > batch };
   }
 }

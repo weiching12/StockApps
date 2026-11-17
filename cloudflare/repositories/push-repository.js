@@ -50,6 +50,22 @@ export class PushRepository {
       rejected: row.rejected ?? 0, pending: row.total - (row.delivered ?? 0) - (row.rejected ?? 0), lastFailure: row.lastFailure ?? null }));
   }
 
+  /** Subscriptions that have not received announcement `id` yet (rejections are not tracked for announcements). */
+  async pendingAnnouncement(id, limit) {
+    const result = await this.db.prepare(`SELECT Endpoint endpoint,P256dh p256dh,Auth auth
+      FROM push_subscriptions WHERE AnnouncementId<? ORDER BY UpdatedAt LIMIT ?`).bind(id, limit).all();
+    return result.results ?? [];
+  }
+
+  markAnnouncement(endpoint, id) {
+    return this.db.prepare("UPDATE push_subscriptions SET AnnouncementId=? WHERE Endpoint=?").bind(id, endpoint).run();
+  }
+
+  async announcementStatus(id) {
+    const row = await this.db.prepare("SELECT COUNT(*) AS total, SUM(AnnouncementId>=?) AS delivered FROM push_subscriptions").bind(id).first();
+    return { total: row?.total ?? 0, delivered: row?.delivered ?? 0 };
+  }
+
   async removeMany(endpoints) {
     if (!endpoints.length) return;
     await this.db.batch(endpoints.map((endpoint) => this.db.prepare("DELETE FROM push_subscriptions WHERE Endpoint=?").bind(endpoint)));

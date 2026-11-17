@@ -25,6 +25,34 @@
       <p id="push-message" class="push-message" role="status" aria-live="polite"></p>
       <p class="push-note">重新發送只會送給今天尚未收到、也未被拒的裝置，不會重複通知。被拒的裝置當日不再重試，連續 3 個交易日被拒會自動移除。</p>
     </section>
+    <section id="push-content" class="panel push-content" aria-labelledby="push-content-title" hidden>
+      <div class="section-heading"><div><h2 id="push-content-title">推播內容</h2><p class="metric-date">編輯每日更新通知，或另外發送公告給所有訂閱裝置</p></div></div>
+      <div class="push-forms">
+      <form id="template-form" class="push-form" novalidate>
+        <h3>每日更新通知 <span id="template-state" class="push-chip"></span></h3>
+        <label for="template-title">標題 <span class="push-count" id="template-title-count"></span></label>
+        <input id="template-title" name="title" maxlength="40" autocomplete="off" required>
+        <label for="template-body">內文 <span class="push-count" id="template-body-count"></span></label>
+        <textarea id="template-body" name="body" maxlength="160" rows="3" required></textarea>
+        <p class="push-hint">可用 {日期}，發送時換成資料日（例如 2026-11-17）。存檔後，之後的自動通知與重新發送都使用新內容。</p>
+        <div class="push-preview" aria-label="通知預覽"><span class="push-preview-app">株研</span><strong id="template-preview-title"></strong><span id="template-preview-body"></span></div>
+        <div class="push-actions"><button class="quiet-button" type="button" id="template-reset">恢復預設</button><button class="primary-button" type="submit" id="template-submit">儲存範本</button></div>
+        <p id="template-message" class="push-message" role="status" aria-live="polite"></p>
+      </form>
+      <form id="announcement-form" class="push-form" novalidate>
+        <h3>自訂公告</h3>
+        <label for="announcement-title">標題 <span class="push-count" id="announcement-title-count"></span></label>
+        <input id="announcement-title" name="title" maxlength="40" autocomplete="off" required>
+        <label for="announcement-body">內文 <span class="push-count" id="announcement-body-count"></span></label>
+        <textarea id="announcement-body" name="body" maxlength="160" rows="3" required></textarea>
+        <p class="push-hint">立即發送給所有訂閱裝置，每台裝置只收一次；與每日更新通知分開計算。</p>
+        <div class="push-preview" aria-label="通知預覽"><span class="push-preview-app">株研</span><strong id="announcement-preview-title"></strong><span id="announcement-preview-body"></span></div>
+        <div class="push-actions"><button class="primary-button" type="submit" id="announcement-submit">發送給全部裝置</button></div>
+        <p id="announcement-message" class="push-message" role="status" aria-live="polite"></p>
+      </form>
+      </div>
+      <p id="announcement-latest" class="push-note"></p>
+    </section>
     <div id="report" hidden>
       <section class="panel overview" aria-label="造訪摘要">
         <div class="summary-metrics"><div><p class="section-label">今日瀏覽數</p><div class="metric-number"><strong id="today">—</strong><span>次</span></div><p id="today-date" class="metric-date"></p></div><div><p class="section-label">累積瀏覽數</p><div class="metric-number"><strong id="cumulative">—</strong><span>次</span></div><p id="overall-start" class="metric-date"></p></div></div>

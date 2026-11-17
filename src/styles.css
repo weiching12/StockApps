@@ -1944,17 +1944,17 @@ dialog h2 {
     border-radius: 5px;
   }
 }
-/* Phone bar: the four pages beside the brand; guides and settings move into one menu. */
+/* Phone bar: the four pages beside the brand; the backtest, guides and settings move into one menu. */
 .nav-more { display: none; position: relative; }
 @media (max-width: 520px) {
   .sidebar nav { grid-template-columns: repeat(4, minmax(44px, 1fr)); }
-  .sidebar nav [data-dialog],
+  .sidebar nav :is([data-dialog], [data-page="backtest"]),
   .sidebar-bottom > .nav-item[data-dialog="settings"] { display: none; }
   .nav-more { display: block; }
   .sidebar-bottom .nav-more-toggle { display: flex; align-items: center; justify-content: center; color: #c9d4e2; }
   .nav-more-toggle[aria-expanded="true"] { color: #fff; background: rgba(255, 255, 255, .12); }
   .nav-more-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; display: grid; min-width: 168px; padding: 6px; border: 1px solid var(--border); border-radius: 10px; background: #fff; box-shadow: 0 12px 32px rgba(15, 23, 42, .18); }
-  .nav-more-menu[hidden] { display: none; }
+  .nav-more-menu[hidden], .nav-more-menu button[hidden] { display: none; }
   .nav-more-menu button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 6px; color: var(--ink); background: transparent; font-size: var(--text-secondary); text-align: left; cursor: pointer; }
   .nav-more-menu button:hover, .nav-more-menu button:focus-visible { background: var(--accent-soft); }
   .nav-more-menu .icon { width: 18px; height: 18px; color: var(--muted); }
@@ -3404,7 +3404,15 @@ button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outli
 .backtest-samples tbody tr { cursor: pointer; }
 .backtest-samples tbody tr:hover { background: var(--accent-soft); }
 .backtest-samples tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.backtest-more { margin-top: 12px; }
+/* Research samples come a page at a time: a range line under the heading, page buttons under the table. */
+.backtest-page-range { display: flex; align-items: center; gap: 8px; margin: -4px 0 8px; color: var(--muted); font-size: var(--text-meta); }
+.backtest-pager { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; margin-top: 14px; }
+.backtest-page-button { min-width: 36px; min-height: 36px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: var(--text-secondary); font-variant-numeric: tabular-nums; cursor: pointer; }
+.backtest-page-button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.backtest-page-button.current { border-color: var(--accent); background: var(--accent); color: #fff; cursor: default; }
+.backtest-page-button:disabled:not(.current) { opacity: .4; cursor: default; }
+.backtest-page-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.backtest-page-gap { min-width: 20px; color: var(--muted); text-align: center; }
 .backtest-data { margin-top: 10px; font-size: var(--text-secondary); }
 .backtest-data summary { color: var(--accent); cursor: pointer; }
 .backtest-empty { margin: 0; color: var(--muted); font-size: var(--text-secondary); }

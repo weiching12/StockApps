@@ -226,7 +226,7 @@ test("only the current page's panels are visible", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".stocks-panel")).toBeVisible();
   for (const target of ["home", "market", "favorites", "backtest"]) {
-    await page.locator(`.sidebar [data-page="${target}"]`).evaluate((button) => button.click());
+    await page.locator(`.sidebar nav [data-page="${target}"]`).evaluate((button) => button.click());
     const visible = await page.locator("[data-page-panel]").evaluateAll((panels) =>
       [...new Set(panels.filter((panel) => panel.getBoundingClientRect().height > 0).map((panel) => panel.dataset.pagePanel))]);
     expect(visible, target).toEqual([target]);

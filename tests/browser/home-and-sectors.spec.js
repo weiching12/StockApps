@@ -152,14 +152,14 @@ test.describe("backtest needs an account", () => {
     await page.addInitScript(() => sessionStorage.setItem("stock-insight-current-page", "backtest"));
     await page.goto("/");
     await expect(page.locator("#page-title")).toContainText("主頁面");
-    await expect(page.locator('[data-page="backtest"]')).toBeHidden();
+    await expect(page.locator('.sidebar nav [data-page="backtest"]')).toBeHidden();
     await expect(page.locator("#backtest-page")).toBeHidden();
   });
 
   test("a signed-in account keeps it in the navigation and returns to it after a reload", async ({ page }) => {
     await account(page, signedIn);
     await page.goto("/");
-    const nav = page.locator('[data-page="backtest"]');
+    const nav = page.locator('.sidebar nav [data-page="backtest"]');
     await expect(nav).toBeVisible();
     await nav.click();
     await expect(page.locator("#backtest-page")).toBeVisible();
@@ -167,11 +167,17 @@ test.describe("backtest needs an account", () => {
     await expect(page.locator("#page-title")).toContainText("策略回測");
   });
 
-  test("the phone bar still fits at its narrowest with the extra item", async ({ page }) => {
+  test("on a phone it moves into the menu and the bar keeps its four pages", async ({ page }) => {
     await account(page, signedIn);
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto("/");
-    await expect(page.locator('[data-page="backtest"]')).toBeVisible();
+    await expect(page.locator('.sidebar nav [data-page="backtest"]')).toBeHidden();
+    await page.locator(".nav-more-toggle").click();
+    const item = page.locator('#nav-more-menu [data-page="backtest"]');
+    await expect(item).toBeVisible();
+    await item.click();
+    await expect(page.locator("#nav-more-menu")).toBeHidden();
+    await expect(page.locator("#backtest-page")).toBeVisible();
     const fit = await page.locator(".sidebar").evaluate((bar) => {
       const items = [...bar.querySelectorAll(".nav-item")].filter((item) => item.getClientRects().length);
       return { pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, inside: items.every((item) => item.getBoundingClientRect().right <= innerWidth + 1) };
@@ -183,7 +189,7 @@ test.describe("backtest needs an account", () => {
     await account(page, { user: { ...signedIn.user, mustChangePassword: true } });
     await page.goto("/");
     await expect(page.locator(".account-identity").first()).toBeVisible();
-    await expect(page.locator('[data-page="backtest"]')).toBeHidden();
+    await expect(page.locator('.sidebar nav [data-page="backtest"]')).toBeHidden();
   });
 });
 

@@ -12,6 +12,9 @@ export function resolveApiRoute(path) {
   if (path === "/api/v1/push/subscriptions") return route("pushSubscriptions", {}, ["POST", "DELETE"]);
   if (path === "/api/v1/push/resend") return route("pushResend", {}, ["POST"]);
   if (path === "/api/v1/push/status") return route("pushStatus", {}, ["GET"]);
+  if (path === "/api/v1/push/template") return route("pushTemplate", {}, ["GET", "PUT", "DELETE"]);
+  if (path === "/api/v1/push/announcements") return route("pushAnnouncements", {}, ["POST"]);
+  if (path === "/api/v1/push/announcements/latest/send") return route("pushAnnouncementSend", {}, ["POST"]);
   const resource = versioned ? path.slice(7) : path.slice(4);
   if (resource === "/market") return route("market");
   if (versioned && resource === "/market/summary") return route("marketSummary");

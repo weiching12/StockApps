@@ -88,7 +88,8 @@ test("search fits a phone and the phone bar keeps every item on screen", async (
   await page.setViewportSize({ width: 320, height: 800 });
   await page.route("**/api/v1/auth/me", (route) => route.fulfill({ json: { user: { username: "t", role: "user", mustChangePassword: false } } }));
   await page.goto("/");
-  await expect(page.locator('[data-page="backtest"]')).toBeVisible();
+  // A signed-in phone keeps the backtest in the menu, so the bar's four pages still fit.
+  await expect(page.locator('#nav-more-menu [data-page="backtest"]')).not.toHaveAttribute("hidden", "");
   await page.locator('[data-page="search"]').first().click();
   await page.locator("#stock-search").fill("2");
   await expect(page.locator("#search-results tr.research-card").first()).toBeVisible();

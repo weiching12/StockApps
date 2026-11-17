@@ -7,7 +7,7 @@ import { MarketSummaryService } from "../services/market-summary-service.js";
 import { resolveApiRoute } from "./routes.js";
 import { marketController } from "./market-controller.js";
 import { presenceController } from "./presence-controller.js";
-import { pushController, pushResendController, pushStatusController } from "./push-controller.js";
+import { pushController, pushMessageController, pushResendController, pushStatusController } from "./push-controller.js";
 import { apiFailure } from "./errors.js";
 import { json, error } from "./http.js";
 import { signedInUser } from "./session-guard.js";
@@ -39,6 +39,7 @@ export async function routeApi(request, env, injected) {
       return await pushController(request, route, services.push);
     if (route.name === "pushResend") return await pushResendController(request, env, services);
     if (route.name === "pushStatus") return await pushStatusController(request, env, services);
+    if (["pushTemplate", "pushAnnouncements", "pushAnnouncementSend"].includes(route.name)) return await pushMessageController(request, route, env, services);
     if (route.name === "nativePushConfig" || route.name === "nativePushSubscriptions")
       return await pushController(request, route, services.nativePush);
     const body = await marketController(route, url, services);

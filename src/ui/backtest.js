@@ -12,7 +12,7 @@ const GATE_LABELS = {
 const GATE_STATUS = { v1: { PASS: "通過", FAIL: "未通過", UNKNOWN: "待確認" }, v2: { PASS: "未觸發", FAIL: "觸發", UNKNOWN: "待確認" } };
 const TRADE_STATUS = { FILLED: "已模擬成交", NOT_APPLICABLE: "非明日候選", PENDING: "等待隔日行情", UNAVAILABLE: "行情不可比較",
   OPEN_ABOVE_UPPER: "開盤高於上限，不成交", OPEN_BELOW_INVALIDATION: "開盤低於失效價，不成交" };
-const SAMPLE_PAGE = 50;
+const SAMPLE_PAGE = 20;
 const RETENTION_NOTE = "研究樣本保留最近 6 個月，較舊的樣本與結果會自動刪除。";
 
 export const DEFAULT_BACKTEST_FILTERS = Object.freeze({ model: "", from: "", to: "", symbol: "", setup: "", gate: "", nextDay: "", horizon: "20" });
@@ -180,11 +180,25 @@ function sampleRows(samples, horizon) {
   }).join("");
 }
 
+/** Page numbers around the current one, with the first and last always reachable ("…" for the gaps). */
+function pageList(page, pages) {
+  const shown = [...new Set([1, page - 1, page, page + 1, pages])].filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
+  return shown.flatMap((n, index) => index && n - shown[index - 1] > 1 ? ["gap", n] : [n]);
+}
+function pagerMarkup(page, pages, busy) {
+  if (pages <= 1) return "";
+  const go = (target, label, text, current = false) => `<button type="button" class="backtest-page-button${current ? " current" : ""}" data-backtest-page="${target}" aria-label="${label}"${current ? ' aria-current="page"' : ""}${busy || current || target < 1 || target > pages ? " disabled" : ""}>${text}</button>`;
+  return `<nav class="backtest-pager" aria-label="研究樣本分頁">${go(page - 1, "上一頁", "‹")}${pageList(page, pages).map((n) => n === "gap"
+    ? '<span class="backtest-page-gap" aria-hidden="true">…</span>' : go(n, `第 ${n} 頁`, n, n === page)).join("")}${go(page + 1, "下一頁", "›")}</nav>`;
+}
+
 function samplesMarkup(state) {
-  const { samples, total, horizon, loadingMore, loadingIcon } = state;
+  const { samples, total, horizon, samplePage, loadingMore, loadingIcon } = state;
+  const pages = Math.ceil(total / SAMPLE_PAGE), from = (samplePage - 1) * SAMPLE_PAGE + 1;
   return `<section class="backtest-section" aria-labelledby="backtest-samples-title"><h2 id="backtest-samples-title">研究樣本 <small>共 ${count(total)} 筆，依日期新到舊；點選查看當日保存的說明</small></h2>
+    ${pages > 1 ? `<p class="backtest-page-range">第 ${count(from)}–${count(from + samples.length - 1)} 筆${loadingMore ? ` ${loadingIcon("樣本載入中")}` : ""}</p>` : ""}
     ${samples.length ? `<div class="backtest-table-wrap"><table class="backtest-table backtest-samples"><thead><tr><th scope="col">日期</th><th scope="col">股票</th><th scope="col">門檻</th><th scope="col">研究狀態</th><th scope="col">明日狀態</th><th scope="col">模擬 ${horizon} 日</th><th scope="col">收盤後 ${horizon} 日</th></tr></thead><tbody>${sampleRows(samples, horizon)}</tbody></table></div>
-    ${samples.length < total ? `<button type="button" class="outline-button backtest-more" data-backtest-more${loadingMore ? " disabled" : ""}>${loadingMore ? loadingIcon("樣本載入中") : `載入更多（還有 ${count(total - samples.length)} 筆）`}</button>` : ""}`
+    ${pagerMarkup(samplePage, pages, loadingMore)}`
     : `<p class="backtest-empty">目前條件沒有研究樣本。</p>`}</section>`;
 }
 
@@ -221,7 +235,7 @@ export function backtestSampleMarkup(sample, esc) {
 export function createBacktestController({ client, apiMode, esc, openSample, loadingIcon }) {
   const root = () => document.querySelector("#backtest-page");
   const state = { filters: { ...DEFAULT_BACKTEST_FILTERS }, result: null, error: null, loading: false, samples: [], total: 0,
-    request: 0, loadingMore: false, loaded: false };
+    samplePage: 1, request: 0, loadingMore: false, loaded: false };
 
   function render() {
     const content = root().querySelector("#backtest-content"), scope = root().querySelector("#backtest-scope");
@@ -256,7 +270,7 @@ export function createBacktestController({ client, apiMode, esc, openSample, loa
     try {
       const [backtest, samples] = await Promise.all([client.backtest(query), client.researchSamples(sampleQuery(0))]);
       if (request !== state.request) return;
-      state.result = backtest.data; state.samples = samples.data.data; state.total = samples.data.meta.total;
+      state.result = backtest.data; state.samples = samples.data.data; state.total = samples.data.meta.total; state.samplePage = 1;
     } catch (error) {
       if (request !== state.request) return;
       state.error = error.message || "無法取得回測資料";
@@ -271,14 +285,16 @@ export function createBacktestController({ client, apiMode, esc, openSample, loa
     return params;
   }
 
-  async function loadMore() {
+/** Replaces the list with another page and brings its heading back into view. */
+  async function showPage(page) {
     const request = state.request;
     state.loadingMore = true; render();
     try {
-      const { data } = await client.researchSamples(sampleQuery(state.samples.length));
-      if (request === state.request) state.samples = [...state.samples, ...data.data];
+      const { data } = await client.researchSamples(sampleQuery((page - 1) * SAMPLE_PAGE));
+      if (request === state.request) { state.samples = data.data; state.total = data.meta.total; state.samplePage = page; }
     } catch (error) { if (request === state.request) state.error = error.message; }
     state.loadingMore = false; render();
+    root().querySelector("#backtest-samples-title")?.scrollIntoView({ block: "start", behavior: "instant" });
   }
 
   function openDetail(symbol, date) {
@@ -336,7 +352,8 @@ export function createBacktestController({ client, apiMode, esc, openSample, loa
       const horizon = event.target.closest("[data-backtest-horizon]");
       if (horizon) { state.filters.horizon = horizon.dataset.backtestHorizon; void load(); return; }
       if (event.target.closest("[data-backtest-retry]")) { void load(); return; }
-      if (event.target.closest("[data-backtest-more]")) { void loadMore(); return; }
+      const pageButton = event.target.closest("[data-backtest-page]");
+      if (pageButton) { void showPage(Number(pageButton.dataset.backtestPage)); return; }
       const row = event.target.closest("[data-backtest-sample]");
       if (row) openDetail(row.dataset.backtestSample, row.dataset.backtestDate);
       const hit = event.target.closest("[data-tip]");

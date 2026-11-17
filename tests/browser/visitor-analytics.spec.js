@@ -380,3 +380,47 @@ test('push panel shows delivery counts by service and resends today\'s update', 
   await expect(panel.locator('#push-pending')).toHaveText('0');
   await expect(panel.locator('#push-resend')).toBeDisabled();
 });
+
+test('push content edits the daily template and sends an announcement batch by batch', async ({ page }) => {
+  let template = { title: '株研資料已更新', body: '{日期} 台股行情與法人資料已完成更新', custom: false, updatedAt: null, updatedBy: null };
+  let delivered = 0, saved = null;
+  const announcement = () => ({ id: 3, title: '系統維護', body: '今晚暫停更新', createdAt: '2026-10-30T12:00:00Z', createdBy: 'admin', total: 13, delivered });
+  await reportRoute(page);
+  await page.unroute('**/api/v1/push/status');
+  await page.route('**/api/v1/push/status', route => route.fulfill({ json: { data: { ...pushStatus().data, template, announcement: delivered ? announcement() : null } } }));
+  await page.route('**/api/v1/push/template', route => {
+    const method = route.request().method();
+    if (method === 'PUT') { saved = route.request().postDataJSON(); template = { ...saved, custom: true, updatedAt: '2026-10-30T12:00:00Z', updatedBy: 'admin' }; }
+    if (method === 'DELETE') template = { ...template, title: '株研資料已更新', body: '{日期} 台股行情與法人資料已完成更新', custom: false };
+    return route.fulfill({ json: { data: template } });
+  });
+  const batches = [];
+  const batch = route => { delivered = Math.min(13, delivered + 10); batches.push(route.request().url());
+    return route.fulfill({ json: { data: { web: { sent: 10, failed: 0, removed: 0, hasMore: delivered < 13 }, native: null, hasMore: delivered < 13, announcement: announcement() } } }); };
+  await page.route('**/api/v1/push/announcements', batch);
+  await page.route('**/api/v1/push/announcements/latest/send', batch);
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto('/admin-visitors.html');
+  const content = page.locator('#push-content');
+  await expect(content).toBeVisible();
+  await expect(content.locator('#template-state')).toHaveText('預設');
+  await expect(content.locator('#template-preview-body')).toHaveText('2026-10-30 台股行情與法人資料已完成更新');
+  await content.locator('#template-title').fill('今日盤後 {日期}');
+  await expect(content.locator('#template-preview-title')).toHaveText('今日盤後 2026-10-30');
+  await expect(content.locator('#template-title-count')).toHaveText('9／40');
+  await content.locator('#template-submit').click();
+  await expect(content.locator('#template-message')).toHaveText('已儲存，之後的每日通知會使用這個內容。');
+  expect(saved).toEqual({ title: '今日盤後 {日期}', body: '{日期} 台股行情與法人資料已完成更新' });
+  await expect(content.locator('#template-state')).toHaveText('自訂');
+  await content.locator('#announcement-submit').click();
+  await expect(content.locator('#announcement-message')).toHaveText('請輸入標題');
+  await content.locator('#announcement-title').fill('系統維護');
+  await content.locator('#announcement-body').fill('今晚暫停更新');
+  await content.locator('#announcement-submit').click();
+  await expect(content.locator('#announcement-message')).toHaveText('已送達全部 13 個裝置。');
+  expect(batches.map(url => new URL(url).pathname)).toEqual(['/api/v1/push/announcements', '/api/v1/push/announcements/latest/send']);
+  await expect(content.locator('#announcement-latest')).toContainText('「系統維護」');
+  await expect(content.locator('#announcement-title')).toHaveValue('');
+  await content.locator('#template-reset').click();
+  await expect(content.locator('#template-state')).toHaveText('預設');
+});

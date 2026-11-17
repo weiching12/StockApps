@@ -1561,9 +1561,65 @@
     "/api/v1/push/status": {
       "get": {
         "operationId": "getPushStatus",
-        "description": "Administrator-only, same-origin. Delivery counts for the latest published date: web subscriptions total, delivered, refused and pending, grouped by push service (apple, google, microsoft, mozilla) with the latest refusal reason; native counts when enabled. Never returns endpoints. Not cached.",
+        "description": "Administrator-only, same-origin. Delivery counts for the latest published date: web subscriptions total, delivered, refused and pending, grouped by push service (apple, google, microsoft, mozilla) with the latest refusal reason; native counts when enabled. Also returns the daily template (template) and the latest announcement with its delivered and total device counts (announcement, null when none). Never returns endpoints. Not cached.",
         "responses": {
           "200": { "description": "Delivery counts", "content": { "application/json": { "schema": { "type": "object", "required": ["data"] } } } },
+          "401": { "description": "Not signed in" },
+          "403": { "description": "Cross-origin request, password change required or not an administrator" }
+        }
+      }
+    },
+    "/api/v1/push/template": {
+      "get": {
+        "operationId": "getPushTemplate",
+        "description": "Administrator-only. The daily update's notification template: title and body, where {日期} becomes the published trade date; custom is false while the built-in default applies. Not cached.",
+        "responses": {
+          "200": { "description": "The template", "content": { "application/json": { "schema": { "type": "object", "required": ["data"] } } } },
+          "401": { "description": "Not signed in" },
+          "403": { "description": "Cross-origin request, password change required or not an administrator" }
+        }
+      },
+      "put": {
+        "operationId": "savePushTemplate",
+        "description": "Administrator-only, same-origin. Saves the daily update's template; later scheduled sends and resends use it.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["title", "body"], "properties": { "title": { "type": "string", "maxLength": 40, "description": "Notification title, trimmed, control characters removed" }, "body": { "type": "string", "maxLength": 160, "description": "Notification body; may contain line breaks" } } } } } },
+        "responses": {
+          "200": { "description": "The saved template", "content": { "application/json": { "schema": { "type": "object", "required": ["data"] } } } },
+          "400": { "description": "Missing or too long title or body" },
+          "401": { "description": "Not signed in" },
+          "403": { "description": "Cross-origin request, password change required or not an administrator" }
+        }
+      },
+      "delete": {
+        "operationId": "resetPushTemplate",
+        "description": "Administrator-only, same-origin. Removes the saved template so the built-in default applies again.",
+        "responses": {
+          "200": { "description": "The default template", "content": { "application/json": { "schema": { "type": "object", "required": ["data"] } } } },
+          "401": { "description": "Not signed in" },
+          "403": { "description": "Cross-origin request, password change required or not an administrator" }
+        }
+      }
+    },
+    "/api/v1/push/announcements": {
+      "post": {
+        "operationId": "createPushAnnouncement",
+        "description": "Administrator-only, same-origin. Saves an announcement (the latest 50 are kept) and sends its first batch: up to 10 browser subscriptions, then iOS devices once browsers are done. hasMore asks the caller to continue with /api/v1/push/announcements/latest/send. Each device gets an announcement once; a refusing device is not retried and a gone one is removed.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["title", "body"], "properties": { "title": { "type": "string", "maxLength": 40, "description": "Notification title, trimmed, control characters removed" }, "body": { "type": "string", "maxLength": 160, "description": "Notification body; may contain line breaks" } } } } } },
+        "responses": {
+          "200": { "description": "Batch counts (web, native, hasMore) and the announcement with delivered and total device counts", "content": { "application/json": { "schema": { "type": "object", "required": ["data"] } } } },
+          "400": { "description": "Missing or too long title or body" },
+          "401": { "description": "Not signed in" },
+          "403": { "description": "Cross-origin request, password change required or not an administrator" }
+        }
+      }
+    },
+    "/api/v1/push/announcements/latest/send": {
+      "post": {
+        "operationId": "continuePushAnnouncement",
+        "description": "Administrator-only, same-origin. Sends the next batch of the latest announcement to devices that have not received it.",
+        "responses": {
+          "200": { "description": "Batch counts and the announcement's progress", "content": { "application/json": { "schema": { "type": "object", "required": ["data"] } } } },
+          "404": { "description": "No announcement has been saved" },
           "401": { "description": "Not signed in" },
           "403": { "description": "Cross-origin request, password change required or not an administrator" }
         }

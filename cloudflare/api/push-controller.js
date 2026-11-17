@@ -44,7 +44,9 @@ export async function pushStatusController(request, env, services) {
   const published = await latestPublished(services);
   if (!published) return error(request, true, "DATA_UNAVAILABLE", "尚無已發布的資料", 503);
   const native = services.nativePush.config().enabled ? await services.nativePush.status(published.asOf) : null;
-  return json(request, { data: { asOf: published.asOf, web: await services.push.status(published.asOf), native } });
+  return json(request, { data: { asOf: published.asOf, web: await services.push.status(published.asOf), native,
+    template: services.pushMessages ? await services.pushMessages.dailyTemplate() : null,
+    announcement: services.pushMessages ? await announcementProgress(services) : null } });
 }
 
 /**
@@ -56,10 +58,55 @@ export async function pushResendController(request, env, services) {
   if (failure) return failure;
   const published = await latestPublished(services);
   if (!published) return error(request, true, "DATA_UNAVAILABLE", "尚無已發布的資料", 503);
-  const web = await services.push.notifyPublished(published);
-  const native = services.nativePush.config().enabled ? await services.nativePush.notifyPublished(published) : null;
+  const message = await services.pushMessages?.dailyMessage(published.asOf);
+  const web = await services.push.notifyPublished(published, message);
+  const native = services.nativePush.config().enabled ? await services.nativePush.notifyPublished(published, message) : null;
   console.log(JSON.stringify({ event: "push-resend", user: user.username, asOf: published.asOf, web, native }));
   return json(request, { data: { asOf: published.asOf, web, native } });
+}
+
+/** The latest announcement and how many devices have it, or null when none was sent. */
+async function announcementProgress(services, announcement = undefined) {
+  const latest = announcement === undefined ? await services.pushMessages.latestAnnouncement() : announcement;
+  if (!latest) return null;
+  const web = await services.push.repository.announcementStatus(latest.id);
+  const native = services.nativePush.config().enabled ? await services.nativePush.repository.announcementStatus(latest.id) : { total: 0, delivered: 0 };
+  return { ...latest, total: web.total + native.total, delivered: web.delivered + native.delivered };
+}
+
+/** One batch to browsers, then iOS once browsers are done, so a request stays well under 50 outbound fetches. */
+async function sendAnnouncementBatch(services, announcement) {
+  const web = await services.push.sendAnnouncement(announcement);
+  const native = !web.hasMore && services.nativePush.config().enabled ? await services.nativePush.sendAnnouncement(announcement) : null;
+  return { web, native, hasMore: web.hasMore || Boolean(native?.hasMore) };
+}
+
+/**
+ * Administrator-only push text: GET/PUT/DELETE /push/template edits the daily update's template;
+ * POST /push/announcements saves an announcement and sends its first batch, and
+ * POST /push/announcements/latest/send continues the latest one where it stopped.
+ */
+export async function pushMessageController(request, route, env, services) {
+  if (request.method !== "GET" && !sameOrigin(request)) return error(request, true, "CROSS_ORIGIN", "Cross-origin request rejected", 403);
+  const { user, failure } = await administrator(request, env);
+  if (failure) return failure;
+  if (route.name === "pushTemplate") {
+    const template = request.method === "GET" ? await services.pushMessages.dailyTemplate()
+      : request.method === "DELETE" ? await services.pushMessages.resetDailyTemplate()
+        : await services.pushMessages.saveDailyTemplate(await body(request), user.username);
+    if (request.method !== "GET") console.log(JSON.stringify({ event: "push-template", user: user.username, action: request.method }));
+    return json(request, { data: template });
+  }
+  let announcement;
+  if (route.name === "pushAnnouncements") {
+    announcement = await services.pushMessages.createAnnouncement(await body(request), user.username);
+    console.log(JSON.stringify({ event: "push-announcement", user: user.username, id: announcement.id }));
+  } else {
+    announcement = await services.pushMessages.latestAnnouncement();
+    if (!announcement) return error(request, true, "NOT_FOUND", "目前沒有公告", 404);
+  }
+  const batch = await sendAnnouncementBatch(services, announcement);
+  return json(request, { data: { ...batch, announcement: await announcementProgress(services, announcement) } });
 }
 
 export async function pushController(request, route, service) {

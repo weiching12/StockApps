@@ -7,6 +7,8 @@ import { PushRepository } from "./repositories/push-repository.js";
 import { PushService } from "./services/push-service.js";
 import { NativePushRepository } from "./repositories/native-push-repository.js";
 import { NativePushService } from "./services/native-push-service.js";
+import { PushMessageRepository } from "./repositories/push-message-repository.js";
+import { PushMessageService } from "./services/push-message.js";
 import { CorporateActionRepository } from "./corporate-actions/repository.js";
 import { ResearchSnapshotRepository } from "./repositories/research-snapshot-repository.js";
 import { EntryResearchRepository } from "./repositories/entry-research-repository.js";
@@ -26,17 +28,23 @@ export function createApplicationServices(env) {
     etfInfo: new EtfInfoService(market, env.ETF_INFO_ENABLED === "1" && env.T86_DB ? new EtfInfoRepository(env.T86_DB) : null),
     entryResearch: new EntryResearchService(env.T86_DB ? new EntryResearchRepository(env.T86_DB) : null),
     push: new PushService(new PushRepository(env.T86_DB), env),
-    nativePush: new NativePushService(new NativePushRepository(env.T86_DB), env) };
+    nativePush: new NativePushService(new NativePushRepository(env.T86_DB), env),
+    pushMessages: createPushMessageService(env) };
 }
+
+const createPushMessageService = (env) => new PushMessageService(env.T86_DB ? new PushMessageRepository(env.T86_DB) : null);
 
 export const createPushService = (env) => {
   const web = new PushService(new PushRepository(env.T86_DB), env);
   const native = new NativePushService(new NativePushRepository(env.T86_DB), env);
+  const messages = createPushMessageService(env);
   return { async notifyPublished(manifest) {
-    const result = await web.notifyPublished(manifest);
+    // The administrator's template, read once and shared by the browser and iOS sends (1 D1 query).
+    const message = await messages.dailyMessage(manifest.asOf);
+    const result = await web.notifyPublished(manifest, message);
     // Native devices wait while browser sends remain, so one tick never doubles its outbound requests.
     if (!native.config().enabled || result.hasMore) return result;
-    const nativeResult = await native.notifyPublished(manifest);
+    const nativeResult = await native.notifyPublished(manifest, message);
     return { sent: result.sent + nativeResult.sent, removed: (result.removed ?? 0) + nativeResult.removed,
       failed: (result.failed ?? 0) + nativeResult.failed, rejected: result.rejected ?? 0,
       hasMore: result.hasMore || nativeResult.hasMore, skipped: false };

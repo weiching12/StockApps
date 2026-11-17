@@ -251,7 +251,8 @@ function shell() {
 /** The backtest shows only to signed-in accounts; a restored backtest page waits on the home page until that is known. */
 function applyBacktestAccess(user) {
   const allowed = Boolean(user && !user.mustChangePassword);
-  document.querySelector('[data-page="backtest"]').hidden = !allowed;
+  // The sidebar item on wider screens, the menu item on phones (styles.css shows one of them).
+  document.querySelectorAll('[data-page="backtest"]').forEach((item) => { item.hidden = !allowed; });
   if (allowed && backtestRestore) state.page = "backtest";
   backtestRestore = false;
   if (!allowed && state.page === "backtest") state.page = "home";
@@ -850,21 +851,21 @@ function syncTableFavorite(symbol) {
   if (cached) cached.favorite = favorite;
 }
 
-/** Phone bar: the guides and settings share one menu so the brand fits beside the pages. */
+/** Phone bar: the backtest, guides and settings share one menu so the brand fits beside the four pages. */
 function bindNavMenu() {
   const toggle = document.querySelector(".nav-more-toggle"), menu = document.querySelector("#nav-more-menu");
   const setOpen = (open, focusToggle = false) => {
     menu.hidden = !open;
     toggle.setAttribute("aria-expanded", String(open));
-    if (open) menu.querySelector("button")?.focus();
+    if (open) menu.querySelector("button:not([hidden])")?.focus();
     else if (focusToggle) toggle.focus();
   };
   toggle.addEventListener("click", () => setOpen(menu.hidden));
   // Menu items keep their data-dialog and are opened by the shared click handler.
-  menu.addEventListener("click", (event) => { if (event.target.closest("[data-dialog]")) setOpen(false); });
+  menu.addEventListener("click", (event) => { if (event.target.closest("[data-dialog], [data-page]")) setOpen(false); });
   document.addEventListener("click", (event) => { if (!menu.hidden && !event.target.closest(".nav-more")) setOpen(false); });
   menu.addEventListener("keydown", (event) => {
-    const items = [...menu.querySelectorAll("button")], index = items.indexOf(document.activeElement);
+    const items = [...menu.querySelectorAll("button:not([hidden])")], index = items.indexOf(document.activeElement);
     if (event.key === "Escape") { event.preventDefault(); setOpen(false, true); }
     else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();

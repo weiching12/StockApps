@@ -264,7 +264,8 @@ test("push status is administrator-only", async () => {
   const response = await get({ Cookie: `__Host-stock_session=${"a".repeat(64)}` });
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("Cache-Control"), "no-store");
-  assert.deepEqual(await response.json(), { data: { asOf: "2026-11-03", web, native: null } });
+  // Services without push text (no D1 message store) report no template and no announcement.
+  assert.deepEqual(await response.json(), { data: { asOf: "2026-11-03", web, native: null, template: null, announcement: null } });
 });
 
 test("one tick sends at most a small batch so outbound requests fit a free-plan invocation", async () => {

@@ -1,4 +1,5 @@
 import { buildPushPayload } from "@block65/webcrypto-web-push";
+import { DEFAULT_DAILY_TEMPLATE, renderDailyMessage } from "./push-message.js";
 
 // Browser push services only: anonymous subscriptions must not make scheduled sends reach arbitrary hosts.
 const PUSH_SERVICE_HOSTS = ["fcm.googleapis.com", "android.googleapis.com", "push.services.mozilla.com",
@@ -59,12 +60,13 @@ export class PushService {
     return { total: sum("total"), delivered: sum("delivered"), rejected: sum("rejected"), pending: sum("pending"), services };
   }
 
-  async notifyPublished(manifest) {
+  /** `message`: the daily text ({ title, body }); the built-in default when the caller has none. */
+  async notifyPublished(manifest, message = renderDailyMessage(DEFAULT_DAILY_TEMPLATE, manifest.asOf)) {
     if (!this.config().enabled) return { sent: 0, skipped: true };
     const rows = await this.repository.pending(manifest.asOf, WEB_PUSH_BATCH + 1);
     const stale = [];
     let sent = 0, failed = 0, rejected = 0, pruned = 0;
-    const data = JSON.stringify({ title: "株研資料已更新", body: `${manifest.asOf} 台股行情與法人資料已完成更新`,
+    const data = JSON.stringify({ title: message.title, body: message.body,
       url: "/", tag: `market-${manifest.asOf}`, generation: manifest.generation });
     for (const row of rows.slice(0, WEB_PUSH_BATCH)) {
       // Rows saved before the host allowlist existed are dropped instead of contacted.
@@ -95,6 +97,37 @@ export class PushService {
     }
     await this.repository.removeMany(stale);
     return { sent, removed: stale.length + pruned, failed, rejected, hasMore: rows.length > WEB_PUSH_BATCH };
+  }
+
+  /**
+   * One batch of an announcement to subscriptions that have not had it. Gone subscriptions (404/410) are
+   * removed; other refusals and failures are left for the next batch and never counted toward removal.
+   */
+  async sendAnnouncement(announcement) {
+    if (!this.config().enabled) return { sent: 0, removed: 0, failed: 0, hasMore: false, skipped: true };
+    const rows = await this.repository.pendingAnnouncement(announcement.id, WEB_PUSH_BATCH + 1);
+    const stale = [];
+    let sent = 0, failed = 0;
+    const data = JSON.stringify({ title: announcement.title, body: announcement.body, url: "/", tag: `announcement-${announcement.id}` });
+    for (const row of rows.slice(0, WEB_PUSH_BATCH)) {
+      if (!allowedPushEndpoint(row.endpoint)) { stale.push(row.endpoint); continue; }
+      const subscription = { endpoint: row.endpoint, expirationTime: null, keys: { p256dh: row.p256dh, auth: row.auth } };
+      try {
+        const payload = await buildPushPayload({ data, options: { ttl: 86400, urgency: "normal" } }, subscription,
+          { subject: this.env.VAPID_SUBJECT, publicKey: this.env.VAPID_PUBLIC_KEY, privateKey: this.env.VAPID_PRIVATE_KEY });
+        const response = await this.fetcher(subscription.endpoint, payload);
+        if (response.ok) { sent++; await this.repository.markAnnouncement(row.endpoint, announcement.id); }
+        else if (response.status === 404 || response.status === 410) stale.push(row.endpoint);
+        else {
+          // Counted as delivered-or-not by this announcement only, so a device that refuses it is not asked again.
+          failed++;
+          await this.repository.markAnnouncement(row.endpoint, announcement.id);
+          console.error(JSON.stringify({ event: "push-announcement-failed", status: response.status, endpointHost: new URL(row.endpoint).host, reason: await rejectionReason(response) }));
+        }
+      } catch (error) { failed++; console.error(JSON.stringify({ event: "push-announcement-failed", error: error.message })); }
+    }
+    await this.repository.removeMany(stale);
+    return { sent, removed: stale.length, failed, hasMore: rows.length > WEB_PUSH_BATCH };
   }
 }
 

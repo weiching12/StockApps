@@ -42,7 +42,7 @@ function clearData() {
 }
 function clearReport() {
   generation++; controller?.abort(); pendingKey = null; clearData();
-  node('report').hidden = true; node('logout').hidden = true; node('push-panel').hidden = true;
+  node('report').hidden = true; node('logout').hidden = true; node('push-panel').hidden = true; node('push-content').hidden = true;
   setLoading(false);
   node('login').hidden = true; node('retry').hidden = true; node('status').textContent = '';
 }
@@ -222,11 +222,11 @@ async function loadPush() {
     const response = await fetch('/api/v1/push/status', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(10000) });
     if (requestGeneration !== pushGeneration) return;
     // Sign-in and role problems are reported by the visitor report; keep the panel hidden.
-    if ([401, 403].includes(response.status)) { node('push-panel').hidden = true; return; }
+    if ([401, 403].includes(response.status)) { node('push-panel').hidden = true; node('push-content').hidden = true; return; }
     if (!response.ok) throw new Error();
     const { data } = await response.json();
     if (requestGeneration !== pushGeneration) return;
-    renderPush(data); node('push-panel').hidden = false;
+    renderPush(data); renderPushContent(data); node('push-panel').hidden = false; node('push-content').hidden = false;
   } catch {
     if (requestGeneration !== pushGeneration) return;
     node('push-panel').hidden = false;
@@ -249,6 +249,86 @@ node('push-resend').onclick = async () => {
     node('push-message').dataset.state = 'error';
     node('push-message').textContent = error instanceof TypeError || error.name === 'TimeoutError' ? '無法連線，請確認網路後重試。' : error.message;
   } finally { pushSending = false; await loadPush(); }
+};
+
+// Push text: the daily template and announcements (cloudflare/services/push-message.js holds the rules).
+const DATE_TOKEN = '{日期}', LIMITS = { title: 40, body: 160 };
+let templateDirty = false, announcing = false, latestDate = today;
+const textOf = id => ({ title: node(`${id}-title`).value.trim(), body: node(`${id}-body`).value.trim() });
+function preview(id) {
+  const fill = text => id === 'template' ? text.replaceAll(DATE_TOKEN, latestDate) : text;
+  const { title, body } = textOf(id);
+  node(`${id}-preview-title`).textContent = fill(title) || '（標題）';
+  node(`${id}-preview-body`).textContent = fill(body) || '（內文）';
+  for (const part of ['title', 'body']) node(`${id}-${part}-count`).textContent = `${[...node(`${id}-${part}`).value.trim()].length}／${LIMITS[part]}`;
+}
+function say(id, state, text) { node(`${id}-message`).dataset.state = state; node(`${id}-message`).textContent = text; }
+const failure = error => error instanceof TypeError || error.name === 'TimeoutError' ? '無法連線，請確認網路後重試。' : error.message;
+async function call(path, method, payload) {
+  const response = await fetch(path, { method, credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(30000),
+    headers: payload ? { 'Content-Type': 'application/json' } : undefined, body: payload ? JSON.stringify(payload) : undefined });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(body?.error?.message || '操作失敗，請稍後再試。');
+  return body.data;
+}
+function showTemplate(template) {
+  node('template-state').textContent = template.custom ? '自訂' : '預設';
+  node('template-state').dataset.custom = String(template.custom);
+  node('template-reset').disabled = !template.custom;
+  if (templateDirty) return;
+  node('template-title').value = template.title; node('template-body').value = template.body; preview('template');
+}
+function showLatestAnnouncement(item) {
+  node('announcement-latest').textContent = item
+    ? `最近一則公告：「${item.title}」，${time(item.createdAt)}由 ${item.createdBy} 發送，已送達 ${count(item.delivered)}／${count(item.total)} 個裝置。` : '';
+}
+function renderPushContent(data) {
+  latestDate = data.asOf;
+  if (data.template) showTemplate(data.template);
+  showLatestAnnouncement(data.announcement);
+  preview('announcement');
+}
+for (const id of ['template', 'announcement']) for (const part of ['title', 'body'])
+  node(`${id}-${part}`).addEventListener('input', () => { if (id === 'template') templateDirty = true; preview(id); say(id, '', ''); });
+const missing = id => { const { title, body } = textOf(id); return !title ? '請輸入標題' : !body ? '請輸入內文' : ''; };
+node('template-form').onsubmit = async event => {
+  event.preventDefault();
+  if (missing('template')) { say('template', 'error', missing('template')); return; }
+  node('template-submit').disabled = true; say('template', 'pending', '儲存中…');
+  try {
+    const saved = await call('/api/v1/push/template', 'PUT', textOf('template'));
+    templateDirty = false; showTemplate(saved); say('template', 'done', '已儲存，之後的每日通知會使用這個內容。');
+  } catch (error) { say('template', 'error', failure(error)); }
+  finally { node('template-submit').disabled = false; }
+};
+node('template-reset').onclick = async () => {
+  if (!confirm('恢復預設的每日通知內容？')) return;
+  say('template', 'pending', '恢復中…');
+  try { const saved = await call('/api/v1/push/template', 'DELETE'); templateDirty = false; showTemplate(saved); say('template', 'done', '已恢復預設內容。'); }
+  catch (error) { say('template', 'error', failure(error)); }
+};
+node('announcement-form').onsubmit = async event => {
+  event.preventDefault();
+  if (announcing) return;
+  if (missing('announcement')) { say('announcement', 'error', missing('announcement')); return; }
+  if (!confirm(`將這則公告發送給全部 ${node('push-total').textContent} 個訂閱裝置？送出後無法收回。`)) return;
+  announcing = true; node('announcement-submit').disabled = true; say('announcement', 'pending', '發送中…');
+  try {
+    // Each request sends one batch; continue until every device has it or a batch reaches no one.
+    let result = await call('/api/v1/push/announcements', 'POST', textOf('announcement'));
+    for (let round = 0; result.hasMore && round < 50; round++) {
+      say('announcement', 'pending', `發送中…已送達 ${count(result.announcement.delivered)}／${count(result.announcement.total)}`);
+      const progress = result.announcement.delivered;
+      result = await call('/api/v1/push/announcements/latest/send', 'POST');
+      if (result.announcement.delivered === progress && !result.web.failed && !result.native?.failed) break;
+    }
+    const { delivered, total } = result.announcement;
+    say('announcement', delivered < total ? 'error' : 'done', delivered < total
+      ? `已送達 ${count(delivered)}／${count(total)} 個裝置，其餘裝置暫時無法送達。` : `已送達全部 ${count(total)} 個裝置。`);
+    node('announcement-title').value = ''; node('announcement-body').value = ''; preview('announcement');
+    showLatestAnnouncement(result.announcement);
+  } catch (error) { say('announcement', 'error', failure(error)); }
+  finally { announcing = false; node('announcement-submit').disabled = false; }
 };
 
 window.addEventListener('pagehide', clearReport);

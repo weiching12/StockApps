@@ -25,6 +25,19 @@ export class NativePushRepository {
     return this.db.prepare("UPDATE native_push_subscriptions SET LastTradeDate=? WHERE DeviceToken=? AND Environment=? AND UpdatedAt=?")
       .bind(asOf, row.token, row.environment, row.updatedAt).run();
   }
+  async pendingAnnouncement(id, environment, limit) {
+    const result = await this.db.prepare(`SELECT DeviceToken token,Environment environment,UpdatedAt updatedAt
+      FROM native_push_subscriptions WHERE Environment=? AND AnnouncementId<? ORDER BY UpdatedAt LIMIT ?`).bind(environment, id, limit).all();
+    return result.results ?? [];
+  }
+  markAnnouncement(row, id) {
+    return this.db.prepare("UPDATE native_push_subscriptions SET AnnouncementId=? WHERE DeviceToken=? AND Environment=? AND UpdatedAt=?")
+      .bind(id, row.token, row.environment, row.updatedAt).run();
+  }
+  async announcementStatus(id) {
+    const row = await this.db.prepare("SELECT COUNT(*) AS total, SUM(AnnouncementId>=?) AS delivered FROM native_push_subscriptions").bind(id).first();
+    return { total: row?.total ?? 0, delivered: row?.delivered ?? 0 };
+  }
   retire(row) {
     return this.db.prepare("DELETE FROM native_push_subscriptions WHERE DeviceToken=? AND Environment=? AND UpdatedAt=?")
       .bind(row.token, row.environment, row.updatedAt).run();

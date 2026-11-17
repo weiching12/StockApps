@@ -98,6 +98,21 @@ than forcing every endpoint into one envelope. API version v1 and stored
 - `POST /api/v1/push/resend` (administrator session, same-origin only) sends the latest
   published date's update to subscriptions that have neither received nor been refused it
   that date, the same selection as the scheduled send, and returns the web/native counts.
+- `GET|PUT|DELETE /api/v1/push/template` (administrator session; PUT/DELETE same-origin only)
+  reads, saves or resets the daily update's notification text: `{ title, body }`, title at most
+  40 characters and body at most 160 (trimmed, control characters removed, line breaks kept).
+  `{日期}` is replaced by the published trade date when sent; `custom: false` means the built-in
+  default. Scheduled sends and resends read it once per send (one D1 query); a failed read falls
+  back to the default so the update is never held back. `/push/status` also returns it.
+- `POST /api/v1/push/announcements` (administrator session, same-origin only) saves an
+  announcement (`{ title, body }`, same limits) and sends its first batch: up to 10 browser
+  subscriptions, then up to 10 iOS devices once browsers are done, so a request stays far below
+  50 outbound fetches. `hasMore` asks the caller to continue with
+  `POST /api/v1/push/announcements/latest/send`. Each subscription stores the latest
+  announcement it received (`AnnouncementId`), so a send resumes where it stopped and a device
+  gets an announcement once; a refusing device is not retried, a gone one (404/410) is removed.
+  Only the latest 50 announcements are kept. `/push/status` returns the latest one with its
+  delivered/total device counts.
 
 Subscriptions contain only the push endpoint and browser-generated encryption keys.
 Endpoints must be HTTPS URLs (at most 1,024 characters, default port, no credentials) on a
