@@ -116,7 +116,7 @@ const backtest = createBacktestController({ client: marketClient, apiMode, esc, 
 const summaryCache = new RequestCache(), sectorDetailCache = new RequestCache(), stockDetailCache = new RequestCache();
 const chartRangeCache = new RequestCache();
 let researchStore;
-let researchSort = "readiness", researchFilter = "all";
+let researchSort = "nextDay", researchFilter = "all";
 let selectedSummary, latestSummary, summaryRequest = 0;
 const latestCache = new Map(), historicalCache = new Map();
 const tableRowCache = new WeakMap();

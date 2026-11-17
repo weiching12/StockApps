@@ -304,7 +304,10 @@ export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActi
   const reader = sessionReader(priced.stock.history, tradingDates, asOf);
   const vetoModel = model.gates?.kind === "veto";
   const gate = vetoModel ? evaluateVetoGates(reader, model) : evaluateGates(result);
-  const structureKeys = model.readiness?.structureCategories ?? GATE_KEYS;
+  // A model with `readiness: null` (v4) computes no readiness score. It still requires the V1.2 trend
+  // and institutional categories, as v2/v3 did, so its candidates match the backtest that chose it.
+  const scored = model.readiness !== null;
+  const structureKeys = scored ? model.readiness?.structureCategories ?? GATE_KEYS : ["trend", "institutional"];
   const today = reader.bar(reader.index);
   const base = { stockCode: stock.symbol, asOf, modelVersion: model.version, provisional: model.provisional };
   // Only notes about the price data itself count here; V1.2's analytical cautions are not data problems.
@@ -315,7 +318,7 @@ export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActi
   const dataQuality = { status: gate.status === "UNKNOWN" ? "INSUFFICIENT" : warnings.length ? "WARNING" : "VALID",
     priceBasis: result.priceBasis, warnings, missing };
   const research = { score: null, status: null, label: null, setupType: null, setupLabel: null, componentScores: null,
-    weights: { ...model.weights }, signal: null, triggeredConditions: [], pendingConditions: [], strengths: [], weaknesses: [],
+    weights: scored ? { ...model.weights } : null, signal: null, triggeredConditions: [], pendingConditions: [], strengths: [], weaknesses: [],
     riskWarnings: [...dataQuality.warnings] };
   const finish = (status) => {
     Object.assign(research, { status, label: ENTRY_RESEARCH_STATUS_LABELS[status] });
@@ -342,7 +345,7 @@ export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActi
   const categories = structureKeys.map((key) => result.categories?.[key]?.score);
   if (!categories.every(Number.isFinite)) return finish("DATA_INSUFFICIENT");
   const structure = categories.reduce((sum, value) => sum + value, 0) / categories.length;
-  let signalScore;
+  let signalScore = null;
   if (status === "TRIGGERED") signalScore = signalQuality(signal, signal.age, model);
   else if (status === "SIGNAL_EXPIRED") signalScore = 20;
   else if (status === "SIGNAL_INVALIDATED") signalScore = 0;
@@ -360,10 +363,12 @@ export function evaluateEntryResearch({ stock, tradingDates, asOf, corporateActi
   const deviation20 = (today.close - today.ma20) / today.ma20 * 100;
   let timing = devScore(deviation20);
   if (status === "TRIGGERED") timing = Math.min(timing, chaseScore((today.close - signal.entryReferencePrice) / reader.atr(reader.index)));
-  const componentScores = { structure: round2(structure), signal: round2(signalScore), timing: round2(timing) };
-  research.componentScores = componentScores;
-  research.score = round2(weighted(componentScores, model.weights));
-  for (const key of structureKeys) {
+  if (scored) {
+    const componentScores = { structure: round2(structure), signal: round2(signalScore), timing: round2(timing) };
+    research.componentScores = componentScores;
+    research.score = round2(weighted(componentScores, model.weights));
+  }
+  for (const key of scored ? structureKeys : []) {
     const value = result.categories[key].score;
     if (value >= 70) research.strengths.push(`${GATE_LABELS[key]} ${round2(value)} 分`);
     else if (value < 50) research.weaknesses.push(`${GATE_LABELS[key]} ${round2(value)} 分`);

@@ -41,5 +41,5 @@ export function renderSearchView({ query, stocks, loading, asOf, loadingIcon, es
   summary.textContent = !total ? "沒有符合的股票。"
     : `找到 ${total} 檔${total > matches.length ? `，顯示前 ${matches.length} 檔` : ""}`;
   list.innerHTML = matches.length
-    ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col">準備度</th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${matches.map((stock) => researchRowMarkup(stock, { esc, number, percent, direction })).join("")}</tbody></table>` : "";
+    ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col">初步門檻</th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${matches.map((stock) => researchRowMarkup(stock, { esc, number, percent, direction })).join("")}</tbody></table>` : "";
 }

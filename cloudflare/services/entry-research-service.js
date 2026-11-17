@@ -43,7 +43,16 @@ function returnStats(row, prefix) {
   const count = row?.[`${prefix}Count`] ?? 0;
   return { count, winRate: count ? round((row[`${prefix}Wins`] ?? 0) / count * 100, 1) : null,
     averageReturn: round(row?.[`${prefix}Average`]), averageWin: round(row?.[`${prefix}AverageWin`]),
-    averageLoss: round(row?.[`${prefix}AverageLoss`]), insufficient: count < BACKTEST_MINIMUM_SAMPLES };
+    averageLoss: round(row?.[`${prefix}AverageLoss`]), ...payoff(row, prefix), insufficient: count < BACKTEST_MINIMUM_SAMPLES };
+}
+
+/** Payoff ratio (average win ÷ average loss) and profit factor (gross wins ÷ gross losses), from the same aggregates. */
+function payoff(row, prefix) {
+  const count = row?.[`${prefix}Count`] ?? 0, wins = row?.[`${prefix}Wins`] ?? 0;
+  const win = row?.[`${prefix}AverageWin`], loss = row?.[`${prefix}AverageLoss`];
+  const lossValid = Number.isFinite(loss) && loss < 0;
+  return { payoffRatio: Number.isFinite(win) && lossValid ? round(win / -loss) : null,
+    profitFactor: Number.isFinite(win) && lossValid && count > wins ? round(win * wins / (-loss * (count - wins))) : null };
 }
 
 /**
@@ -84,7 +93,7 @@ export class EntryResearchService {
 
   async backtest(filters) {
     if (!this.repository) throw new DomainError("DATA_UNAVAILABLE", "進場研究樣本資料庫尚未啟用");
-    const { totals, buckets, setups, horizons, daily, distribution } = await this.repository.backtest(filters);
+    const { totals, buckets, setups, horizons, daily, distribution, maxLossStreak } = await this.repository.backtest(filters);
     const byBucket = new Map(buckets.map((row) => [row.Bucket, row]));
     const curve = equityCurve(daily, filters.horizon);
     const trades = returnStats(totals, "Trade");
@@ -93,7 +102,7 @@ export class EntryResearchService {
         lastDate: totals.LastDate ?? null, gatePass: totals.GatePass ?? 0, triggered: totals.Triggered ?? 0,
         candidates: totals.Candidates ?? 0, filled: totals.Filled ?? 0, tradePending: totals.TradePending ?? 0,
         outcomesComplete: totals.OutcomesComplete ?? 0 },
-      trades: { ...trades, maxDrawdown: curve.maxDrawdown },
+      trades: { ...trades, maxDrawdown: curve.maxDrawdown, maxLossStreak: maxLossStreak ?? 0 },
       forward: { ...returnStats(totals, "Forward"), averageMfe: round(totals.AverageMfe), averageMae: round(totals.AverageMae),
         excursionCount: totals.ExcursionCount ?? 0 },
       readinessBuckets: READINESS_BUCKETS.map(([min, max]) => {

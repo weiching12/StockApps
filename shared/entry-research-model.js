@@ -88,8 +88,23 @@ export const ENTRY_RESEARCH_MODEL_V3 = Object.freeze({
   signal: Object.freeze({ ...ENTRY_RESEARCH_MODEL_V2.signal, validSessions: 1 }),
 });
 
+// v4 (docs/entry-research-grid-2y.md): v3 with the only two changes that improved both 2025 and 2026
+// in a whole-pipeline two-year grid. G5 rises to NT$300 million average traded value, and the
+// 20-session hold becomes the primary result, and outcomes are reference-adjusted through ex-dates. The readiness score is dropped (`readiness: null`):
+// among candidates it had no positive relation to win rate or net return (correlation −0.16).
+export const ENTRY_RESEARCH_MODEL_V4 = Object.freeze({
+  ...ENTRY_RESEARCH_MODEL_V3,
+  version: "entry-research-v4",
+  gates: Object.freeze({ ...ENTRY_RESEARCH_MODEL_V3.gates, minTradingValue: 300_000_000 }),
+  readiness: null,
+  primaryHorizon: 20,
+  // Outcomes carry prices through ex-dates with the reference price instead of dropping the span
+  // (docs/entry-research-v4-plan.md §5: 15% of v4 samples were excluded, mostly June–August).
+  outcomePriceBasis: "reference-adjusted",
+});
+
 // The live model: the API, the daily sample capture and demo mode all use it.
-export const ENTRY_RESEARCH_MODEL = ENTRY_RESEARCH_MODEL_V3;
+export const ENTRY_RESEARCH_MODEL = ENTRY_RESEARCH_MODEL_V4;
 export const ENTRY_RESEARCH_MODEL_VERSION = ENTRY_RESEARCH_MODEL.version;
 
 export const ENTRY_RESEARCH_STATUS_LABELS = Object.freeze({

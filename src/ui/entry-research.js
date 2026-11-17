@@ -40,12 +40,12 @@ const REFERENCE_NOTE = "參數為本站依參考資料調整，尚未以歷史�
 export const researchSummaryOf = (stock) => stock?.entryResearch?.gateResult
   ? entryResearchSummary(stock.entryResearch) : stock?.entryResearch ?? null;
 
-/** List line: v2 names the first triggered veto; v1 keeps its x/5 count. */
+/** Gate column text (its heading says 初步門檻): pass, pending, or the first triggered veto; v1 keeps x/5. */
 function gateText(summary) {
   if (!summary) return "—";
   if (isV1(summary.modelVersion)) return summary.gateStatus === "UNKNOWN" ? `門檻 ${summary.gatePassed}/5 待確認` : `門檻 ${summary.gatePassed}/5`;
-  if (summary.gateStatus === "PASS") return "初步門檻通過";
-  if (summary.gateStatus === "UNKNOWN") return "初步門檻待確認";
+  if (summary.gateStatus === "PASS") return "通過";
+  if (summary.gateStatus === "UNKNOWN") return "待確認";
   const fired = Object.entries(summary.gateConditions ?? {}).filter(([, status]) => status === "FAIL").map(([key]) => VETO_LABELS[key] ?? key);
   return fired.length > 1 ? `${fired[0]} 等 ${fired.length} 項` : fired[0] ?? "未通過初步門檻";
 }
@@ -61,11 +61,10 @@ function etfPriceCell(stock, number) {
 
 export function researchListCells(stock, esc, number) {
   const summary = researchSummaryOf(stock);
-  const score = Number.isFinite(summary?.score) ? number(summary.score, 0) : "—";
   const gateTone = summary?.gateStatus === "PASS" ? "pass" : summary?.gateStatus === "FAIL" ? "fail" : "unknown";
   // ETFs are not researched: they say so instead of looking like missing data.
   const etf = !summary && isEtf(stock);
-  const readiness = etf ? "" : `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><strong>${score}</strong></button><small class="research-gate ${gateTone}">${esc(gateText(summary))}</small>`;
+  const readiness = etf ? "" : `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><small class="research-gate ${gateTone}">${esc(gateText(summary))}</small></button>`;
   const status = summary?.status, next = summary?.nextDayStatus;
   // A triggered signal's chip states the next-session outcome; the line under it (wide screens)
   // names why it is held back and the pattern, with the full wording on hover.
@@ -81,8 +80,7 @@ export function researchListCells(stock, esc, number) {
   return { readiness, research };
 }
 
-/** The market menu: one choice per research stage, none containing another. Readiness bands are left
- * to the readiness sort; gatePass and triggered remain for the favorites page's own menu. */
+/** The market menu: one choice per research stage, none containing another; gatePass and triggered remain for the favorites page's own menu. */
 export const RESEARCH_FILTERS = [
   ["all", "全部研究狀態"], ["candidate", "明日進場候選"], ["priceHigh", "價格超出容許範圍"],
   ["waiting", "等待進場訊號"], ["gateFail", "未通過初步門檻"],
@@ -104,7 +102,7 @@ export function matchesResearchFilter(stock, filter) {
 }
 
 /** Default order: next-day candidates, other gate passes, price too high, then everything else;
- * readiness high to low inside a group, then gates passed, then symbol. */
+ * then gates passed, then symbol. */
 export function compareResearchStocks(a, b) {
   const group = (stock) => {
     const summary = researchSummaryOf(stock);
@@ -116,8 +114,6 @@ export function compareResearchStocks(a, b) {
   const difference = group(a) - group(b);
   if (difference) return difference;
   const as = researchSummaryOf(a), bs = researchSummaryOf(b);
-  const scoreDifference = (bs?.score ?? -1) - (as?.score ?? -1);
-  if (scoreDifference) return scoreDifference;
   return (bs?.gatePassed ?? -1) - (as?.gatePassed ?? -1) || a.symbol.localeCompare(b.symbol);
 }
 
@@ -165,7 +161,7 @@ export function researchCardPreview(summary, { esc, number }) {
   const gate = { status: summary.gateStatus, passedCount: summary.gatePassed, conditions: summary.gateConditions ?? {} };
   // Same wording as the full card at the latest session, whose next date is not yet in the calendar.
   const canBuy = summary.nextDayStatus === "NEXT_DAY_CANDIDATE";
-  return `<section class="research-plan-card ${NEXT_TONE[summary.nextDayStatus] ?? "muted"}" aria-labelledby="research-plan-title"><div class="research-plan-head"><h3 id="research-plan-title">下一交易日${canBuy ? "可進場" : "不進場"}</h3><span class="research-plan-status">${esc(NEXT_DAY_STATUS_LABELS[summary.nextDayStatus] ?? "—")}</span></div><dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${esc(gateSummary(gate, summary.modelVersion))}</dd></div><div><dt>進場準備度</dt><dd>${Number.isFinite(summary.score) ? `${number(summary.score, 0)} / 100` : "—"}</dd></div><div><dt>技術型態</dt><dd>${esc(SETUP_LABELS[summary.setupType] ?? "—")}</dd></div></dl></section>`;
+  return `<section class="research-plan-card ${NEXT_TONE[summary.nextDayStatus] ?? "muted"}" aria-labelledby="research-plan-title"><div class="research-plan-head"><h3 id="research-plan-title">下一交易日${canBuy ? "可進場" : "不進場"}</h3><span class="research-plan-status">${esc(NEXT_DAY_STATUS_LABELS[summary.nextDayStatus] ?? "—")}</span></div><dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${esc(gateSummary(gate, summary.modelVersion))}</dd></div><div><dt>技術型態</dt><dd>${esc(SETUP_LABELS[summary.setupType] ?? "—")}</dd></div></dl></section>`;
 }
 
 /** Dialog sections in the required order, under the header and chart. */
@@ -180,12 +176,13 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
   const reasons = research.status === "TRIGGERED" ? research.triggeredConditions : gate.status !== "PASS" ? gate.reasons : research.pendingConditions;
   const risks = research.riskWarnings.filter((warning) => !quality.warnings.includes(warning));
   const verdict = planVerdict(plan, { number });
-  const card = `<section class="research-plan-card ${NEXT_TONE[plan.status] ?? "muted"}" aria-labelledby="research-plan-title"><div class="research-plan-head"><h3 id="research-plan-title">${esc(verdict.title)}</h3><span class="research-plan-status">${esc(plan.label)}</span>${NEXT_EXPLANATION[plan.status] ? `<details class="research-plan-help"><summary aria-label="${esc(plan.label)}的說明"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg></summary><p role="note">${esc(NEXT_EXPLANATION[plan.status])}</p></details>` : ""}</div><p class="research-plan-basis">${esc(verdict.basis)}</p>${verdict.body}<dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${gateSummary(gate, result.modelVersion)}</dd></div><div><dt>進場準備度</dt><dd>${Number.isFinite(research.score) ? `${number(research.score, 0)} / 100` : "—"}</dd></div><div><dt>技術型態</dt><dd>${esc(research.setupLabel ?? "—")}</dd></div></dl>
+  const card = `<section class="research-plan-card ${NEXT_TONE[plan.status] ?? "muted"}" aria-labelledby="research-plan-title"><div class="research-plan-head"><h3 id="research-plan-title">${esc(verdict.title)}</h3><span class="research-plan-status">${esc(plan.label)}</span>${NEXT_EXPLANATION[plan.status] ? `<details class="research-plan-help"><summary aria-label="${esc(plan.label)}的說明"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg></summary><p role="note">${esc(NEXT_EXPLANATION[plan.status])}</p></details>` : ""}</div><p class="research-plan-basis">${esc(verdict.basis)}</p>${verdict.body}<dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${gateSummary(gate, result.modelVersion)}</dd></div><div><dt>技術型態</dt><dd>${esc(research.setupLabel ?? "—")}</dd></div></dl>
     <details class="research-reasons"><summary>${research.status === "TRIGGERED" ? "主要成立原因" : "目前狀態原因"}</summary>${items(reasons, esc, "沒有額外說明。")}${risks.length ? `<h4>主要風險</h4>${items(risks, esc, "")}` : ""}</details>
 </section>`;
 
   const component = (label, value, weight) => `<div class="research-component"><span>${label}<small>權重 ${weight}%</small></span><strong>${Number.isFinite(value) ? number(value, 0) : "—"}</strong><progress value="${Number.isFinite(value) ? value : 0}" max="100" aria-label="${label} ${Number.isFinite(value) ? number(value, 0) : "無資料"} 分"></progress></div>`;
-  const readiness = `<section class="research-readiness" aria-labelledby="research-readiness-title"><h3 id="research-readiness-title">進場準備度</h3>${Number.isFinite(research.score)
+  // Only models that still score readiness (v1～v3) show it; v4 dropped the score.
+  const readiness = !research.weights ? "" : `<section class="research-readiness" aria-labelledby="research-readiness-title"><h3 id="research-readiness-title">進場準備度</h3>${Number.isFinite(research.score)
     ? `<div class="research-readiness-body"><div class="research-readiness-score"><strong>${number(research.score, 0)}</strong><span>/ 100</span></div><div class="research-components">${component(isV1(result.modelVersion) ? "五大構面強度" : "構面強度（趨勢＋法人）", research.componentScores.structure, research.weights.structure)}${component("進場訊號品質", research.componentScores.signal, research.weights.signal)}${component("進場位置與時機", research.componentScores.timing, research.weights.timing)}</div></div>${isV1(result.modelVersion) ? "" : structureHelp(research, stock, { esc, number, percent })}<div class="research-strengths"><div><h4>表現較好</h4>${items(research.strengths, esc, "沒有特別突出的構面。")}</div><div><h4>仍可改善</h4>${items(research.weaknesses, esc, "沒有明顯偏弱的構面。")}</div></div>`
     : `<p class="research-empty">${gate.status === "FAIL" ? "未通過初步門檻，不計算進場準備度。" : "資料不足，無法計算進場準備度。"}</p>`}<p class="helper-text">衡量進場準備程度供股票之間比較，不是獲利機率或買進指令；權重為暫定、尚未經歷史回測驗證。</p></section>`;
 
@@ -206,9 +203,9 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
 
   const planSection = riskSection(plan, signal, { esc, number });
 
-  // Stocks that did not pass stage 1 have no readiness, signal or plan to show.
+  // Stocks that did not pass stage 1 have no signal or plan to show.
   const evaluated = gate.status === "PASS";
-  const notice = evaluated ? "" : `<p class="research-not-evaluated">${gate.status === "FAIL" ? "未通過初步門檻，不評估進場準備度、訊號與價格計畫。" : "初步門檻資料待確認，暫不評估進場準備度、訊號與價格計畫。"}</p>`;
+  const notice = evaluated ? "" : `<p class="research-not-evaluated">${gate.status === "FAIL" ? "未通過初步門檻，不評估進場訊號與價格計畫。" : "初步門檻資料待確認，暫不評估進場訊號與價格計畫。"}</p>`;
   return { basic, card, readiness, gates, signal: signalSection, plan: planSection, evaluated, notice };
 }
 

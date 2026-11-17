@@ -19,7 +19,7 @@
         "operationId": "getEntryResearchSamples",
         "description": "Requires a signed-in session. Saved daily entry research samples (one per stock, trading date and model version, never overwritten) with their after-the-fact outcomes. Samples include stocks that failed the gates. Model parameters are provisional and unvalidated. Outcome values are null while PENDING or UNAVAILABLE.",
         "parameters": [
-          { "name": "model", "in": "query", "schema": { "type": "string", "default": "entry-research-v1" } },
+          { "name": "model", "in": "query", "schema": { "type": "string", "default": "entry-research-v4" } },
           { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
           { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } },
           { "name": "symbol", "in": "query", "schema": { "type": "string" } },
@@ -46,9 +46,9 @@
     "/api/v1/research/backtest": {
       "get": {
         "operationId": "getEntryResearchBacktest",
-        "description": "Requires a signed-in session. Aggregates over saved entry research samples matching the filters: totals, simulated next-open trades (net of costs) and close-to-close forward returns for the chosen horizon, readiness buckets, setup comparison, 5/10/20-session comparison, a staggered equity curve by sample date (the account split into horizon parts, one committed per date), daily sample counts and a trade return histogram. Groups below meta.minimumSamples are flagged insufficient. Parameters are provisional and unvalidated.",
+        "description": "Requires a signed-in session. Aggregates over saved entry research samples matching the filters: totals, simulated next-open trades (net of costs; with payoffRatio, profitFactor and maxLossStreak) and close-to-close forward returns for the chosen horizon, readiness buckets (empty for entry-research-v4, which has no readiness score), setup comparison, 5/10/20-session comparison, a staggered equity curve by sample date (the account split into horizon parts, one committed per date), daily sample counts and a trade return histogram. Groups below meta.minimumSamples are flagged insufficient. Parameters are provisional. entry-research-v4 outcomes are reference-adjusted through ex-dates instead of excluded.",
         "parameters": [
-          { "name": "model", "in": "query", "schema": { "type": "string", "default": "entry-research-v1" } },
+          { "name": "model", "in": "query", "schema": { "type": "string", "default": "entry-research-v4" } },
           { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
           { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } },
           { "name": "symbol", "in": "query", "schema": { "type": "string" } },
@@ -59,7 +59,7 @@
           { "name": "source", "in": "query", "schema": { "type": "string", "enum": ["daily", "historical-recalculation"] } },
           { "name": "minScore", "in": "query", "schema": { "type": "number", "minimum": 0, "maximum": 100 } },
           { "name": "maxScore", "in": "query", "schema": { "type": "number", "minimum": 0, "maximum": 100 } },
-          { "name": "horizon", "in": "query", "schema": { "type": "integer", "enum": [5, 10, 20], "default": 10 } }
+          { "name": "horizon", "in": "query", "schema": { "type": "integer", "enum": [5, 10, 20], "default": 20 }, "description": "Holding sessions; defaults to the live model's primary horizon (20 for entry-research-v4)." }
         ],
         "responses": { "200": { "description": "Backtest aggregates for the filtered samples", "content": { "application/json": {
           "schema": { "type": "object", "required": ["data", "meta"], "properties": {

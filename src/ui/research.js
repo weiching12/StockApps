@@ -18,7 +18,7 @@ export function researchCardPrice(period, stock, asOf) {
   return { close, delta: close - baseline.close, asOf, baseline };
 }
 
-export const RESEARCH_TRACKING_SORTS = [["readiness", "準備度"], ["nextDay", "明日評估優先"], ["price", "收藏後股價變化"]];
+export const RESEARCH_TRACKING_SORTS = [["nextDay", "明日評估優先"], ["price", "收藏後股價變化"]];
 /** [value, full label, short tab label]: the tabs show the short label, the full one is the tooltip. */
 export const RESEARCH_TRACKING_FILTERS = [["all", "全部自選", "全部自選"], ["candidate", "明日進場候選", "明日候選"],
   ["gatePass", "初步門檻通過", "門檻通過"], ["triggered", "進場訊號已觸發", "訊號觸發"], ["waiting", "等待進場訊號", "等待訊號"]];
@@ -36,19 +36,18 @@ export function renderResearchCenter({ favorites, stocks, store, date, previousD
       price: researchCardPrice(activeResearchPeriod(store, symbol), stock, date) };
   });
   const filtered = values.filter(({ stock }) => matchesResearchFilter(stock, filter));
-  const readiness = ({ summary }) => Number.isFinite(summary?.score) ? summary.score : null;
   const byValue = (value) => (a, b) => {
     const av = value(a), bv = value(b);
     return av === null && bv === null ? a.symbol.localeCompare(b.symbol) : av === null ? 1 : bv === null ? -1 : bv - av || a.symbol.localeCompare(b.symbol);
   };
-  filtered.sort(sort === "nextDay" ? (a, b) => compareResearchStocks(a.stock, b.stock)
-    : sort === "price" ? byValue(({ price }) => Number.isFinite(price.delta) ? price.delta : null) : byValue(readiness));
+  filtered.sort(sort === "price" ? byValue(({ price }) => Number.isFinite(price.delta) ? price.delta : null)
+    : (a, b) => compareResearchStocks(a.stock, b.stock));
   const entries = filtered.map(({ symbol, stock, price }) => {
     const label = stock.name ?? symbol;
     const cells = researchListCells(stock, esc, number);
     const priceDetail = price.baseline ? `收藏基準 ${price.baseline.asOf} ${fmt(price.baseline.close)} → ${price.asOf} ${fmt(price.close)}；未還原收盤價差，未計股息，不代表投資損益` : price.reason;
-    // ETFs are not scored: say so rather than leave the readiness column blank.
-    const readinessCell = cells.readiness || '<span class="research-muted-cell">ETF 不評分</span>';
+    // ETFs are not researched: say so rather than leave the gate column blank.
+    const readinessCell = cells.readiness || '<span class="research-muted-cell">ETF 不評估</span>';
     // Without a saved price to compare, the change line is left out (no row of dashes); its reason stays for screen readers.
     const priceChange = Number.isFinite(price.delta)
       ? `<small class="research-price-change ${tone(price.delta)}" title="${esc(priceDetail)}" aria-label="自收藏後股價差異 ${delta(price.delta)}">${delta(price.delta)}</small>`
@@ -62,6 +61,6 @@ export function renderResearchCenter({ favorites, stocks, store, date, previousD
   return { stats: stat("自選股票", favorites.length, "點選股票查看完整研究") +
       stat("明日進場候選", candidates, "訊號觸發且價格在計畫內", candidates ? "up" : "") +
       stat("今日候選失效", count((summary) => lapsedToday(summary, previousDate)), "昨日訊號已不成立"),
-    cards: entries ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col">準備度</th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${entries}</tbody></table>`
+    cards: entries ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col">初步門檻</th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${entries}</tbody></table>`
       : `<p class="research-muted">${favorites.length ? "此篩選目前沒有股票。" : "尚無自選股票。"}</p>` };
 }

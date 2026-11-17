@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_SETTINGS } from "../shared/indicators.js";
 import { entryResearchGates, entryResearchSummary, evaluateEntryResearch } from "../shared/entry-research.js";
-import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V1, ENTRY_RESEARCH_MODEL_V2, ENTRY_RESEARCH_MODEL_V3 } from "../shared/entry-research-model.js";
+import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V1, ENTRY_RESEARCH_MODEL_V2, ENTRY_RESEARCH_MODEL_V3,
+  ENTRY_RESEARCH_MODEL_V4 } from "../shared/entry-research-model.js";
 
 const KEYS = ["trend", "momentum", "priceVolume", "institutional", "entryRisk"];
 const dates = Array.from({ length: 100 }, (_, index) => new Date(Date.UTC(2026, 0, 1 + index)).toISOString().slice(0, 10));
@@ -118,7 +119,7 @@ test("v2 structure averages only the V1.2 trend and institutional scores", () =>
   const v1 = evaluateEntryResearch(input(baseline(), { score, model: ENTRY_RESEARCH_MODEL_V1 }));
   assert.equal(v1.entryResearch.componentScores.structure, 32, "v1 keeps the five-category mean");
   assert.equal(v2.modelVersion, "entry-research-v2");
-  assert.equal(ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V3, "v3 (v2 gates, one-session signal) is the live model");
+  assert.equal(ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V4, "v4 (v3 with NT$300 million liquidity, no readiness) is the live model");
   assert.equal(ENTRY_RESEARCH_MODEL_V3.signal.validSessions, 1);
   assert.deepEqual(ENTRY_RESEARCH_MODEL_V3.gates, ENTRY_RESEARCH_MODEL_V2.gates);
 });
@@ -149,4 +150,35 @@ test("a veto still reports the latest signal date for lists, without opening the
   assert.equal(result.entryResearch.signal, null);
   assert.ok("lastSignalDate" in result.entryResearch);
   assert.equal(entryResearchSummary(result).signalDate, result.entryResearch.lastSignalDate);
+});
+
+// Average traded value ≈ close (≈ 110～120) × volume over the last 20 sessions.
+const traded = (volume) => baseline().map((bar) => ({ ...bar, volume }));
+
+test("v4 vetoes an average traded value below NT$300 million and keeps the other gates of v3", () => {
+  const v4 = (bars) => gates(bars, { model: ENTRY_RESEARCH_MODEL_V4 });
+  assert.equal(v4(traded(2_400_000)).conditions.liquidity, "FAIL", "≈ NT$280 million");
+  assert.equal(v4(traded(3_000_000)).conditions.liquidity, "PASS", "≈ NT$350 million");
+  assert.match(v4(traded(2_400_000)).details.liquidity.rule, /30,000 萬元/);
+  assert.equal(gates(traded(2_400_000), { model: ENTRY_RESEARCH_MODEL_V3 }).conditions.liquidity, "PASS", "v3 keeps NT$10 million");
+  const { minTradingValue, ...rest } = ENTRY_RESEARCH_MODEL_V4.gates, { minTradingValue: old, ...v3Rest } = ENTRY_RESEARCH_MODEL_V3.gates;
+  assert.deepEqual([minTradingValue, old], [300_000_000, 10_000_000]);
+  assert.deepEqual(rest, v3Rest);
+  assert.deepEqual(ENTRY_RESEARCH_MODEL_V4.signal, ENTRY_RESEARCH_MODEL_V3.signal);
+  assert.deepEqual(ENTRY_RESEARCH_MODEL_V4.plan, ENTRY_RESEARCH_MODEL_V3.plan);
+  assert.equal(ENTRY_RESEARCH_MODEL_V4.primaryHorizon, 20);
+});
+
+test("v4 computes no readiness score but the same research status and plan as v3", () => {
+  const bars = traded(3_000_000);
+  const v3 = evaluateEntryResearch(input(bars, { model: ENTRY_RESEARCH_MODEL_V3 }));
+  const v4 = evaluateEntryResearch(input(bars, { model: ENTRY_RESEARCH_MODEL_V4 }));
+  assert.ok(Number.isFinite(v3.entryResearch.score), "v3 still scores");
+  assert.deepEqual([v4.entryResearch.score, v4.entryResearch.componentScores, v4.entryResearch.weights], [null, null, null]);
+  assert.equal(v4.entryResearch.status, v3.entryResearch.status);
+  assert.deepEqual(v4.nextDayPlan, { ...v3.nextDayPlan, planAsOf: v4.nextDayPlan.planAsOf });
+  assert.equal(v4.modelVersion, "entry-research-v4");
+  // Without the V1.2 trend and institutional categories a v4 stock is still insufficient, as in v3.
+  const missing = stubScore(); delete missing.categories.trend;
+  assert.equal(evaluateEntryResearch(input(bars, { model: ENTRY_RESEARCH_MODEL_V4, score: missing })).entryResearch.status, "DATA_INSUFFICIENT");
 });

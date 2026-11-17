@@ -15,7 +15,9 @@ const TRADE_STATUS = { FILLED: "已模擬成交", NOT_APPLICABLE: "非明日候�
 const SAMPLE_PAGE = 50;
 const RETENTION_NOTE = "研究樣本保留最近 6 個月，較舊的樣本與結果會自動刪除。";
 
-export const DEFAULT_BACKTEST_FILTERS = Object.freeze({ from: "", to: "", symbol: "", setup: "", gate: "", nextDay: "", minScore: "", horizon: "10" });
+export const DEFAULT_BACKTEST_FILTERS = Object.freeze({ model: "", from: "", to: "", symbol: "", setup: "", gate: "", nextDay: "", horizon: "20" });
+/** [query value, label]: "" is the live model; earlier versions keep their saved samples until retention ends. */
+export const BACKTEST_MODELS = Object.freeze([["", "v4（正式）"], ["entry-research-v3", "v3（舊版）"]]);
 
 /** Query parameters for both APIs; empty filters are omitted. */
 export function backtestQuery(filters) {
@@ -26,6 +28,7 @@ export function backtestQuery(filters) {
 
 const signed = (value, digits = 2) => Number.isFinite(value) ? `${value > 0 ? "+" : ""}${value.toFixed(digits)}%` : "—";
 const plain = (value, digits = 1) => Number.isFinite(value) ? `${value.toFixed(digits)}%` : "—";
+const ratio = (value) => Number.isFinite(value) ? value.toFixed(2) : "—";
 const count = (value) => Number.isFinite(value) ? value.toLocaleString("zh-TW") : "—";
 const tone = (value) => value > 0 ? "up" : value < 0 ? "down" : "";
 
@@ -33,14 +36,14 @@ export function backtestPanelMarkup() {
   const options = (items) => items.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
   return `<section id="backtest-page" class="backtest-page" data-page-panel="backtest" aria-label="策略回測" hidden>
     <form id="backtest-filters" class="backtest-filters panel" aria-label="回測條件">
+      <label>模型版本<select name="model">${options(BACKTEST_MODELS)}</select></label>
       <label>起始日<input type="date" name="from"></label>
       <label>結束日<input type="date" name="to"></label>
       <label>策略<select name="setup">${options([["", "全部策略"], ["PULLBACK_RECOVERY", SETUP_LABELS.PULLBACK_RECOVERY], ["RANGE_BREAKOUT", SETUP_LABELS.RANGE_BREAKOUT]])}</select></label>
       <label>初步門檻<select name="gate">${options([["", "全部"], ["PASS", "通過"], ["FAIL", "未通過"], ["UNKNOWN", "待確認"]])}</select></label>
       <label>明日狀態<select name="nextDay">${options([["", "全部"], ...Object.entries(NEXT_DAY_STATUS_LABELS)])}</select></label>
-      <label>準備度<select name="minScore">${options([["", "不限"], ["40", "40 分以上"], ["60", "60 分以上"], ["70", "70 分以上"], ["80", "80 分以上"], ["90", "90 分以上"]])}</select></label>
       <label>股票代號<input name="symbol" inputmode="text" autocomplete="off" placeholder="例如 2330" maxlength="12"></label>
-      <fieldset class="backtest-horizon"><legend>持有天數</legend><div class="segmented-control" role="group" aria-label="持有天數">${[5, 10, 20].map((days) => `<button type="button" data-backtest-horizon="${days}" aria-pressed="${days === 10}">${days} 日</button>`).join("")}</div></fieldset>
+      <fieldset class="backtest-horizon"><legend>持有天數</legend><div class="segmented-control" role="group" aria-label="持有天數">${[5, 10, 20].map((days) => `<button type="button" data-backtest-horizon="${days}" aria-pressed="${days === 20}">${days} 日</button>`).join("")}</div></fieldset>
       <button type="reset" class="text-button">清除條件</button>
     </form>
     <p id="backtest-scope" class="backtest-scope" role="status"></p>
@@ -53,7 +56,7 @@ function scopeText(result, filters) {
   const { totals } = result.data, meta = result.meta;
   const parts = [totals.firstDate ? `${totals.firstDate.replaceAll("-", "/")}～${totals.lastDate.replaceAll("-", "/")}，${count(totals.sessions)} 個交易日` : "目前條件沒有樣本",
     `模型 ${meta.modelVersion}${meta.provisional ? "（暫定參數，尚未驗證）" : ""}`, `持有 ${meta.horizon} 日`];
-  const active = Object.entries(filters).filter(([name, value]) => value && !["horizon", "from", "to"].includes(name)).length;
+  const active = Object.entries(filters).filter(([name, value]) => value && !["horizon", "from", "to", "model"].includes(name)).length;
   if (active) parts.push(`另有 ${active} 項篩選條件`);
   return `統計範圍：${parts.join(" · ")}`;
 }
@@ -74,8 +77,11 @@ function tilesMarkup({ totals, trades, forward }, meta) {
   <section class="backtest-section" aria-labelledby="backtest-trades-title"><h2 id="backtest-trades-title">模擬交易結果 <small>持有 ${meta.horizon} 日 · 已扣手續費、交易稅與滑價</small></h2>${thin}<div class="backtest-tiles">
     ${tile("已完成交易", count(trades.count))}
     ${tile("勝率", plain(trades.winRate), "淨報酬大於 0 的比例")}
-    ${tile("平均報酬", `<span class="${tone(trades.averageReturn)}">${signed(trades.averageReturn)}</span>`)}
+    ${tile("期望值", `<span class="${tone(trades.averageReturn)}">${signed(trades.averageReturn)}</span>`, "每筆交易的平均淨報酬")}
     ${tile("平均獲利／平均虧損", `<span class="${tone(trades.averageWin)}">${signed(trades.averageWin)}</span> / <span class="${tone(trades.averageLoss)}">${signed(trades.averageLoss)}</span>`)}
+    ${tile("賺賠比", ratio(trades.payoffRatio), "平均獲利 ÷ 平均虧損")}
+    ${tile("獲利因子", ratio(trades.profitFactor), "獲利總和 ÷ 虧損總和，大於 1 代表整體獲利")}
+    ${tile("最大連續虧損", Number.isFinite(trades.maxLossStreak) ? `${count(trades.maxLossStreak)} 筆` : "—", "依樣本日期先後排列")}
     ${tile("最大回撤", `<span class="${tone(trades.maxDrawdown)}">${signed(trades.maxDrawdown)}</span>`, "依下方等權累積曲線計算")}
     ${tile("20 日最大有利／不利幅度", `<span class="${tone(forward.averageMfe)}">${signed(forward.averageMfe)}</span> / <span class="${tone(forward.averageMae)}">${signed(forward.averageMae)}</span>`, `平均 MFE／MAE，${count(forward.excursionCount)} 筆樣本`)}
   </div></section>`;
@@ -152,12 +158,10 @@ function continuousBins(distribution) {
 
 function chartsMarkup({ data, meta }, width) {
   const horizon = meta.horizon;
-  const buckets = data.readinessBuckets.map((row) => ({ ...row, label: `${row.min}–${row.max}` }));
   const setups = data.setups.map((row) => ({ ...row, label: SETUP_LABELS[row.setupType] }));
   const horizons = data.horizons.map((row) => ({ ...row, label: `持有 ${row.days} 日`, samples: row.forward.count }));
   return `<section class="backtest-section" aria-labelledby="backtest-equity-title"><h2 id="backtest-equity-title">累積報酬與回撤 <small>資金分成持有天數等份，每個樣本日投入一份、平均分配給當日成交的候選；不考慮單日資金上限</small></h2>${equityChart(data.equity, width)}
     ${data.equity.length ? `<details class="backtest-data"><summary>曲線資料表</summary><div class="backtest-table-wrap"><table class="backtest-table"><thead><tr><th scope="col">樣本日</th><th scope="col">交易筆數</th><th scope="col">當日平均</th><th scope="col">累積</th><th scope="col">回撤</th></tr></thead><tbody>${data.equity.map((point) => `<tr><th scope="row">${point.date}</th><td>${point.trades}</td><td>${signed(point.averageReturn)}</td><td>${signed(point.cumulativeReturn)}</td><td>${signed(point.drawdown)}</td></tr>`).join("")}</tbody></table></div></details>` : ""}</section>
-  <section class="backtest-section" aria-labelledby="backtest-buckets-title"><h2 id="backtest-buckets-title">準備度分組表現</h2>${barTable("依進場準備度分組（只有通過初步門檻的樣本才有分數）", buckets, horizon)}</section>
   <section class="backtest-section" aria-labelledby="backtest-setups-title"><h2 id="backtest-setups-title">策略比較</h2>${barTable("順勢回踩恢復與整理區間突破", setups, horizon)}</section>
   <section class="backtest-section" aria-labelledby="backtest-horizons-title"><h2 id="backtest-horizons-title">持有 5／10／20 日比較</h2>${barTable("同一批樣本在不同持有天數的表現", horizons, null)}</section>
   <section class="backtest-section" aria-labelledby="backtest-distribution-title"><h2 id="backtest-distribution-title">報酬分布 <small>持有 ${horizon} 日的模擬交易淨報酬，每 2% 一組</small></h2>${columnChart(continuousBins(data.distribution), { width,
@@ -172,14 +176,14 @@ function chartsMarkup({ data, meta }, width) {
 function sampleRows(samples, horizon) {
   return samples.map((sample) => {
     const trade = sample.outcome.trade?.netReturns?.[horizon], forward = sample.outcome.returns?.[horizon];
-    return `<tr data-backtest-sample="${sample.symbol}" data-backtest-date="${sample.tradeDate}" tabindex="0" aria-label="查看 ${sample.symbol} ${sample.tradeDate} 的研究說明"><td>${sample.tradeDate}</td><th scope="row">${sample.symbol}<small>${sample.name ?? ""}</small></th><td>${sample.gate.passed} / 5</td><td>${Number.isFinite(sample.readiness.score) ? Math.round(sample.readiness.score) : "—"}</td><td>${ENTRY_RESEARCH_STATUS_LABELS[sample.entryStatus] ?? sample.entryStatus}${sample.setupType ? `<small>${SETUP_LABELS[sample.setupType]}</small>` : ""}</td><td>${NEXT_DAY_STATUS_LABELS[sample.nextDay.status] ?? sample.nextDay.status}</td><td class="${tone(trade)}">${Number.isFinite(trade) ? signed(trade) : sample.outcome.status === "PENDING" ? "待結果" : "—"}</td><td class="${tone(forward)}">${signed(forward)}</td></tr>`;
+    return `<tr data-backtest-sample="${sample.symbol}" data-backtest-date="${sample.tradeDate}" tabindex="0" aria-label="查看 ${sample.symbol} ${sample.tradeDate} 的研究說明"><td>${sample.tradeDate}</td><th scope="row">${sample.symbol}<small>${sample.name ?? ""}</small></th><td>${sample.gate.passed} / 5</td><td>${ENTRY_RESEARCH_STATUS_LABELS[sample.entryStatus] ?? sample.entryStatus}${sample.setupType ? `<small>${SETUP_LABELS[sample.setupType]}</small>` : ""}</td><td>${NEXT_DAY_STATUS_LABELS[sample.nextDay.status] ?? sample.nextDay.status}</td><td class="${tone(trade)}">${Number.isFinite(trade) ? signed(trade) : sample.outcome.status === "PENDING" ? "待結果" : "—"}</td><td class="${tone(forward)}">${signed(forward)}</td></tr>`;
   }).join("");
 }
 
 function samplesMarkup(state) {
   const { samples, total, horizon, loadingMore, loadingIcon } = state;
   return `<section class="backtest-section" aria-labelledby="backtest-samples-title"><h2 id="backtest-samples-title">研究樣本 <small>共 ${count(total)} 筆，依日期新到舊；點選查看當日保存的說明</small></h2>
-    ${samples.length ? `<div class="backtest-table-wrap"><table class="backtest-table backtest-samples"><thead><tr><th scope="col">日期</th><th scope="col">股票</th><th scope="col">門檻</th><th scope="col">準備度</th><th scope="col">研究狀態</th><th scope="col">明日狀態</th><th scope="col">模擬 ${horizon} 日</th><th scope="col">收盤後 ${horizon} 日</th></tr></thead><tbody>${sampleRows(samples, horizon)}</tbody></table></div>
+    ${samples.length ? `<div class="backtest-table-wrap"><table class="backtest-table backtest-samples"><thead><tr><th scope="col">日期</th><th scope="col">股票</th><th scope="col">門檻</th><th scope="col">研究狀態</th><th scope="col">明日狀態</th><th scope="col">模擬 ${horizon} 日</th><th scope="col">收盤後 ${horizon} 日</th></tr></thead><tbody>${sampleRows(samples, horizon)}</tbody></table></div>
     ${samples.length < total ? `<button type="button" class="outline-button backtest-more" data-backtest-more${loadingMore ? " disabled" : ""}>${loadingMore ? loadingIcon("樣本載入中") : `載入更多（還有 ${count(total - samples.length)} 筆）`}</button>` : ""}`
     : `<p class="backtest-empty">目前條件沒有研究樣本。</p>`}</section>`;
 }
@@ -203,7 +207,7 @@ export function backtestSampleMarkup(sample, esc) {
   return `<h2 id="dialog-heading">${esc(sample.symbol)} ${esc(sample.name ?? "")}<small class="backtest-dialog-date">${esc(sample.tradeDate)} 收盤後保存</small></h2>
     <p class="dialog-intro">以下為當日保存的研究結果，不會依之後的資料重新計算。模型 ${esc(sample.modelVersion)}${detail.provisional ? "，參數暫定" : ""}。</p>
     <section class="research-plan-card" aria-labelledby="backtest-sample-plan"><p class="research-eyebrow">明日進場評估</p><h3 id="backtest-sample-plan">${esc(NEXT_DAY_STATUS_LABELS[sample.nextDay.status] ?? sample.nextDay.status)}</h3>
-      <dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${gateFact}</dd></div><div><dt>進場準備度</dt><dd>${Number.isFinite(sample.readiness.score) ? `${Math.round(sample.readiness.score)} / 100` : "—"}</dd></div><div><dt>研究狀態</dt><dd>${esc(ENTRY_RESEARCH_STATUS_LABELS[sample.entryStatus] ?? sample.entryStatus)}</dd></div><div><dt>技術型態</dt><dd>${esc(SETUP_LABELS[sample.setupType] ?? "—")}</dd></div></dl>
+      <dl class="research-plan-facts"><div><dt>初步門檻</dt><dd>${gateFact}</dd></div><div><dt>研究狀態</dt><dd>${esc(ENTRY_RESEARCH_STATUS_LABELS[sample.entryStatus] ?? sample.entryStatus)}</dd></div><div><dt>技術型態</dt><dd>${esc(SETUP_LABELS[sample.setupType] ?? "—")}</dd></div></dl>
       ${list(research.status === "TRIGGERED" ? research.triggeredConditions : research.pendingConditions ?? detail.gate?.reasons)}</section>
     ${Number.isFinite(plan.entryReferencePrice) ? `<section class="research-price-plan"><h3>當日價格計畫</h3><dl class="research-plan-table"><div><dt>參考收盤價</dt><dd>${price(plan.referenceClose)}</dd></div><div><dt>進場參考價格</dt><dd>${price(plan.entryReferencePrice)}</dd></div><div><dt>可接受價格上限</dt><dd>${price(plan.entryPriceUpper)}</dd></div><div><dt>策略失效價格</dt><dd>${price(plan.invalidationPrice)}</dd></div><div><dt>預估風險距離</dt><dd>${Number.isFinite(plan.riskPercent) ? `${plan.riskPercent.toFixed(2)}%` : "—"}</dd></div></dl></section>` : ""}
     <section class="research-gates"><h3>${gateHeading}</h3><ol>${gates}</ol></section>
@@ -238,7 +242,7 @@ export function createBacktestController({ client, apiMode, esc, openSample, loa
     scope.textContent = scopeText(result, state.filters);
     content.classList.toggle("is-updating", state.loading);
     if (!result.data.totals.samples) {
-      content.innerHTML = `<div class="backtest-empty-state panel"><h2>${Object.entries(state.filters).some(([name, value]) => value && name !== "horizon") ? "目前條件沒有研究樣本" : "尚未累積研究樣本"}</h2><p>每個交易日收盤資料發布後，系統會保存全市場的研究結果；需要再經過 5～20 個交易日，才會有完整的後續表現可供統計。</p><p>${RETENTION_NOTE}</p></div>`;
+      content.innerHTML = `<div class="backtest-empty-state panel"><h2>${Object.entries(state.filters).some(([name, value]) => value && !["horizon", "model"].includes(name)) ? "目前條件沒有研究樣本" : "尚未累積研究樣本"}</h2><p>每個交易日收盤資料發布後，系統會保存全市場的研究結果；需要再經過 5～20 個交易日，才會有完整的後續表現可供統計。</p>${state.filters.model ? "" : "<p>v4 剛上線時樣本仍在累積，可在「模型版本」切換到 v3 查看舊版的歷史樣本。</p>"}<p>${RETENTION_NOTE}</p></div>`;
       return;
     }
     state.width = chartWidth(content);

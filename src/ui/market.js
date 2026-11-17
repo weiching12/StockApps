@@ -1,6 +1,6 @@
 import { filterStocks, getDominantInstitution } from "../../shared/indicators.js";
 import { isEtf } from "../../shared/market-codec.js";
-import { compareResearchStocks, matchesResearchFilter, researchListCells, researchSummaryOf } from "./entry-research.js";
+import { compareResearchStocks, matchesResearchFilter, researchListCells } from "./entry-research.js";
 
 export function renderMarketView(context) {
   const { state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl } = context;
@@ -164,8 +164,7 @@ function sortedMarketList({ state, snapshots: allSnapshots, pendingSymbols, stoc
     visibleStocks.sort((a, b) => {
       if (!a.latest) return b.latest ? 1 : 0;
       if (!b.latest) return -1;
-      const value = (stock) => state.sort === "readiness" ? researchSummaryOf(stock)?.score ?? null :
-        state.sort === "institutionalNet" ? stockMoney(stock, "total", "day") : stock.latest[state.sort] ?? null;
+      const value = (stock) => state.sort === "institutionalNet" ? stockMoney(stock, "total", "day") : stock.latest[state.sort] ?? null;
       const av = value(a), bv = value(b);
       if (av === null) return bv === null ? 0 : 1;
       if (bv === null) return -1;

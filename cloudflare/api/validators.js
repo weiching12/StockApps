@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS } from "../../shared/indicators.js";
 import { DomainError } from "../../shared/domain-error.js";
 import { validSymbol } from "../../shared/market-codec.js";
-import { ENTRY_RESEARCH_MODEL_VERSION } from "../../shared/entry-research-model.js";
+import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_VERSION } from "../../shared/entry-research-model.js";
 
 const integer = (value, fallback, max) => {
   if (value === null) return fallback;
@@ -60,7 +60,7 @@ export function researchSampleOptions(params) {
 /** The sample filters without paging, plus the holding horizon (5, 10 or 20 sessions). */
 export function researchBacktestOptions(params) {
   const { limit, offset, includeDetail, ...filters } = researchSampleOptions(params);
-  return { ...filters, horizon: Number(oneOf(params, "horizon", ["5", "10", "20"]) ?? 10) };
+  return { ...filters, horizon: Number(oneOf(params, "horizon", ["5", "10", "20"]) ?? ENTRY_RESEARCH_MODEL.primaryHorizon ?? 10) };
 }
 
 /** Sessions of price history for the chart: 30 by default, up to the stored 260. */

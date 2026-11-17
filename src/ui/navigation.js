@@ -2,7 +2,7 @@ const pageCopy = {
   home: ["TODAY'S OVERVIEW", "主頁面", "今日市場情緒與進場篩選結果，點選股票查看完整研究。"],
   market: ["MARKET WATCHLIST", "市場觀察清單", "依產業切換個股，同時查看該產業的法人買賣超。"],
   search: ["STOCK SEARCH", "搜尋", "輸入股票代碼或名稱，點選結果查看完整研究。"],
-  favorites: ["MY RESEARCH WATCHLIST", "自選", "查看自選股票的進場研究：準備度、初步門檻與明日進場評估，預設依準備度排序。點選股票查看完整研究。"],
+  favorites: ["MY RESEARCH WATCHLIST", "自選", "查看自選股票的進場研究：初步門檻與明日進場評估，預設明日候選優先。點選股票查看完整研究。"],
   backtest: ["STRATEGY BACKTEST", "策略回測", "以每日保存的全市場研究樣本與後續實際行情，檢視進場研究模型的歷史表現。參數暫定，結果僅供研究。"],
 };
 

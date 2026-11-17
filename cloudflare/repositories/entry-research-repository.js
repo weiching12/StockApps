@@ -168,11 +168,16 @@ export class EntryResearchRepository {
       // Two-point bins clamped to ±20%; returns are above -100%, so the shifted cast is a floor.
       `SELECT MIN(MAX(CAST((${trade}+100)/2 AS INTEGER)-50,-10),10) AS Bin, COUNT(*) AS Count
         ${from} AND ${trade} IS NOT NULL GROUP BY Bin ORDER BY Bin`,
+      // Longest run of non-positive trades in date order (ties by symbol): each win starts a new group.
+      `SELECT MAX(Run) AS MaxLossStreak FROM (SELECT COUNT(*) AS Run FROM (SELECT ${trade} AS R,
+        SUM(CASE WHEN ${trade}>0 THEN 1 ELSE 0 END) OVER (ORDER BY s.TradeDate,s.Symbol ROWS UNBOUNDED PRECEDING) AS Grp
+        ${from} AND ${trade} IS NOT NULL) WHERE R<=0 GROUP BY Grp)`,
     ];
-    const [totals, buckets, setups, horizons, daily, distribution] = await this.db.batch(
+    const [totals, buckets, setups, horizons, daily, distribution, streak] = await this.db.batch(
       statements.map((sql) => this.db.prepare(sql).bind(...values)));
     return { totals: totals.results?.[0] ?? {}, buckets: buckets.results ?? [], setups: setups.results ?? [],
-      horizons: horizons.results?.[0] ?? {}, daily: daily.results ?? [], distribution: distribution.results ?? [] };
+      horizons: horizons.results?.[0] ?? {}, daily: daily.results ?? [], distribution: distribution.results ?? [],
+      maxLossStreak: streak.results?.[0]?.MaxLossStreak ?? 0 };
   }
 }
 

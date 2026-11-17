@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { testDatabase } from "./helpers/t86-db.js";
 import { demoProvider } from "../src/data.js";
 import { DEFAULT_SETTINGS, getSnapshot } from "../shared/indicators.js";
-import { ENTRY_RESEARCH_MODEL } from "../shared/entry-research-model.js";
+import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V3, ENTRY_RESEARCH_MODEL_V4 } from "../shared/entry-research-model.js";
 import { evaluateResearchOutcome } from "../shared/entry-research-outcome.js";
 import { captureEntryResearch, retentionCutoff } from "../cloudflare/entry-research-capture.js";
 import { isEtf } from "../shared/market-codec.js";
@@ -42,7 +42,8 @@ test("outcomes stay PENDING until enough later sessions exist and never fill mis
 
 test("corporate actions, unverified coverage and suspensions block comparisons instead of guessing", () => {
   const events = new Map([["2330", new Map([[dates[8], { kind: "息" }]])]]);
-  const withEvent = evaluateResearchOutcome(sample(), { tradingDates: dates, history: bars(), corporateActions: covered({ eventsBySymbol: events }) });
+  const withEvent = evaluateResearchOutcome(sample(), { tradingDates: dates, history: bars(), corporateActions: covered({ eventsBySymbol: events }),
+    model: ENTRY_RESEARCH_MODEL_V3 });
   assert.equal(withEvent.horizons[1].status, "COMPLETE");
   assert.equal(withEvent.horizons[5].status, "UNAVAILABLE");
   assert.match(withEvent.horizons[5].reason, /除權息/);
@@ -53,6 +54,39 @@ test("corporate actions, unverified coverage and suspensions block comparisons i
   const history = bars().filter((bar) => bar.date !== dates[9]); // suspended session
   const suspended = evaluateResearchOutcome(sample(), { tradingDates: dates, history, corporateActions: covered() });
   assert.equal(suspended.horizons[5].status, "UNAVAILABLE");
+});
+
+test("v4 outcomes carry prices through an ex-date with its reference price instead of dropping the span", () => {
+  // Flat at 100 until a 5% cash dividend goes ex on dates[8]; the reference price is 95.
+  const flat = bars((index) => index < 8 ? 100 : 95);
+  const events = new Map([["2330", new Map([[dates[8], { kind: "息", beforeClose: 100, reference: 95 }]])]]);
+  const flatPlan = { status: "NEXT_DAY_CANDIDATE", entryReferencePrice: 100, entryPriceUpper: 101, invalidationPrice: 97 };
+  const input = (history, model) => evaluateResearchOutcome(sample({ referenceClose: 100, nextDayPlan: flatPlan }),
+    { tradingDates: dates, history, corporateActions: covered({ eventsBySymbol: events }), model });
+  const v3 = input(flat, ENTRY_RESEARCH_MODEL_V3);
+  assert.equal(v3.horizons[5].status, "UNAVAILABLE", "v3 keeps dropping spans with an action");
+  const v4 = input(flat, ENTRY_RESEARCH_MODEL_V4);
+  assert.equal(v4.horizons[5].status, "COMPLETE");
+  assert.ok(Math.abs(v4.horizons[5].returnPercent) < 1e-9, "a pure ex-dividend drop is not a loss");
+  assert.ok(Math.abs(v4.excursion.maePercent - -1 / 0.95) < 1e-3, "the low 94 is measured against 100 × 0.95");
+  assert.equal(v4.excursion.hitInvalidation, false, "97 becomes 92.15 after the ex-date");
+  const exit = v4.trade.exits[10];
+  assert.equal(v4.trade.status, "FILLED");
+  assert.equal(exit.exitReason, "HORIZON", "the ex-date close of 95 is above the adjusted stop");
+  assert.equal(exit.priceFactor, 0.95);
+  // Fill 99.5 → 94.525 in the exit basis, exit close 95.
+  const costs = ENTRY_RESEARCH_MODEL_V4.costs;
+  const expected = ((95 * (1 - (costs.commissionPercent + costs.sellTaxPercent + costs.slippagePercent) / 100)) /
+    (99.5 * 0.95 * (1 + (costs.commissionPercent + costs.slippagePercent) / 100)) - 1) * 100;
+  assert.ok(Math.abs(exit.netReturnPercent - expected) < 1e-3);
+  // A real fall below the adjusted stop still stops: close 90 on dates[12] exits at the next open.
+  const falling = bars((index) => index < 8 ? 100 : index < 12 ? 95 : index === 12 ? 90 : 88);
+  const stopped = input(falling, ENTRY_RESEARCH_MODEL_V4).trade.exits[10];
+  assert.deepEqual([stopped.exitReason, stopped.exitDate, stopped.exitPrice], ["STOP", dates[13], 87.5]);
+  // An action without a usable reference price stays UNAVAILABLE.
+  const unknown = new Map([["2330", new Map([[dates[8], { kind: "權" }]])]]);
+  assert.equal(evaluateResearchOutcome(sample(), { tradingDates: dates, history: flat,
+    corporateActions: covered({ eventsBySymbol: unknown }), model: ENTRY_RESEARCH_MODEL_V4 }).horizons[5].status, "UNAVAILABLE");
 });
 
 test("simulated trades fill at the next open only within the plan and include costs", () => {
@@ -219,7 +253,7 @@ test("backtest and sample pages are cached per capture revision and recomputed a
       const response = await coordinator.fetch(new Request(`https://example.test/api/v1/research/backtest${query}`));
       return { status: response.status, cache: response.headers.get("Cache-Control"), body: await response.json() };
     };
-    const first = await get("?horizon=10&gate=PASS");
+    const first = await get("?horizon=20&gate=PASS");
     assert.equal(first.status, 200);
     assert.equal(first.cache, "no-store");
     // Parameter order and an explicit default do not create another entry.
@@ -228,7 +262,7 @@ test("backtest and sample pages are cached per capture revision and recomputed a
     await get("?horizon=5");
     assert.equal(backtests, 2);
     await captureEntryResearch(env, { createServices: marketAt(dataset.dates[150], "g2") });
-    const fresh = await get("?horizon=10&gate=PASS");
+    const fresh = await get("?horizon=20&gate=PASS");
     assert.equal(backtests, 3);
     assert.ok(fresh.body.data.totals.samples > first.body.data.totals.samples);
     assert.equal((await get("?horizon=7")).status, 400);
@@ -280,13 +314,16 @@ test("backtest API aggregates filtered samples in SQL and flags small groups", a
   insert.run("1105", "2026-09-02", "entry-research-v0", "PASS", 5, 90, "TRIGGERED", "RANGE_BREAKOUT", "NEXT_DAY_CANDIDATE");
   const services = { market: {}, entryResearch: new EntryResearchService(new EntryResearchRepository(db)), signedInUser: async () => ({ user: { username: "t" } }) };
   const get = async (query) => {
-    const response = await routeApi(new Request(`https://example.test/api/v1/research/backtest${query}`), { T86_DB: db }, services);
+    const separator = query ? "&" : "?";
+    const response = await routeApi(new Request(`https://example.test/api/v1/research/backtest${query}${separator}model=entry-research-v3`), { T86_DB: db }, services);
     return { status: response.status, body: await response.json() };
   };
-  const { status, body } = await get("");
+  assert.equal((await get("")).body.meta.horizon, 20, "the default horizon is the live model's primary 20 sessions");
+  const { status, body } = await get("?horizon=10");
   assert.equal(status, 200);
   const { data, meta } = body;
   assert.equal(meta.horizon, 10);
+  assert.equal(meta.modelVersion, "entry-research-v3");
   assert.equal(meta.minimumSamples, 30);
   assert.deepEqual([data.totals.samples, data.totals.gatePass, data.totals.candidates, data.totals.filled, data.totals.sessions],
     [4, 3, 3, 3, 2], "other model versions are excluded");
@@ -295,6 +332,10 @@ test("backtest API aggregates filtered samples in SQL and flags small groups", a
   assert.equal(data.trades.averageReturn, 3);
   assert.equal(data.trades.averageWin, 7);
   assert.equal(data.trades.averageLoss, -5);
+  // +10, −5, +4 in date order: payoff 7 ÷ 5, gross 14 ÷ 5, one loss in a row.
+  assert.equal(data.trades.payoffRatio, 1.4);
+  assert.equal(data.trades.profitFactor, 2.8);
+  assert.equal(data.trades.maxLossStreak, 1);
   assert.equal(data.trades.insufficient, true);
   assert.equal(data.forward.count, 4, "forward returns include failed-gate samples");
   // Day one averages 2.5%, day two 4%, each on a tenth of the account (10-session holds):
@@ -314,6 +355,7 @@ test("backtest API aggregates filtered samples in SQL and flags small groups", a
   const empty = await get("?from=2027-01-01");
   assert.equal(empty.body.data.totals.samples, 0);
   assert.equal(empty.body.data.trades.averageReturn, null);
+  assert.deepEqual([empty.body.data.trades.payoffRatio, empty.body.data.trades.profitFactor, empty.body.data.trades.maxLossStreak], [null, null, 0]);
   assert.deepEqual(empty.body.data.equity, []);
   for (const bad of ["?horizon=7", "?gate=MAYBE", "?from=2026-09-05&to=2026-09-01"])
     assert.equal((await get(bad)).status, 400, bad);
@@ -332,4 +374,20 @@ test("research samples and backtests need a signed-in session and are never cach
     assert.equal(allowed.status, 200, path);
     assert.equal(allowed.headers.get("cache-control"), "no-store", path);
   }
+});
+
+test("after the switch to v4, captures keep completing the outcomes of the retired v3 samples", async () => {
+  const db = database(), env = { T86_DB: db };
+  const first = dataset.dates[120], later = dataset.dates[150];
+  await captureEntryResearch(env, { createServices: marketAt(first, "g1"), model: ENTRY_RESEARCH_MODEL_V3 });
+  const pending = () => db.sqlite.prepare(`SELECT COUNT(*) AS n FROM entry_research_samples s LEFT JOIN entry_research_outcomes o
+    ON o.Symbol=s.Symbol AND o.TradeDate=s.TradeDate AND o.ModelVersion=s.ModelVersion
+    WHERE s.ModelVersion='entry-research-v3' AND (o.Status IS NULL OR o.Status='PENDING')`).get().n;
+  assert.ok(pending() > 0, "a v3 sample just captured has no complete outcome yet");
+  const saved = await captureEntryResearch(env, { createServices: marketAt(later, "g2") });
+  assert.equal(saved.status, "saved");
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM entry_research_samples WHERE ModelVersion='entry-research-v4'").get().n,
+    saved.inserted, "new samples are v4");
+  assert.equal(pending(), 0, "30 sessions later every v3 outcome is resolved by the v4 capture");
+  db.sqlite.close();
 });
