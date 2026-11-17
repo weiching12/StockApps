@@ -70,18 +70,19 @@ export function etfMonthEvents(fund, months) {
 const eventText = (event, number) => `${shortDate(event.date)} ${event.type === "ex" ? "除息" : "發息"}${Number.isFinite(event.amount) ? ` ${number(event.amount, 3)} 元` : ""}`;
 
 /**
- * Two lanes under the monthly chart, 除息 and 發息, with a mark at each month that has one. The marks sit at
- * the same horizontal positions as the chart's points (8…592 of its 600-unit width).
+ * 除息 and 發息 marks drawn on the monthly chart itself, in the band between the price lines and the volume
+ * bars, at each month that has one. They share the chart's horizontal positions (8…592 of its 600-unit
+ * width); the legend names them, and the month panel below lists the dates and amounts.
  */
 export function etfChartEventsMarkup(fund, months, { esc, number }) {
   const events = etfMonthEvents(fund, months);
   if (![...events.values()].some((list) => list.length)) return "";
   const left = (index) => ((8 + index * 584 / Math.max(1, months.length - 1)) / 600 * 100).toFixed(2);
-  const lane = (type, label) => `<div class="etf-event-lane ${type}"><span>${label}</span><div>${months.map((month, index) => {
-    const marks = events.get(month).filter((event) => event.type === type);
-    return marks.length ? `<i style="left:${left(index)}%" title="${esc(marks.map((event) => eventText(event, number)).join("、"))}"></i>` : "";
-  }).join("")}</div></div>`;
-  return `<div class="etf-chart-events" aria-hidden="true">${lane("ex", "除息")}${lane("pay", "發息")}</div>`;
+  const marks = (type) => months.map((month, index) => {
+    const list = events.get(month).filter((event) => event.type === type);
+    return list.length ? `<i class="${type}" style="left:${left(index)}%" title="${esc(list.map((event) => eventText(event, number)).join("、"))}"></i>` : "";
+  }).join("");
+  return `<div class="etf-chart-marks" aria-hidden="true">${marks("ex")}${marks("pay")}</div>`;
 }
 
 /**

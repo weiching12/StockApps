@@ -97,7 +97,7 @@ test("market filters and empty results keep page and column widths stable with n
             for (let axis = 0; axis < 2; axis++)
               expect(Math.abs(current[key][index][axis] - original[key][index][axis]), `${width}px / ${state}: ${key}[${index}]`).toBeLessThanOrEqual(0.5);
       };
-      for (const view of ["oversold", "favorites", "above", "below", "all"]) {
+      for (const view of ["oversold", "favorites", "below", "all"]) {
         await page.locator(`[data-view="${view}"]`).click();
         await check(view);
       }

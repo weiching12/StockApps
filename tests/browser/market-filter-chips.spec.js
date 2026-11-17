@@ -42,16 +42,22 @@ test("phone view chips toggle off and combine with a sector", async ({ page }) =
   await expect(page.locator("#table-summary")).toHaveText(sector);
 });
 
+test("the list has no 站上季線 tab", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator('[data-view="above"]')).toHaveCount(0);
+  await expect(page.locator('.filter-tabs [data-view="below"]')).toHaveCount(1);
+});
+
 test("desktop keeps its tabs and research menu, and a menu choice cannot move the tab indicator", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/");
   await expect(rows(page).first()).toBeVisible();
   await expect(page.locator("#market-research-filter")).toBeVisible();
-  const above = page.locator('[data-view="above"]');
+  const above = page.locator('[data-view="below"]');
   await page.locator("#market-research-filter").selectOption("candidate");
   await above.click();
   const aligned = await page.locator(".filter-tabs").evaluate((group) => {
-    const target = group.querySelector('[data-view="above"]').getBoundingClientRect();
+    const target = group.querySelector('[data-view="below"]').getBoundingClientRect();
     return Math.abs(parseFloat(group.style.getPropertyValue("--segment-width")) - target.width) < 1;
   });
   expect(aligned).toBe(true);

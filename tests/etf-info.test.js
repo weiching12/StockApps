@@ -406,9 +406,10 @@ test("distribution days are placed in the chart month they fall in, on lanes ali
   assert.deepEqual(events.get("2026-09"), [{ type: "pay", date: "2026-09-11", amount: 0.42 }]);
   assert.deepEqual(events.get("2026-07"), [{ type: "pay", date: "2026-07-02", amount: 0.4 }], "a payment whose ex-date is before the chart still shows");
   assert.deepEqual(events.get("2026-10"), []);
-  const lanes = etfChartEventsMarkup(fund, months, format);
-  assert.match(lanes, /etf-event-lane ex"><span>除息<\/span><div><i style="left:33\.78%" title="08\/18 除息 0\.420 元"><\/i><\/div>/);
-  assert.match(lanes, /etf-event-lane pay"><span>發息<\/span><div><i style="left:1\.33%" title="07\/02 發息 0\.400 元"><\/i><i style="left:66\.22%"/);
+  const marks = etfChartEventsMarkup(fund, months, format);
+  assert.match(marks, /^<div class="etf-chart-marks" aria-hidden="true">/);
+  assert.match(marks, /<i class="ex" style="left:33\.78%" title="08\/18 除息 0\.420 元"><\/i>/);
+  assert.match(marks, /<i class="pay" style="left:1\.33%" title="07\/02 發息 0\.400 元"><\/i><i class="pay" style="left:66\.22%"/);
   assert.equal(etfChartEventsMarkup({ dividends: [] }, months, format), "");
   assert.equal(etfChartEventsMarkup(undefined, months, format), "");
 });

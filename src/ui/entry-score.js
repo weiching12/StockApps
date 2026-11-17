@@ -128,12 +128,12 @@ function priceChartMarkup(stock, esc, number, series, marks = null, range = 30, 
     ${ranges}<div class="entry-chart-legend">${[
       ["close", monthly ? "月底收盤價" : "收盤價"], ...(monthly ? [] : [["ma20", "月線 MA20"], ["ma60", "季線 MA60"]]),
       ["volume", monthly ? "月成交量" : "成交量"],
-    ].map(([key, label]) => `<button type="button" data-chart-series="${key}" aria-pressed="true" aria-label="${label}">${label}</button>`).join("")}</div>
+    ].map(([key, label]) => `<button type="button" data-chart-series="${key}" aria-pressed="true" aria-label="${label}">${label}</button>`).join("")}${monthly && options.events ? '<span class="entry-chart-event-key ex">除息</span><span class="entry-chart-event-key pay">發息</span>' : ""}</div>
     <div class="entry-chart-price-region"><div class="entry-chart-scale" aria-label="近 ${series.length} 個交易日收盤價最高與最低"><span style="top:${(highLabelY / 210 * 100).toFixed(2)}%">高<br>${number(closingHigh, 2)}</span><span style="top:${(lowLabelY / 210 * 100).toFixed(2)}%">低<br>${number(closingLow, 2)}</span></div>
     <div class="entry-chart-plot" role="slider" tabindex="0" aria-label="${esc(stock.symbol)}近 ${series.length} 個交易日收盤價；點選圖表查看，觸控長按後左右滑動，鍵盤可用方向鍵" aria-orientation="horizontal" aria-valuemin="1" aria-valuemax="${series.length}" aria-valuenow="${series.length}" aria-valuetext="${esc(readout)}" data-index="${series.length - 1}" data-points="${esc(JSON.stringify(series))}"><svg viewBox="0 0 600 210" preserveAspectRatio="none" aria-hidden="true">
       <line x1="8" y1="16" x2="592" y2="16"/><line x1="8" y1="78" x2="592" y2="78"/><line x1="8" y1="140" x2="592" y2="140"/><line x1="8" y1="197" x2="592" y2="197"/>
-      <path class="entry-chart-close" d="${path.trim()}"/><path class="entry-chart-ma20" d="${ma20Path.trim()}"/><path class="entry-chart-ma" d="${ma60Path.trim()}"/>${planSvg}<g class="entry-chart-bars">${bars}</g><g class="entry-chart-points">${dots}</g><line class="entry-chart-cursor" x1="${x(series.length - 1).toFixed(1)}" x2="${x(series.length - 1).toFixed(1)}" y1="16" y2="197"/></svg>${planLabels}</div></div>
-    <div class="entry-chart-dates"><span>${esc(monthly ? series[0].date.slice(0, 7) : series[0].date)}</span><span>${esc(monthly ? last.date.slice(0, 7) : last.date)}</span></div>${monthly ? options.events ?? "" : institutionBarMarkup(last, number, stock.institutionTurn, esc)}</section>`;
+      <path class="entry-chart-close" d="${path.trim()}"/><path class="entry-chart-ma20" d="${ma20Path.trim()}"/><path class="entry-chart-ma" d="${ma60Path.trim()}"/>${planSvg}<g class="entry-chart-bars">${bars}</g><g class="entry-chart-points">${dots}</g><line class="entry-chart-cursor" x1="${x(series.length - 1).toFixed(1)}" x2="${x(series.length - 1).toFixed(1)}" y1="16" y2="197"/></svg>${planLabels}${monthly ? options.events ?? "" : ""}</div></div>
+    <div class="entry-chart-dates"><span>${esc(monthly ? series[0].date.slice(0, 7) : series[0].date)}</span><span>${esc(monthly ? last.date.slice(0, 7) : last.date)}</span></div>${monthly ? "" : institutionBarMarkup(last, number, stock.institutionTurn, esc)}</section>`;
 }
 
 export function selectEntryChartPoint(plot, index, number) {

@@ -53,13 +53,14 @@ for (const width of [320, 390, 1280]) {
     expect(points.length).toBeLessThanOrEqual(13);
     expect(new Set(points.map((point) => point.month)).size).toBe(points.length);
     await expect(chart.locator(".entry-chart-dates span")).toHaveText([points[0].month, points.at(-1).month]);
-    // Ex-dividend and payment lanes, each mark over its month's point.
-    await expect(chart.locator(".etf-event-lane > span")).toHaveText(["除息", "發息"]);
+    // Ex-dividend and payment marks drawn on the chart, each over its month's point, with keys in the legend.
+    await expect(chart.locator(".entry-chart-event-key")).toHaveText(["除息", "發息"]);
+    await expect(chart.locator(".entry-chart-plot .etf-chart-marks")).toHaveCount(1);
     const marks = await chart.evaluate((node) => {
       const plot = node.querySelector(".entry-chart-plot").getBoundingClientRect();
       const months = JSON.parse(node.querySelector(".entry-chart-plot").dataset.points).map((point) => point.month);
       const x = (month) => plot.left + (8 + months.indexOf(month) * 584 / (months.length - 1)) / 600 * plot.width;
-      const centers = (lane) => [...node.querySelectorAll(`.etf-event-lane.${lane} i`)].map((mark) => { const box = mark.getBoundingClientRect(); return box.left + box.width / 2; });
+      const centers = (lane) => [...node.querySelectorAll(`.etf-chart-marks .${lane}`)].map((mark) => { const box = mark.getBoundingClientRect(); return box.left + box.width / 2; });
       return { ex: centers("ex"), pay: centers("pay"), expectedEx: ["2026-08", "2026-05", "2026-02"].filter((month) => months.includes(month)).map(x).sort((a, b) => a - b),
         expectedPay: ["2026-09", "2026-06", "2026-03"].filter((month) => months.includes(month)).map(x).sort((a, b) => a - b) };
     });
@@ -107,7 +108,9 @@ for (const width of [320, 390, 1280]) {
     const layout = await dialog.evaluate((node) => ({ fits: node.scrollWidth <= node.clientWidth,
       inside: [...node.querySelectorAll(".etf-tiles dd, .etf-facts dd, .etf-dividends td, .etf-month-panel:not([hidden]) li")].every((cell) => cell.scrollWidth <= cell.clientWidth + 1),
       gap: node.querySelector(".etf-dividend-card").getBoundingClientRect().top - node.querySelector(".entry-dialog-header").getBoundingClientRect().bottom,
-      lanes: [...node.querySelectorAll(".etf-event-lane > div")].every((lane) => Math.abs(lane.getBoundingClientRect().left - node.querySelector(".entry-chart-plot").getBoundingClientRect().left) < 2) }));
+      // The marks sit inside the plot, below the price lines and above the volume bars.
+      lanes: [...node.querySelectorAll(".etf-chart-marks i")].every((mark) => { const plot = node.querySelector(".entry-chart-plot").getBoundingClientRect(), box = mark.getBoundingClientRect();
+        return box.top >= plot.top + plot.height * 0.6 && box.bottom <= plot.top + plot.height * 0.82; }) }));
     expect(layout.fits).toBe(true);
     expect(layout.inside).toBe(true);
     expect(layout.gap).toBeLessThan(24);

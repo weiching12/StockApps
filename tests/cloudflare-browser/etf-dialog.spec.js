@@ -57,10 +57,10 @@ test("an ETF shows what the list knows at once, then its chart and fund facts wh
   await expect(dialog.locator(".etf-dividend-history tbody tr")).toHaveCount(2);
   await expect(dialog.locator(".etf-facts dd")).toHaveText(["測試指數", "國內成分證券指數股票型基金", "測試投信", "2020-07-20", "200 億元", "12,345 人"]);
   await expect(dialog.locator(".etf-fund-block").first().locator("dd")).toHaveText(["20.10", "20.00", "+0.50%"]);
-  // The year arrives with the analysis: a monthly chart with distribution lanes and the month panel under it.
+  // The year arrives with the analysis: a monthly chart with distribution marks on it and the month panel under it.
   await expect(dialog.locator(".entry-price-chart h3")).toHaveText("近一年月線圖");
   await expect(dialog.locator(".entry-price-chart [data-chart-range]")).toHaveCount(0);
-  await expect(dialog.locator(".etf-event-lane > span")).toHaveText(["除息", "發息"]);
+  await expect(dialog.locator(".entry-chart-event-key")).toHaveText(["除息", "發息"]);
   const shown = dialog.locator(".etf-month-panel:not([hidden])");
   await expect(shown.locator("h4")).toHaveText("成分股 前 2 大 · 2026 年 09 月月報");
   await expect(shown.locator(".etf-holding-weight")).toHaveText(["30.50%", "4.25%"]);
