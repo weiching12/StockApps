@@ -814,6 +814,14 @@ h1 {
 [data-theme="dark"] .entry-chart-ranges button[aria-pressed="true"] { background: rgba(255, 255, 255, .14); }
 .entry-chart-ranges button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .entry-price-chart[aria-busy="true"] .entry-chart-price-region { opacity: .45; transition: opacity .15s; }
+/* After a range change the lines bend into their new shape (morphEntryChart in ui/entry-score.js);
+   the volume bars rise and the labels fade in beside them. */
+@media (prefers-reduced-motion: no-preference) {
+  .entry-price-chart.range-changed svg .entry-chart-volume { transform-box: fill-box; transform-origin: 50% 100%; animation: entry-chart-rise .52s cubic-bezier(.22, 1, .36, 1) both; }
+  .entry-price-chart.range-changed :is(svg .entry-chart-plan, svg .entry-chart-cursor, .entry-chart-scale, .entry-chart-plan-labels, .entry-chart-dates) { animation: entry-chart-fade .3s .22s ease-out both; }
+}
+@keyframes entry-chart-rise { from { transform: scaleY(0); } }
+@keyframes entry-chart-fade { from { opacity: 0; } }
 .entry-price-chart svg .entry-chart-cursor { stroke: var(--chart-tone); stroke-dasharray: 3 4; opacity: .55; }
 .entry-price-chart.hide-close :is(.entry-chart-close, .entry-chart-points),
 .entry-price-chart.hide-ma20 .entry-chart-ma20,

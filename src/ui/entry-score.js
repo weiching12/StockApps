@@ -179,6 +179,52 @@ export function restoreEntryChartTitle(plot, number) {
   // An ETF's month details below keep the month last picked, as before.
   showInstitutionPoint(chart, points.at(-1), number);
 }
+const CHART_LINES = [".entry-chart-close", ".entry-chart-ma20", ".entry-chart-ma"];
+const pathPoints = (d) => [...(d ?? "").matchAll(/([ML])(-?[\d.]+) (-?[\d.]+)/g)].map(([, move, x, y]) => ({ move, x: Number(x), y: Number(y) }));
+/** The drawn shape of each line, read before a range change replaces the chart. */
+export function entryChartShape(chart) {
+  return CHART_LINES.map((selector) => pathPoints(chart?.querySelector(`svg ${selector}`)?.getAttribute("d")));
+}
+/** Height of a drawn line at `x`, interpolated between its points; past either end it holds the end value. */
+function heightAt(points, x) {
+  if (!points.length) return null;
+  if (x <= points[0].x) return points[0].y;
+  const after = points.findIndex((point) => point.x >= x);
+  if (after < 0) return points.at(-1).y;
+  const a = points[after - 1], b = points[after];
+  return b.x === a.x ? b.y : a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x);
+}
+/**
+ * Bends each line of a redrawn chart from the shape the previous range drew to its own. Both ranges span the
+ * same plot width, so every new point starts at the old line's height at that x. Reduced motion skips it.
+ */
+export function morphEntryChart(chart, from, duration = 520) {
+  if (!chart || !from?.some((points) => points.length) || globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  const lines = CHART_LINES.map((selector, index) => {
+    const path = chart.querySelector(`svg ${selector}`), to = pathPoints(path?.getAttribute("d"));
+    // A line the previous range did not draw grows out of the old close line instead.
+    const old = from[index].length ? from[index] : from[0];
+    return path && to.length && old.length ? { path, to, start: to.map(({ x }) => heightAt(old, x)) } : null;
+  }).filter(Boolean);
+  const dots = [...chart.querySelectorAll("svg .entry-chart-points circle")].map((dot) => ({ dot, y: Number(dot.getAttribute("cy")),
+    start: heightAt(from[0], Number(dot.getAttribute("cx"))) }));
+  const draw = (progress) => {
+    const t = 1 - (1 - progress) ** 3;
+    for (const { path, to, start } of lines)
+      path.setAttribute("d", to.map(({ move, x, y }, i) => `${move}${x.toFixed(1)} ${(start[i] + (y - start[i]) * t).toFixed(1)}`).join(" "));
+    for (const { dot, y, start } of dots) if (start !== null) dot.setAttribute("cy", (start + (y - start) * t).toFixed(1));
+  };
+  draw(0);
+  chart.classList.add("range-changed");
+  const began = performance.now();
+  const step = (now) => {
+    if (!chart.isConnected) return;
+    const progress = Math.min(1, (now - began) / duration);
+    draw(progress);
+    if (progress < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 /** The chart alone, for another range: the same marks and series toggles as the dialog's first render. */
 export function entryChartMarkup(stock, esc, number, series, range) {
   const research = !isEtf(stock) && stock.entryResearch?.gateResult ? stock.entryResearch : null;

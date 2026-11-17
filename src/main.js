@@ -38,7 +38,7 @@ import { addResearchPeriod, loadResearchStore, persistResearchStore, removeResea
 import { renderResearchCenter } from "./ui/research.js";
 import { dailyCloseSeries } from "../shared/price-history.js";
 import { priceBaseline } from "../shared/research-review.js";
-import { entryChartMarkup, entryScoreDialogMarkup, selectEntryChartPoint, restoreEntryChartTitle } from "./ui/entry-score.js";
+import { entryChartMarkup, entryChartShape, entryScoreDialogMarkup, morphEntryChart, selectEntryChartPoint, restoreEntryChartTitle } from "./ui/entry-score.js";
 import { moodStyleChoices, renderSentiment } from "./ui/sentiment.js";
 import { createBacktestController } from "./ui/backtest.js";
 import {
@@ -719,8 +719,12 @@ async function changeChartRange(button) {
     });
     if (!chart.isConnected || !dialog.open || dialog.dataset.entrySymbol !== symbol || state.date !== date) return;
     const stock = { ...snapshots.find((item) => item.symbol === symbol), ...stockDetailCache.get(key) };
+    const shape = entryChartShape(chart);
     chart.outerHTML = entryChartMarkup(stock, esc, number, series, days);
-    dialog.querySelector(`.entry-price-chart [data-chart-range="${days}"]`)?.focus({ preventScroll: true });
+    const chosen = dialog.querySelector(`.entry-price-chart [data-chart-range="${days}"]`);
+    // The lines bend from the previous range's shape into the new one.
+    morphEntryChart(chosen?.closest(".entry-price-chart"), shape);
+    chosen?.focus({ preventScroll: true });
   } catch {
     if (chart.isConnected) { press(previous); chart.removeAttribute("aria-busy"); }
     toast("走勢資料載入失敗，請稍後再試");
