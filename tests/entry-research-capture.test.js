@@ -376,18 +376,26 @@ test("research samples and backtests need a signed-in session and are never cach
   }
 });
 
-test("after the switch to v4, captures keep completing the outcomes of the retired v3 samples", async () => {
+test("after the switch to v4, retired v3 samples are left as they are until they are cleared at once", async () => {
   const db = database(), env = { T86_DB: db };
   const first = dataset.dates[120], later = dataset.dates[150];
   await captureEntryResearch(env, { createServices: marketAt(first, "g1"), model: ENTRY_RESEARCH_MODEL_V3 });
-  const pending = () => db.sqlite.prepare(`SELECT COUNT(*) AS n FROM entry_research_samples s LEFT JOIN entry_research_outcomes o
-    ON o.Symbol=s.Symbol AND o.TradeDate=s.TradeDate AND o.ModelVersion=s.ModelVersion
-    WHERE s.ModelVersion='entry-research-v3' AND (o.Status IS NULL OR o.Status='PENDING')`).get().n;
-  assert.ok(pending() > 0, "a v3 sample just captured has no complete outcome yet");
+  const v3 = () => db.sqlite.prepare(`SELECT COUNT(*) AS n, SUM(o.Status='PENDING') AS pending FROM entry_research_samples s
+    LEFT JOIN entry_research_outcomes o ON o.Symbol=s.Symbol AND o.TradeDate=s.TradeDate AND o.ModelVersion=s.ModelVersion
+    WHERE s.ModelVersion='entry-research-v3'`).get();
+  const before = v3();
+  assert.ok(before.n > 0 && before.pending > 0, "a v3 sample just captured has no complete outcome yet");
   const saved = await captureEntryResearch(env, { createServices: marketAt(later, "g2") });
   assert.equal(saved.status, "saved");
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM entry_research_samples WHERE ModelVersion='entry-research-v4'").get().n,
     saved.inserted, "new samples are v4");
-  assert.equal(pending(), 0, "30 sessions later every v3 outcome is resolved by the v4 capture");
+  assert.deepEqual(v3(), before, "the v4 capture neither updates nor deletes v3 rows inside the retention window");
+  // Once the oldest v3 run passes the cutoff, every v3 row goes at once, even newer ones; v4 keeps its rows.
+  db.sqlite.prepare("UPDATE entry_research_runs SET TradeDate='2000-01-03' WHERE ModelVersion='entry-research-v3'").run();
+  const pruned = await new EntryResearchRepository(db).prune(retentionCutoff(later), "entry-research-v4");
+  assert.equal(pruned.samples, before.n);
+  assert.equal(v3().n, 0);
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM entry_research_outcomes WHERE ModelVersion='entry-research-v3'").get().n, 0);
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM entry_research_samples WHERE ModelVersion='entry-research-v4'").get().n, saved.inserted);
   db.sqlite.close();
 });

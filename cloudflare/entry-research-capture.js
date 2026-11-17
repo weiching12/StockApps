@@ -2,19 +2,17 @@ import { createApplicationServices } from "./composition.js";
 import { EntryResearchRepository } from "./repositories/entry-research-repository.js";
 import { DEFAULT_SETTINGS } from "../shared/indicators.js";
 import { entryResearchApplies, evaluateEntryResearch, gateKeysForModel } from "../shared/entry-research.js";
-import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_MODEL_V3 } from "../shared/entry-research-model.js";
+import { ENTRY_RESEARCH_MODEL } from "../shared/entry-research-model.js";
 import { evaluateResearchOutcome } from "../shared/entry-research-outcome.js";
 
 // Outcomes are refreshed for samples from the last 35 sessions; one still pending 30 sessions
 // after its date (e.g. corporate-action coverage never completed) is closed as UNAVAILABLE.
 const OUTCOME_LOOKBACK_SESSIONS = 35;
 const OUTCOME_OVERDUE_SESSIONS = 30;
-// Provisional retention: samples, outcomes and runs older than six calendar months are deleted.
+// Provisional retention: the live model's samples, outcomes and runs older than six calendar months
+// are deleted day by day. A retired model is neither captured nor updated (its pending outcomes stay
+// pending); once its oldest sample passes the cutoff, all of that model's rows are deleted at once.
 export const SAMPLE_RETENTION_MONTHS = 6;
-// Retired models whose samples are no longer captured but whose recent outcomes are still
-// completing. Each costs one candidate query, which returns nothing once its last samples are
-// older than the outcome lookback, so it can stay listed until removed in a later release.
-export const RETIRED_OUTCOME_MODELS = Object.freeze([ENTRY_RESEARCH_MODEL_V3]);
 
 export function retentionCutoff(asOf, months = SAMPLE_RETENTION_MONTHS) {
   const date = new Date(`${asOf}T00:00:00Z`);
@@ -115,11 +113,9 @@ export async function captureEntryResearch(env, { createServices = createApplica
     const rows = stocks.filter(entryResearchApplies).map((stock) => sampleRow(evaluateEntryResearch({ stock, tradingDates: dates, asOf,
       corporateActions, settings: DEFAULT_SETTINGS, model }), { stock, revisionId, capturedAt: startedAt, source: "daily" }));
     const { inserted, skipped } = await repository.saveSamples(rows);
-    let outcomeUpdates = await updateOutcomes({ repository, stocks, dates, actions: services.actions, model,
+    const outcomeUpdates = await updateOutcomes({ repository, stocks, dates, actions: services.actions, model,
       updatedAt: startedAt });
-    for (const retired of RETIRED_OUTCOME_MODELS.filter((item) => item.version !== model.version))
-      outcomeUpdates += await updateOutcomes({ repository, stocks, dates, actions: services.actions, model: retired, updatedAt: startedAt });
-    const pruned = await repository.prune(retentionCutoff(asOf));
+    const pruned = await repository.prune(retentionCutoff(asOf), model.version);
     await repository.finishRun({ ...key, completedAt: now().toISOString(), sampleCount: rows.length, inserted, skipped, outcomeUpdates });
     return { status: "saved", asOf, generation: manifest.generation, inserted, skipped, outcomeUpdates, pruned };
   } catch (error) {

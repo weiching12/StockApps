@@ -87,17 +87,21 @@ export class EntryResearchRepository {
    * Remove samples (with their outcomes) and runs dated before `cutoff`. The small runs table says
    * whether anything is old enough, so repeat captures of a day skip the deletes entirely; each
    * delete names a model version so it walks that version's date index instead of every row.
+   * Any version other than `liveVersion` is retired: once its oldest run passes the cutoff, all of
+   * its rows go at once instead of day by day.
    */
-  async prune(cutoff) {
+  async prune(cutoff, liveVersion) {
     const totals = { outcomes: 0, samples: 0, runs: 0 };
     const versions = (await this.db.prepare(`SELECT ModelVersion FROM entry_research_runs
       GROUP BY ModelVersion HAVING MIN(TradeDate)<?`).bind(cutoff).all()).results ?? [];
     for (const { ModelVersion: version } of versions) {
+      // A retired version is cleared whole: no row of it is newer than this bound.
+      const before = liveVersion && version !== liveVersion ? "9999-12-31" : cutoff;
       const [outcomes, samples, runs] = await this.db.batch([
         this.db.prepare(`DELETE FROM entry_research_outcomes WHERE ModelVersion=?
-          AND Status IN ('PENDING','COMPLETE','UNAVAILABLE') AND TradeDate<?`).bind(version, cutoff),
-        this.db.prepare("DELETE FROM entry_research_samples WHERE ModelVersion=? AND TradeDate<?").bind(version, cutoff),
-        this.db.prepare("DELETE FROM entry_research_runs WHERE ModelVersion=? AND TradeDate<?").bind(version, cutoff),
+          AND Status IN ('PENDING','COMPLETE','UNAVAILABLE') AND TradeDate<?`).bind(version, before),
+        this.db.prepare("DELETE FROM entry_research_samples WHERE ModelVersion=? AND TradeDate<?").bind(version, before),
+        this.db.prepare("DELETE FROM entry_research_runs WHERE ModelVersion=? AND TradeDate<?").bind(version, before),
       ]);
       totals.outcomes += changes(outcomes); totals.samples += changes(samples); totals.runs += changes(runs);
     }
