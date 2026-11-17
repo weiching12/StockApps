@@ -30,7 +30,7 @@ function institutionMix(point, number) {
 
 function institutionBarMarkup(point, number, turn = null, esc = (value) => value) {
   const { volumes, complete, money, tone } = institutionMix(point, number);
-  return `<div class="entry-institution-bar"><div class="entry-institution-head"><span>三大法人交易量${institutionTurnBadge(turn, esc)}</span><span class="entry-institution-net" title="淨買賣股數 × 當日收盤價，屬估算">淨買賣 <b class="${tone}">${money}</b></span></div>
+  return `<div class="entry-institution-bar"><div class="entry-institution-head"><span>三大法人交易量${institutionTurnBadge(turn, esc, point.date)}</span><span class="entry-institution-net" title="淨買賣股數 × 當日收盤價，屬估算">淨買賣 <b class="${tone}">${money}</b></span></div>
     <div class="entry-institution-track" title="三大法人買進＋賣出股數的比例">${INSTITUTION_LINES.map(([key], index) => `<i class="${key}" style="flex-grow:${complete ? volumes[index] : 0}"></i>`).join("")}</div>
     <div class="entry-institution-legend">${INSTITUTION_LINES.map(([key, label], index) => `<span class="${key}" data-institution="${key}">${label} <b>${lotsText(volumes[index], number)}</b></span>`).join("")}</div></div>`;
 }
@@ -38,6 +38,9 @@ function institutionBarMarkup(point, number, turn = null, esc = (value) => value
 /** Point the institution line at one session; the chart header above names the day. */
 function showInstitutionPoint(chart, point, number) {
   const { volumes, complete, money, tone } = institutionMix(point, number);
+  // 法人轉買 describes the latest session only; it hides while another day is on show.
+  const turn = chart.querySelector(".entry-institution-head [data-turn-date]");
+  if (turn) turn.hidden = turn.dataset.turnDate !== point.date;
   const net = chart.querySelector(".entry-institution-net b");
   // The monthly chart has no institution line.
   if (!net) return;

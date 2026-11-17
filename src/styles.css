@@ -2686,6 +2686,7 @@ button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outli
 /* 法人轉買 (shared/institution-turn.js): a soft buy-tone pill beside a stock or on a sector card. */
 :is(.institution-turn-badge, .sector-turn-count) { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--up) 12%, transparent); color: var(--up); font-size: var(--text-meta); font-weight: 600; line-height: 1.5; white-space: nowrap; }
 .institution-turn-badge { margin-left: 6px; vertical-align: middle; cursor: help; }
+.institution-turn-badge[hidden] { display: none; }
 .sector-stock-table th .institution-turn-badge { margin: 4px 0 0; }
 .sector-stock-name > small,
 .sector-stock-change {
@@ -3691,11 +3692,6 @@ button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outli
 .sector-flow-cell strong { display: block; font-size: var(--text-body); font-weight: 600; line-height: 1.3; white-space: nowrap; }
 /* The institution's run as of the day on show, under its figure. */
 /* Badges flag a run that goes against the price: red for buying, green for selling. The slot keeps the row's height when empty. */
-.sector-flow-run-slot { min-height: 22px; margin-top: 2px; }
-.sector-flow-badge { --badge: var(--muted); display: inline-block; padding: 1px 8px; border: 1px solid color-mix(in srgb, var(--badge) 45%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--badge) 14%, var(--surface)); color: var(--badge); font-size: var(--text-meta); font-weight: 500; line-height: 1.5; white-space: nowrap; }
-.sector-flow-badge[hidden] { display: none; }
-.sector-flow-badge.up { --badge: var(--up); }
-.sector-flow-badge.down { --badge: var(--down); }
 .sector-flow-region { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 4px; }
 .sector-flow-scale { position: relative; color: var(--muted); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
 .sector-flow-scale span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
@@ -3720,15 +3716,7 @@ button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outli
 .sector-flow-dates { display: flex; justify-content: space-between; margin-top: 4px; padding-left: 42px; color: var(--muted); font-size: var(--text-meta); }
 .sector-flow-note, .sector-flow-empty { margin: 8px 0 0; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; }
 /* Each institution's latest run: a wider trace under that stretch, and a ring with its date where it began. */
-.sector-flow-plot path.sector-flow-run { stroke-width: 7; opacity: .22; }
-.sector-flow-turn { position: absolute; z-index: 1; pointer-events: none; }
-.sector-flow-turn i { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border: 1.5px solid var(--tone); border-radius: 50%; background: var(--surface); box-sizing: border-box; }
 /* A small annotation, like the chart legends: 11px, the size the price chart uses for its legend. */
-.sector-flow-turn b { position: absolute; right: 3px; }
-.sector-flow-turn b.sector-flow-badge { padding: 0 6px; font-size: 11px; line-height: 1.45; }
-.sector-flow-turn.below b { top: calc(4px + var(--lift, 0) * 15px); }
-.sector-flow-turn.above b { bottom: calc(4px + var(--lift, 0) * 15px); }
-.sector-flow-turn.from-left b { right: auto; left: 3px; }
 /* The sector's price change as a pale area behind the flow; its figure sits on the date line. */
 .sector-flow-trend .price { --tone: var(--muted); }
 .sector-flow-plot path.price-area { fill: color-mix(in srgb, var(--muted) 13%, transparent); stroke: none; }
@@ -3807,3 +3795,46 @@ button.etf-holding-name:hover { text-decoration: underline; }
   .etf-tiles:not(.three):not(.two) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 8px; }
   .etf-technical .etf-tiles:not(.three) { gap: 14px 8px; }
 }
+
+/* Settings dialog: each block is a heading over a card of rows (label left, control right), the same
+   at every width. Declared last with #info-dialog so the older per-control rules above do not leak in. */
+#info-dialog .settings-section { margin: 20px 0 0; padding: 0; border: 0; }
+#info-dialog h2 + .settings-section { margin-top: 12px; }
+#info-dialog .settings-group { margin: 0; padding: 0; border: 0; min-width: 0; }
+#info-dialog .settings-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; margin: 0 0 8px; padding: 0 2px; color: var(--accent); font-size: var(--text-meta); font-weight: 700; letter-spacing: .06em; }
+#info-dialog .settings-heading small { color: var(--muted); font-size: var(--text-meta); font-weight: 400; letter-spacing: 0; }
+#info-dialog .settings-card { padding: 0 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+#info-dialog .settings-card > .form-field { display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; margin: 0; padding: 10px 0; border: 0; border-bottom: 1px solid var(--border); color: var(--ink); font-size: var(--text-body); }
+#info-dialog .settings-card > :last-child { border-bottom: 0; }
+#info-dialog .settings-card .form-field select { min-width: 112px; padding-top: 8px; padding-bottom: 8px; }
+#info-dialog .settings-card .form-field input[type="number"] { width: 68px; padding: 8px 10px; }
+#info-dialog .settings-card .form-field > div:not(:has(strong)) { display: flex; align-items: center; gap: 8px; }
+#info-dialog .settings-card .form-field > div > span { color: var(--muted); font-size: var(--text-meta); }
+/* A row's text block: a bold name with a muted line under it. */
+#info-dialog .settings-card .form-field > div:has(strong), #info-dialog .settings-toggle > span { display: grid; gap: 2px; min-width: 0; }
+#info-dialog .settings-card .form-field :is(label, strong), #info-dialog .settings-toggle > span, #info-dialog .settings-account-hint, #info-dialog .settings-account-row .account-identity { color: var(--ink); font-size: var(--text-body); font-weight: 500; }
+#info-dialog .settings-card .form-field > div:has(strong) > span, #info-dialog .settings-toggle small { color: var(--muted); font-size: var(--text-meta); font-weight: 400; }
+#info-dialog .settings-toggle { cursor: pointer; }
+/* 減少動畫與特效 is an on/off switch at the row's right edge. */
+#info-dialog .settings-toggle input { appearance: none; position: relative; flex: none; width: 44px; height: 26px; margin: 0; border-radius: 999px; background: color-mix(in srgb, var(--muted) 35%, transparent); cursor: pointer; transition: background .15s; }
+#info-dialog .settings-toggle input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, .25); transition: transform .15s; }
+#info-dialog .settings-toggle input:checked { background: var(--accent); }
+#info-dialog .settings-toggle input:checked::after { transform: translateX(18px); }
+#info-dialog .settings-toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#info-dialog .settings-card > .mood-style-choices { margin: 0; padding: 12px 0 14px; border-bottom: 0; }
+/* Floated, the legend becomes the grid's first item and spans both picture choices. */
+#info-dialog .mood-style-choices legend { float: left; grid-column: 1 / -1; width: 100%; margin: 0 0 2px; color: var(--ink); font-size: var(--text-body); font-weight: 500; }
+#info-dialog #settings-form > .helper-text { margin: 8px 2px 0; color: var(--muted); font-size: var(--text-meta); }
+#info-dialog #settings-form .dialog-buttons { margin-top: 12px; }
+#info-dialog .settings-account-row .account-menu { flex-wrap: nowrap; justify-content: flex-end; gap: 8px; }
+#info-dialog .settings-account-row:has(.account-identity) .settings-account-hint { display: none; }
+#info-dialog .settings-account-row .account-identity { order: -1; flex: 1 1 auto; }
+#info-dialog .settings-account-row:has(.account-identity) { justify-content: flex-end; }
+#info-dialog .settings-account-row:has(.account-identity) .account-menu { flex: 1 1 auto; }
+#info-dialog .settings-account-row .settings-account-hint { color: var(--muted); }
+#info-dialog .settings-notifications { display: block; margin: 20px 0 0; padding: 0; border: 0; }
+#info-dialog .settings-notifications[hidden] { display: none; }
+#info-dialog .settings-notifications .push-nav-item, #info-dialog #check-update { flex: none; width: auto; min-height: 36px; }
+#info-dialog .settings-notifications .app-version { color: var(--muted); font-size: var(--text-meta); }
+#info-dialog .update-check-status { margin: 8px 2px 0; }
+#info-dialog .settings-card :is(#app-version, .settings-version-title) { grid-column: auto; }

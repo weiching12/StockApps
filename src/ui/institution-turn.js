@@ -7,8 +7,9 @@ export function institutionTurnText(turn) {
     + `（占成交金額 ${turn.valueShare.toFixed(1)}%）；收盤低於季線，近 ${turn.returnSessions} 日 ${turn.returnPercent.toFixed(2)}%。僅供觀察，非買進訊號。`;
 }
 
-export function institutionTurnBadge(turn, esc) {
+/** `date`: the session the mark belongs to, so a chart showing another day can hide it. */
+export function institutionTurnBadge(turn, esc, date = null) {
   if (!turn) return "";
   const text = esc(institutionTurnText(turn));
-  return `<span class="institution-turn-badge" title="${text}" aria-label="法人轉買：${text}">法人轉買</span>`;
+  return `<span class="institution-turn-badge"${date ? ` data-turn-date="${esc(date)}"` : ""} title="${text}" aria-label="法人轉買：${text}">法人轉買</span>`;
 }
