@@ -78,6 +78,8 @@ export function getSectorOverview(snapshots, {
       leader, leaderValue,
       leaderChange: leader ? getSectorStockReturn(leader, window, tradingDates) : null,
       leaderStreak: leader ? getStockInstitutionStreak(leader, selectedDates) : 0,
+      // Members marked 法人轉買 on the selected session (shared/institution-turn.js); the same for every window.
+      turnCount: stocks.filter((stock) => stock.institutionTurn).length,
     };
   });
   // Each sector's share of all listed-company institutional trading (ETFs are already excluded).

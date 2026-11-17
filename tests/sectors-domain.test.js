@@ -91,7 +91,7 @@ test("industry overview/detail match the previous UI algorithm across all window
     const snapshots = dataset.stocks.map((stock) => getSnapshot(stock, asOf));
     for (const window of ["day", "5", "20"]) for (const sort of ["net-desc", "net-asc", "name-asc"]) {
       const config = { window, sort, tradingDates, asOf };
-      assert.deepEqual(getSectorOverview(snapshots, config).map(({ activity: _activity, leaderStreak: _streak, ...sector }) => sector),
+      assert.deepEqual(getSectorOverview(snapshots, config).map(({ activity: _activity, leaderStreak: _streak, turnCount: _turns, ...sector }) => sector),
         legacyOverview(snapshots, config), `${asOf}/${window}/${sort}`);
     }
     for (const sector of new Set(snapshots.map((stock) => stock.sector)))

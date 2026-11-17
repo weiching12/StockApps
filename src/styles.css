@@ -2678,6 +2678,15 @@ dialog.sector-dialog {
   white-space: normal;
   overflow-wrap: anywhere;
 }
+/* The name opens the stock's detail; the whole row is a tap target for it too. */
+button.sector-stock-name { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+button.sector-stock-name:hover > strong:last-child { color: var(--accent); text-decoration: underline; }
+button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+#sector-dialog tr[data-sector-stock] { cursor: pointer; }
+/* 法人轉買 (shared/institution-turn.js): a soft buy-tone pill beside a stock or on a sector card. */
+:is(.institution-turn-badge, .sector-turn-count) { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--up) 12%, transparent); color: var(--up); font-size: var(--text-meta); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+.institution-turn-badge { margin-left: 6px; vertical-align: middle; cursor: help; }
+.sector-stock-table th .institution-turn-badge { margin: 4px 0 0; }
 .sector-stock-name > small,
 .sector-stock-change {
   color: var(--muted);
@@ -3186,7 +3195,8 @@ dialog.sector-dialog {
 }
 
 /* Score dialog: research sections come before the chart and the legacy V1.2 detail. */
-.entry-dialog.has-research > section + section { margin-top: 14px; }
+/* Folded blocks (an ETF's technical read is a <details>) keep the same gap as sections. */
+.entry-dialog.has-research > :is(section, details) + :is(section, details) { margin-top: 14px; }
 .research-basic { display: block; }
 /* A data note, not an alert: small muted text so it never outweighs the decision card. */
 .research-warning { width: 100%; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; }
@@ -3754,12 +3764,12 @@ dialog.sector-dialog {
 .etf-tiles small { display: block; color: var(--muted); font-size: var(--text-meta); line-height: 1.4; overflow-wrap: anywhere; }
 .etf-dialog :is(dd, b).up { color: var(--up); }
 .etf-dialog :is(dd, b).down { color: var(--down); }
-.etf-facts { display: grid; gap: 8px; margin: 0; }
+.etf-facts { display: grid; gap: 10px; margin: 0; }
 .etf-facts > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; font-size: var(--text-secondary); line-height: 1.5; }
 .etf-facts dt { color: var(--muted); }
 .etf-facts dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
-.etf-fund-block { margin-top: 16px; padding-top: 14px; box-shadow: inset 0 1px var(--border); }
-.etf-fund-block h4 { margin: 0 0 10px; font-size: var(--text-secondary); }
+.etf-fund-block { margin-top: 18px; padding-top: 16px; box-shadow: inset 0 1px var(--border); }
+.etf-fund-block h4 { margin: 0 0 12px; font-size: var(--text-secondary); }
 .etf-month .etf-empty, .etf-month .etf-note { margin: 0; }
 .etf-month-panel h3 { margin: 0 0 6px; }
 .etf-month-panel h4 { margin: 14px 0 8px; font-size: var(--text-secondary); }
@@ -3794,6 +3804,6 @@ button.etf-holding-name:hover { text-decoration: underline; }
 .etf-technical[open] > summary { margin-bottom: 12px; }
 @media (max-width: 520px) {
   .etf-dividend-card, .etf-section { padding: 12px; }
-  .etf-tiles:not(.three):not(.two) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .etf-technical .etf-tiles:not(.three) { gap: 10px 8px; }
+  .etf-tiles:not(.three):not(.two) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 8px; }
+  .etf-technical .etf-tiles:not(.three) { gap: 14px 8px; }
 }

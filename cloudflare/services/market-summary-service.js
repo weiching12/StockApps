@@ -71,6 +71,7 @@ export class MarketSummaryService {
         entryResearch: entryResearchApplies(stock) ? entryResearchSummary(evaluateEntryResearch({ stock, tradingDates: dates, asOf,
           corporateActions: actions, settings, score })) : null,
         dominantInstitution: getDominantInstitution(stock.latest?.institutions),
+        institutionTurn: stock.institutionTurn,
         money: { day: { total: getStockInstitutionEstimate(stock, "total", "day", dates) } },
       };
     });
@@ -139,7 +140,7 @@ export class MarketSummaryService {
     if (!detail) throw new DomainError("SECTOR_NOT_FOUND", "產業不存在");
     return { data: { ...detail, stocks: undefined,
       members: detail.members.map(({ stock, ...member }) => ({ ...member,
-        stock: { symbol: stock.symbol, name: stock.name, latest: stock.latest,
+        stock: { symbol: stock.symbol, name: stock.name, latest: stock.latest, institutionTurn: stock.institutionTurn,
           institutionSeries: getStockInstitutionSeries(stock, dates) } })) },
       meta: { asOf, generation: manifest.generation, rulesVersion: "technical-v1" } };
   }

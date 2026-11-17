@@ -1,3 +1,4 @@
+import { institutionTurnBadge } from "./institution-turn.js";
 import { isEtf } from "../../shared/market-codec.js";
 import { dailyCloseSeries, monthlyCloseSeries } from "../../shared/price-history.js";
 import { researchCardPreview, researchChartMarks, researchDialogSections } from "./entry-research.js";
@@ -27,9 +28,9 @@ function institutionMix(point, number) {
   return { volumes, complete: volumes.every(Number.isFinite), money, tone: amount > 0 ? "up" : amount < 0 ? "down" : "" };
 }
 
-function institutionBarMarkup(point, number) {
+function institutionBarMarkup(point, number, turn = null, esc = (value) => value) {
   const { volumes, complete, money, tone } = institutionMix(point, number);
-  return `<div class="entry-institution-bar"><div class="entry-institution-head"><span>三大法人交易量</span><span class="entry-institution-net" title="淨買賣股數 × 當日收盤價，屬估算">淨買賣 <b class="${tone}">${money}</b></span></div>
+  return `<div class="entry-institution-bar"><div class="entry-institution-head"><span>三大法人交易量${institutionTurnBadge(turn, esc)}</span><span class="entry-institution-net" title="淨買賣股數 × 當日收盤價，屬估算">淨買賣 <b class="${tone}">${money}</b></span></div>
     <div class="entry-institution-track" title="三大法人買進＋賣出股數的比例">${INSTITUTION_LINES.map(([key], index) => `<i class="${key}" style="flex-grow:${complete ? volumes[index] : 0}"></i>`).join("")}</div>
     <div class="entry-institution-legend">${INSTITUTION_LINES.map(([key, label], index) => `<span class="${key}" data-institution="${key}">${label} <b>${lotsText(volumes[index], number)}</b></span>`).join("")}</div></div>`;
 }
@@ -129,7 +130,7 @@ function priceChartMarkup(stock, esc, number, series, marks = null, range = 30, 
     <div class="entry-chart-plot" role="slider" tabindex="0" aria-label="${esc(stock.symbol)}近 ${series.length} 個交易日收盤價；點選圖表查看，觸控長按後左右滑動，鍵盤可用方向鍵" aria-orientation="horizontal" aria-valuemin="1" aria-valuemax="${series.length}" aria-valuenow="${series.length}" aria-valuetext="${esc(readout)}" data-index="${series.length - 1}" data-points="${esc(JSON.stringify(series))}"><svg viewBox="0 0 600 210" preserveAspectRatio="none" aria-hidden="true">
       <line x1="8" y1="16" x2="592" y2="16"/><line x1="8" y1="78" x2="592" y2="78"/><line x1="8" y1="140" x2="592" y2="140"/><line x1="8" y1="197" x2="592" y2="197"/>
       <path class="entry-chart-close" d="${path.trim()}"/><path class="entry-chart-ma20" d="${ma20Path.trim()}"/><path class="entry-chart-ma" d="${ma60Path.trim()}"/>${planSvg}<g class="entry-chart-bars">${bars}</g><g class="entry-chart-points">${dots}</g><line class="entry-chart-cursor" x1="${x(series.length - 1).toFixed(1)}" x2="${x(series.length - 1).toFixed(1)}" y1="16" y2="197"/></svg>${planLabels}</div></div>
-    <div class="entry-chart-dates"><span>${esc(monthly ? series[0].date.slice(0, 7) : series[0].date)}</span><span>${esc(monthly ? last.date.slice(0, 7) : last.date)}</span></div>${monthly ? options.events ?? "" : institutionBarMarkup(last, number)}</section>`;
+    <div class="entry-chart-dates"><span>${esc(monthly ? series[0].date.slice(0, 7) : series[0].date)}</span><span>${esc(monthly ? last.date.slice(0, 7) : last.date)}</span></div>${monthly ? options.events ?? "" : institutionBarMarkup(last, number, stock.institutionTurn, esc)}</section>`;
 }
 
 export function selectEntryChartPoint(plot, index, number) {

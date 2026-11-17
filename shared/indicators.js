@@ -1,3 +1,5 @@
+import { getInstitutionTurn } from "./institution-turn.js";
+
 /** All prices use TWD and all volumes use shares. Input must be oldest first. */
 export const DEFAULT_SETTINGS = Object.freeze({
   period: 9,
@@ -178,6 +180,7 @@ export function getSnapshot(stock, asOf, settings) {
     trend: getTrendStatus(history, stock.tradingDates, asOf),
     signal: getTechnicalSignal(current && consecutive ? history : []),
     institutionalSummary: getInstitutionalSummary(institutionHistory),
+    institutionTurn: current && stock.tradingDates ? getInstitutionTurn(history, stock.tradingDates, asOf) : null,
   };
 }
 

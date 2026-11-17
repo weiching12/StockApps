@@ -7,7 +7,7 @@ import { SummaryCache } from "./summary-cache.js";
 
 const SUMMARY_ROUTES = ["/api/v1/market/summary", "/api/v1/favorites/summary"];
 // Bump when the response shape or derived rules change; old Durable Object entries persist across deploys.
-const CACHE_SCHEMA = "entry-research-v4-structure-v23";
+const CACHE_SCHEMA = "entry-research-v4-structure-v24";
 // Backtest and sample pages aggregate every saved sample in D1. They only change when a capture
 // runs, so a separate instance of this class (its own storage) keeps them keyed on the capture revision.
 const RESEARCH_ROUTES = { "/api/v1/research/backtest": "backtest", "/api/v1/research/samples": "samples" };

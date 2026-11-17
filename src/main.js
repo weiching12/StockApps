@@ -1013,6 +1013,12 @@ function bindEvents() {
       else document.querySelector("#main").focus({ preventScroll: true });
       return;
     }
+    // A sector's stock row opens that stock's detail over the sector sheet (the name is its button).
+    const sectorStock = event.target.closest("#sector-dialog tr[data-sector-stock]");
+    if (sectorStock && !event.target.closest("a, input, select, textarea, button:not(.sector-stock-name)")) {
+      void openEntryScoreDialog(sectorStock.dataset.sectorStock, !touchInteraction);
+      return;
+    }
     const sectorCard = event.target.closest("#sector-grid [data-sector-details]");
     if (sectorCard) {
       openSectorDialog(sectorCard.dataset.sectorDetails, !touchInteraction);
