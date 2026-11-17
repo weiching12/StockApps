@@ -129,6 +129,10 @@ const NEXT_EXPLANATION = {
   NOT_ELIGIBLE: "觸發初步門檻的否決條件，不進行進場評估。",
 };
 
+/** Opens the stock's sector institutional flows (handled in main.js). */
+const sectorFlowLink = (stock, esc) => stock?.sector && !isEtf(stock)
+  ? `<button type="button" class="outline-button" data-institution-sector="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}所屬${esc(stock.sector)}產業法人買賣">查看產業法人 ↗</button>` : "";
+
 /**
  * How the structure component is built: the mean of the trend and institutional category scores,
  * each shown with its own inputs. Needs the per-stock score detail (categories and metrics).
@@ -142,8 +146,7 @@ function structureHelp(research, stock, { esc, number, percent }) {
     ["月線較前一交易日上升", metrics.ma20 > metrics.previousMa20], ["季線較前一交易日上升", metrics.ma60 > metrics.previousMa60]];
   const met = checks.filter(([, ok]) => ok).length;
   const parts = institutionalScoreBreakdown(metrics.netRatio, metrics.institutionBuyDays, metrics.institutionPositiveCategories);
-  const sector = stock.sector && !isEtf(stock)
-    ? `<button type="button" class="outline-button" data-institution-sector="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}所屬${esc(stock.sector)}產業法人買賣">查看產業法人 ↗</button>` : "";
+  const sector = sectorFlowLink(stock, esc);
   return `<details class="research-structure-help"><summary>構面強度計算方式</summary>
     <p class="research-structure-formula">構面強度 = （趨勢 ${number(trend, 2)} ＋ 法人 ${number(institutional, 2)}）÷ 2 = <strong>${number(research.componentScores.structure, 2)}</strong></p>
     <section><h4>趨勢結構 ${number(trend, 2)} 分</h4><ul class="research-structure-checks">${checks.map(([label, ok]) => `<li><span aria-hidden="true">${mark(ok)}</span> ${label}</li>`).join("")}</ul>
@@ -186,7 +189,8 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
     ? `<div class="research-readiness-body"><div class="research-readiness-score"><strong>${number(research.score, 0)}</strong><span>/ 100</span></div><div class="research-components">${component(isV1(result.modelVersion) ? "五大構面強度" : "構面強度（趨勢＋法人）", research.componentScores.structure, research.weights.structure)}${component("進場訊號品質", research.componentScores.signal, research.weights.signal)}${component("進場位置與時機", research.componentScores.timing, research.weights.timing)}</div></div>${isV1(result.modelVersion) ? "" : structureHelp(research, stock, { esc, number, percent })}<div class="research-strengths"><div><h4>表現較好</h4>${items(research.strengths, esc, "沒有特別突出的構面。")}</div><div><h4>仍可改善</h4>${items(research.weaknesses, esc, "沒有明顯偏弱的構面。")}</div></div>`
     : `<p class="research-empty">${gate.status === "FAIL" ? "未通過初步門檻，不計算進場準備度。" : "資料不足，無法計算進場準備度。"}</p>`}<p class="helper-text">衡量進場準備程度供股票之間比較，不是獲利機率或買進指令；權重為暫定、尚未經歷史回測驗證。</p></section>`;
 
-  const gates = gatesSection(result, { esc, number });
+  // Without readiness (v4) the sector-flow link sits with the institutional veto's inputs instead.
+  const gates = gatesSection(result, { esc, number }, isV1(result.modelVersion) || research.weights ? "" : sectorFlowLink(stock, esc));
   const signal = research.signal;
   const evidence = signal?.setupType === "PULLBACK_RECOVERY" ? [
     ["回踩日期", signal.evidence.pullbackDates.join("、") || "—"], ["回踩低點", price(signal.evidence.pullbackLow, number)],
@@ -315,7 +319,7 @@ const dataValue = (value, number) => typeof value === "number"
  * show below when selected (pure CSS, so re-rendered dialogs need no event wiring). A stock
  * that did not pass opens on its first triggered or pending condition.
  */
-function gatesSection(result, { esc, number }) {
+function gatesSection(result, { esc, number }, sectorLink = "") {
   const gate = result.gateResult, v1 = isV1(result.modelVersion);
   const name = `research-gate-${esc(result.stockCode)}`;
   const entries = Object.entries(gate.details);
@@ -331,7 +335,7 @@ function gatesSection(result, { esc, number }) {
     const data = Object.entries(item.data ?? {}).filter(([, value]) => value !== null && value !== undefined)
       .map(([field, value]) => `<div><dt>${esc(DATA_LABELS[field] ?? field)}</dt><dd>${esc(dataValue(value, number))}</dd></div>`).join("");
     const references = (item.references ?? []).map((ref) => `<li><span class="research-reference-kind">${esc(ref.kind)}</span><a href="${esc(ref.url)}" target="_blank" rel="noopener noreferrer">${esc(ref.title)}</a></li>`).join("");
-    return `<div class="research-gate-panel" data-gate="${key}"><div class="research-gate-head"><strong>${esc(item.label ?? key)}</strong><span class="research-gate-status ${tone}">${label}</span></div><p>${esc(item.reason)}</p><p class="research-rule">計算方式：${esc(item.rule)}</p>${data ? `<dl>${data}</dl>` : ""}${references ? `<details class="research-reference-details"><summary>參考依據</summary><ul class="research-references">${references}</ul><p class="research-gate-note">${REFERENCE_NOTE}</p></details>` : ""}</div>`;
+    return `<div class="research-gate-panel" data-gate="${key}"><div class="research-gate-head"><strong>${esc(item.label ?? key)}</strong><span class="research-gate-status ${tone}">${label}</span></div><p>${esc(item.reason)}</p><p class="research-rule">計算方式：${esc(item.rule)}</p>${data ? `<dl>${data}</dl>` : ""}${key === "institutional" ? sectorLink : ""}${references ? `<details class="research-reference-details"><summary>參考依據</summary><ul class="research-references">${references}</ul><p class="research-gate-note">${REFERENCE_NOTE}</p></details>` : ""}</div>`;
   }).join("");
   const fired = entries.filter(([, item]) => item.status === "FAIL").length;
   const heading = v1 ? "五大核心門檻" : "初步門檻（否決條件）";

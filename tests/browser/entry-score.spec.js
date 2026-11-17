@@ -7,27 +7,14 @@ test.beforeEach(({ page }) => page.addInitScript(() => {
 
 test("entry score stays usable in the market list, detail dialog and phone scroll", async ({ page }) => {
   await page.goto("/");
-  // The list shows the entry readiness score; the retired V1.2 score is shown nowhere.
-  await expect(page.locator('[data-sort-heading="readiness"]')).toContainText("進場準備度");
-  await expect(page.locator('[data-sort-heading="entryScore"]')).toHaveCount(0);
-  const headingColors = await page.locator('[data-sort-heading="readiness"]').evaluate((heading) =>
-    ({ heading: getComputedStyle(heading).color, button: getComputedStyle(heading.querySelector("button")).color }));
-  expect(headingColors.button).toBe(headingColors.heading);
-  await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
-  const darkHeadingColors = await page.locator('[data-sort-heading="readiness"]').evaluate((heading) =>
-    ({ heading: getComputedStyle(heading).color, button: getComputedStyle(heading.querySelector("button")).color }));
-  expect(darkHeadingColors.button).toBe(darkHeadingColors.heading);
-  await page.evaluate(() => { document.documentElement.dataset.theme = "light"; });
+  // v4 dropped the readiness score: the column names the gate result and is not sortable.
+  await expect(page.locator('[data-sort-heading="readiness"], [data-sort-heading="entryScore"]')).toHaveCount(0);
+  await expect(page.locator("#stock-rows").locator("xpath=ancestor::table").locator("thead th").nth(2)).toHaveText("初步門檻");
+  await expect(page.locator("#stock-rows")).not.toContainText("準備度");
   const rows = page.locator("#stock-rows tr");
   await expect(rows.first().locator(".entry-score-button")).toBeVisible();
-  const scoreColor = await rows.first().locator(".entry-score-button strong").evaluate((element) => getComputedStyle(element).color);
-  await rows.first().locator(".entry-score-button").hover();
-  expect(await rows.first().locator(".entry-score-button strong").evaluate((element) => getComputedStyle(element).color))
-    .toBe(scoreColor);
-  await expect(rows.first().locator(".entry-score-button strong")).toHaveText(/^(\d+|—)$/);
   // Default order leads with stocks that passed the veto gates.
-  await expect(rows.first().locator(".research-gate")).toHaveText("初步門檻通過");
-  const firstListScore = await rows.first().locator(".entry-score-button strong").textContent();
+  await expect(rows.first().locator(".research-gate")).toHaveText("通過");
   const firstSymbol = await rows.first().getAttribute("data-symbol");
   await rows.first().locator(".entry-score-button").click();
   await expect(page.locator("#info-dialog")).toBeVisible();
@@ -37,18 +24,8 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   await expect(page.locator("#dialog-content")).toContainText("波段順勢進場");
   await expect(page.locator(".entry-legacy, .entry-summary, .entry-condition")).toHaveCount(0);
   await expect(page.locator("#dialog-content")).not.toContainText("株研評分");
-  // The dialog's readiness matches the list, and the structure component explains its inputs.
-  if (firstListScore === "—") await expect(page.locator(".research-readiness .research-empty")).toBeVisible();
-  else {
-    await expect(page.locator(".research-readiness-score strong")).toHaveText(firstListScore);
-    const help = page.locator(".research-structure-help");
-    await expect(help).not.toHaveAttribute("open", "");
-    await help.locator("summary").click();
-    await expect(help.locator(".research-structure-formula")).toContainText(/構面強度 = （趨勢 [\d.]+ ＋ 法人 [\d.]+）÷ 2 = [\d.]+/);
-    await expect(help.locator(".research-structure-checks li")).toHaveCount(4);
-    await expect(help).toContainText("近五日收盤站上月線");
-    await expect(help).toContainText("占比分數");
-  }
+  await expect(page.locator(".research-readiness, .research-structure-help")).toHaveCount(0);
+  await expect(page.locator("#dialog-content")).not.toContainText("準備度");
   const chart = page.locator(".entry-price-chart");
   const plot = chart.locator(".entry-chart-plot");
   await expect(chart.locator("h3")).toBeVisible();
@@ -140,13 +117,6 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   await page.locator("#close-dialog").click();
   await rows.first().locator("[data-favorite]").click();
   await expect(page.locator("#info-dialog")).toBeHidden();
-  await page.locator('[data-sort="readiness"]').click();
-  const scores = await rows.locator(".entry-score-button strong").allTextContents();
-  const numeric = scores.map((value) => Number(value)).filter(Number.isFinite);
-  expect(numeric).toEqual([...numeric].sort((a, b) => b - a));
-  await page.locator('[data-sort="readiness"]').click();
-  const ascending = (await rows.locator(".entry-score-button strong").allTextContents()).map(Number).filter(Number.isFinite);
-  expect(ascending).toEqual([...ascending].sort((a, b) => a - b));
   // Phones show one card per stock without horizontal scrolling.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(rows.first().locator(".stock-name")).toBeVisible();

@@ -16,7 +16,7 @@ test("the app opens on home with the mood and only today's next-day candidates",
   await expect(page.locator("#home-list tr.research-card")).toHaveCount(0);
 });
 
-test("candidates sort by readiness and a row opens the stock", async ({ page }) => {
+test("candidates sort by code and a row opens the stock", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#home-count")).toHaveText("明日候選 0 檔");
   await page.evaluate(async () => {
@@ -132,7 +132,7 @@ test("flows follow the market list's selected session", async ({ page }) => {
   await expect(amount).not.toHaveText(latest);
 });
 
-test("the market card keeps one status and leaves readiness to the detail on phones", async ({ page }) => {
+test("the market card keeps one status and leaves the gate result to the detail on phones", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.locator('[data-page="market"]').first().click();

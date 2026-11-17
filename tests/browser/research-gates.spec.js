@@ -42,15 +42,16 @@ test("a passing stock keeps the research order and opens a gate panel when its i
   const dialog = page.locator("#info-dialog");
   await expect(dialog.locator(".research-gates h3 small")).toHaveText("皆未觸發");
   await expect(dialog.locator(".research-gate-panel:visible")).toHaveCount(0);
-  await expect(dialog.locator(".research-readiness")).toBeVisible();
+  // v4 scores no readiness.
+  await expect(dialog.locator(".research-readiness")).toHaveCount(0);
   // A price-data note, when present, sits right under the chart and is not part of the order.
   const order = (await dialog.locator(".entry-dialog > section").evaluateAll((nodes) => nodes.map((node) => node.className.split(" ")[0])))
     .filter((name) => name !== "research-basic");
   const at = (name) => order.indexOf(name);
   // The conclusion first, the chart behind it, then the detail in decision order.
   expect(at("research-plan-card")).toBe(0);
-  expect([at("research-plan-card"), at("entry-price-chart"), at("research-gates"), at("research-signal"), at("research-readiness"), at("research-price-plan")])
-    .toEqual([...Array(6).keys()]);
+  expect([at("research-plan-card"), at("entry-price-chart"), at("research-gates"), at("research-signal"), at("research-price-plan")])
+    .toEqual([...Array(5).keys()]);
   await dialog.locator('.research-gate-tile[data-gate="liquidity"]').click();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toBeVisible();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toContainText("平均成交金額");
@@ -59,12 +60,14 @@ test("a passing stock keeps the research order and opens a gate panel when its i
   await page.keyboard.press("ArrowLeft");
   await expect(dialog.locator('.research-gate-panel[data-gate="institutional"]')).toBeVisible();
   await expect(dialog.locator(".research-gate-panel:visible")).toHaveCount(1);
+  // The institutional veto's inputs link to the sector's institutional flows.
+  await expect(dialog.locator('.research-gate-panel[data-gate="institutional"] [data-institution-sector="2330"]')).toBeVisible();
 });
 
 test("the market list names the first triggered veto", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator('#stock-rows tr[data-symbol="2317"] .research-gate')).toHaveText("過度延伸 等 2 項");
-  await expect(page.locator('#stock-rows tr[data-symbol="2330"] .research-gate')).toHaveText("初步門檻通過");
+  await expect(page.locator('#stock-rows tr[data-symbol="2330"] .research-gate')).toHaveText("通過");
 });
 
 test("signal analysis explains how signals are judged and lists both patterns with every condition", async ({ page }) => {

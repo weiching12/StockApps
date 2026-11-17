@@ -17,13 +17,14 @@ test("research center preserves favorites and opens existing score detail", asyn
   await expect(page.locator("#research-stats .research-stat-label")).toHaveText(["自選股票", "明日進場候選", "今日候選失效"]);
   await expect(page.locator("#research-stats .research-stat strong").first()).toContainText("檔");
   await expect(page.locator("#research-list table")).toBeVisible();
-  // The list shows entry research, not the V1.2 score, and leads with readiness.
-  await expect(page.locator("#research-list thead th")).toHaveText(["股票", "準備度", "股價", "進場研究"]);
-  await expect(page.locator("#research-sort")).toHaveValue("readiness");
-  const scores = await page.locator("#research-list .research-card .research-score-button strong").allTextContents();
-  const numeric = scores.map(Number).filter(Number.isFinite);
-  expect(numeric).toEqual([...numeric].sort((a, b) => b - a));
-  expect(scores.slice(numeric.length).every((value) => value === "—")).toBe(true);
+  // The list shows entry research, not the V1.2 score; v4 has no readiness score, so the second
+  // column names the gate result and the list leads with next-day candidates.
+  await expect(page.locator("#research-list thead th")).toHaveText(["股票", "初步門檻", "股價", "進場研究"]);
+  await expect(page.locator("#research-sort")).toHaveValue("nextDay");
+  await expect(page.locator('#research-sort option[value="readiness"]')).toHaveCount(0);
+  const gates = await page.locator("#research-list .research-card .research-score-button .research-gate").allTextContents();
+  expect(gates.length).toBeGreaterThan(0);
+  expect(gates.every((value) => value === "通過" || value === "待確認" || /^(—|\S+( 等 \d+ 項)?)$/.test(value))).toBe(true);
   const card = page.locator("#research-list .research-card").first();
   await expect(card).toBeVisible();
   await expect(card.locator(".research-gate")).toBeVisible();
@@ -116,12 +117,13 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
       const table = row.closest('table');
       const textRight = node => { const range = document.createRange(); range.selectNodeContents(node); return range.getBoundingClientRect().right; };
       return { header: textRight(table.querySelector('thead th:nth-child(2)')),
-        score: textRight(row.querySelector('.research-score-button strong')),
-        scoreTop: row.querySelector('.research-score-button strong').getBoundingClientRect().top,
+        score: textRight(row.querySelector('.research-score-button .research-gate')),
+        scoreTop: row.querySelector('.research-score-button .research-gate').getBoundingClientRect().top,
         deltaTop: row.querySelector('.research-price strong').getBoundingClientRect().top };
     });
-    expect(Math.abs(scoreAlignment.header - scoreAlignment.score)).toBeLessThanOrEqual(1);
-    expect(Math.abs(scoreAlignment.scoreTop - scoreAlignment.deltaTop)).toBeLessThanOrEqual(1);
+    // The 12px gate text lines up with the heading and the close within about 2px (different sizes).
+    expect(Math.abs(scoreAlignment.header - scoreAlignment.score)).toBeLessThanOrEqual(3);
+    expect(Math.abs(scoreAlignment.scoreTop - scoreAlignment.deltaTop)).toBeLessThanOrEqual(3);
     const badgeLayout = await page.locator('#research-list .research-card > th').first().evaluate(cell => {
       const heading = cell.querySelector('.research-stock-head').getBoundingClientRect();
       const badges = cell.querySelector('.research-stock-badges').getBoundingClientRect();

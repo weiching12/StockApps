@@ -67,7 +67,7 @@ async function routeApi(page, { empty = false } = {}) {
     if (url.pathname === "/api/v1/research/backtest") {
       requests.push(url.search);
       // The provisional-parameters note applies to the live model.
-      return route.fulfill({ json: await service.backtest({ modelVersion: ENTRY_RESEARCH_MODEL_VERSION, horizon: Number(url.searchParams.get("horizon") ?? 10) }) });
+      return route.fulfill({ json: await service.backtest({ modelVersion: ENTRY_RESEARCH_MODEL_VERSION, horizon: Number(url.searchParams.get("horizon") ?? 20) }) });
     }
     if (url.pathname === "/api/v1/research/samples") {
       const detail = url.searchParams.get("detail") === "1";
@@ -91,10 +91,17 @@ test("backtest page shows scoped results, follows filters and opens a saved samp
   await expect(page.locator("#backtest-scope")).toContainText("暫定參數");
   await expect(page.locator(".backtest-tile", { hasText: "研究樣本" })).toContainText("39,600");
   await expect(page.locator(".backtest-tile", { hasText: "勝率" })).toContainText("55.1%");
+  // v4 reports risk-reward and losing streaks; it has no readiness buckets or score filter.
+  await expect(page.locator(".backtest-tile", { hasText: "賺賠比" })).toContainText("1.5");
+  await expect(page.locator(".backtest-tile", { hasText: "獲利因子" })).toContainText("1.84");
+  await expect(page.locator(".backtest-tile", { hasText: "最大連續虧損" })).toContainText("0 筆");
+  await expect(page.locator("#backtest-buckets-title")).toHaveCount(0);
+  await expect(page.locator('#backtest-filters [name="minScore"]')).toHaveCount(0);
   await expect(page.locator(".backtest-line")).toHaveCount(1);
-  await expect(page.locator("#backtest-buckets-title + .backtest-table-wrap tbody tr")).toHaveCount(6);
-  await expect(page.locator("#backtest-buckets-title + .backtest-table-wrap tbody tr.thin")).toHaveCount(5);
   await expect(page.locator(".backtest-note")).toContainText("6 個月");
+  // v4 reads 20-session holds by default.
+  expect(requests.at(-1)).toContain("horizon=20");
+  await expect(page.locator('[data-backtest-horizon="20"]')).toHaveAttribute("aria-pressed", "true");
   // Hovering the curve shows the date's values.
   await page.locator(".backtest-chart .backtest-hit").nth(10).hover();
   await expect(page.locator("#backtest-tooltip")).toBeVisible();
@@ -102,10 +109,13 @@ test("backtest page shows scoped results, follows filters and opens a saved samp
   // Filters are sent to the API.
   await page.locator('#backtest-filters select[name="setup"]').selectOption("RANGE_BREAKOUT");
   await expect.poll(() => requests.at(-1)).toContain("setup=RANGE_BREAKOUT");
-  await page.locator('[data-backtest-horizon="20"]').click();
-  await expect.poll(() => requests.at(-1)).toContain("horizon=20");
-  await expect(page.locator('[data-backtest-horizon="20"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("#backtest-trades-title")).toContainText("持有 20 日");
+  await page.locator('[data-backtest-horizon="10"]').click();
+  await expect.poll(() => requests.at(-1)).toContain("horizon=10");
+  await expect(page.locator('[data-backtest-horizon="10"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#backtest-trades-title")).toContainText("持有 10 日");
+  // The retired v3 samples stay readable through the model switch.
+  await page.locator('#backtest-filters select[name="model"]').selectOption("entry-research-v3");
+  await expect.poll(() => requests.at(-1)).toContain("model=entry-research-v3");
   // A sample opens its saved explanation.
   await page.locator('[data-backtest-sample="2330"]').click();
   await expect(page.locator("#info-dialog")).toBeVisible();

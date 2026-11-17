@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS, getSnapshot } from "../shared/indicators.js";
 import { captureEntryResearch } from "../cloudflare/entry-research-capture.js";
 import { EntryResearchRepository } from "../cloudflare/repositories/entry-research-repository.js";
 import { ENTRY_RESEARCH_MODEL_VERSION } from "../shared/entry-research-model.js";
+import { entryResearchApplies } from "../shared/entry-research.js";
 
 const proxy = await wrangler.getPlatformProxy({ persist: false, remoteBindings: false });
 try {
@@ -29,20 +30,22 @@ try {
       actions: { revision: async () => "r1", window: async (window) => ({ coveredDates: new Set(window), eventsBySymbol: new Map() }) },
       summary: { snapshots: async () => ({ asOf, dates: known, stocks }) } };
   };
+  // ETFs are not researched, so only the listed companies become samples.
+  const researched = market.filter(entryResearchApplies).length;
   const env = { T86_DB: db };
   const first = await captureEntryResearch(env, { createServices: at(dataset.dates[120], "g1") });
   assert.equal(first.status, "saved", JSON.stringify(first));
-  assert.equal(first.inserted, market.length);
+  assert.equal(first.inserted, researched);
   assert.equal((await captureEntryResearch(env, { createServices: at(dataset.dates[120], "g1") })).status, "already-saved");
   const later = await captureEntryResearch(env, { createServices: at(dataset.dates[150], "g2") });
-  assert.equal(later.inserted, market.length);
+  assert.equal(later.inserted, researched);
   const complete = await db.prepare("SELECT COUNT(*) AS n FROM entry_research_outcomes WHERE TradeDate=? AND Status='COMPLETE'")
     .bind(dataset.dates[120]).first();
-  assert.equal(complete.n, market.length);
+  assert.equal(complete.n, researched);
   const page = await new EntryResearchRepository(db).samples({ modelVersion: ENTRY_RESEARCH_MODEL_VERSION, gateStatus: "PASS", limit: 20, offset: 0 });
   assert.ok(page.total > 0 && page.rows.every((row) => row.GateStatus === "PASS"));
   const size = await db.prepare("SELECT SUM(length(DetailJson)) AS bytes, COUNT(*) AS n FROM entry_research_samples").first();
-  console.log(`PASS workerd/D1 entry research: ${market.length} stocks per session, insert-only re-capture, outcomes completed, filtered paging; ` +
+  console.log(`PASS workerd/D1 entry research: ${researched} stocks per session, insert-only re-capture, outcomes completed, filtered paging; ` +
     `${(size.bytes / size.n).toFixed(0)} bytes of detail per sample`);
 } finally {
   await proxy.dispose();
