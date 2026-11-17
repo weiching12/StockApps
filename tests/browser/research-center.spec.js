@@ -137,6 +137,8 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
   await expect(page.locator('[data-research-filter="gatePass"]')).toHaveAttribute("aria-pressed", "true");
   await page.locator('[data-research-filter="all"]').click();
   await expect(page.locator('[data-research-filter="all"]')).toHaveAttribute("aria-pressed", "true");
+  // Waiting stocks are read from 門檻通過; there is no tab for them alone.
+  await expect(page.locator("[data-research-filter]")).toHaveText(["全部自選", "明日候選", "門檻通過", "訊號觸發"]);
   await page.locator("#research-list .research-card-main").first().click();
   await expect(page.locator("#info-dialog")).toBeVisible();
 });

@@ -20,9 +20,10 @@ export function researchCardPrice(period, stock, asOf) {
 }
 
 export const RESEARCH_TRACKING_SORTS = [["nextDay", "明日評估優先"], ["price", "收藏後股價變化"]];
-/** [value, full label, short tab label]: the tabs show the short label, the full one is the tooltip. */
+/** [value, full label, short tab label]: the tabs show the short label, the full one is the tooltip. Stocks still
+ * waiting for a signal have no tab of their own: they are the 門檻通過 rows whose status reads 等待進場訊號. */
 export const RESEARCH_TRACKING_FILTERS = [["all", "全部自選", "全部自選"], ["candidate", "明日進場候選", "明日候選"],
-  ["gatePass", "初步門檻通過", "門檻通過"], ["triggered", "進場訊號已觸發", "訊號觸發"], ["waiting", "等待進場訊號", "等待訊號"]];
+  ["gatePass", "初步門檻通過", "門檻通過"], ["triggered", "進場訊號已觸發", "訊號觸發"]];
 const number = (value, digits = 2) => Number.isFinite(value)
   ? value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
 
