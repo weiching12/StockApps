@@ -1,12 +1,14 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { nextPatchVersion, withLockVersion, withPackageVersion } from "./lib/release-version.js";
+import { nextVersion, releaseLevel, withLockVersion, withPackageVersion } from "./lib/release-version.js";
 
-// Production deploy that advances the patch version shown in Settings.
+// Production deploy that advances the version shown in Settings: the patch number by default,
+// or the minor/major number with --minor/--major (rules in docs/operations.md).
 // The bump is committed locally only after Cloudflare accepts the upload;
 // a failed or dry run restores the previous version. Pushing stays manual.
 const dryRun = process.argv.includes("--dry-run");
+const level = releaseLevel(process.argv.slice(2));
 const root = process.cwd();
 const files = { package: resolve(root, "package.json"), lock: resolve(root, "package-lock.json") };
 
@@ -32,7 +34,7 @@ if (migrations.status !== 0 || !`${migrations.stdout}${migrations.stderr}`.inclu
 
 const original = { package: readFileSync(files.package, "utf8"), lock: readFileSync(files.lock, "utf8") };
 const previous = JSON.parse(original.package).version;
-const version = nextPatchVersion(previous);
+const version = nextVersion(previous, level);
 const restore = () => {
   writeFileSync(files.package, original.package);
   writeFileSync(files.lock, original.lock);
@@ -40,7 +42,7 @@ const restore = () => {
 
 writeFileSync(files.package, withPackageVersion(original.package, version));
 writeFileSync(files.lock, withLockVersion(original.lock, version));
-console.log(`Release v${version} (was v${previous})${dryRun ? " — dry run" : ""}`);
+console.log(`Release v${version} (was v${previous}, ${level})${dryRun ? " — dry run" : ""}`);
 
 let status = 1;
 try {

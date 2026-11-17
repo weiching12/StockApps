@@ -23,6 +23,23 @@ review `market-sync-metrics` totals and `twse-sync-delayed` errors, and compare 
 published generation in KV with the D1 manifest. Deployment itself does not fetch
 today's TWSE report or claim a successful future Cron run.
 
+
+## 版本號規則
+
+App 版本號顯示在側欄底部與「設定」頁，格式為「主版本.次版本.修補版本」（MAJOR.MINOR.PATCH），只能由 `npm run deploy` 改動，不要手動編輯 `package.json` 的版本。每部署一次正式站就前進一次，升較高一層時，較低的數字歸零。
+
+| 升級 | 指令 | 何時使用 | 例子 |
+|---|---|---|---|
+| 修補版本 | `npm run deploy`（預設） | 錯誤修正、文字或畫面微調、測試與文件、資料清理、效能改善、不改變結果的重構 | 0.2.49 → 0.2.50 |
+| 次版本 | `npm run deploy -- --minor` | 使用者看得到的新功能或新頁面；研究模型或評分規則換版（例如 `entry-research-v4`）；新增 API 欄位或端點但舊用法仍可用；新增 D1 migration | 0.2.49 → 0.3.0 |
+| 主版本 | `npm run deploy -- --major` | 既有 API 路徑、回應欄位或錯誤格式不再相容；已存資料無法再讀取；正式定版 1.0.0 | 0.3.4 → 1.0.0 |
+
+- 同一次部署包含多種改動時，依最高的一項決定。
+- 主版本維持 0 期間，表示仍在開發階段；API 的相容性仍以 `docs/rest-api.md` 與 `public/openapi.json` 為準，舊路由照常保留。
+- 部署成功後，腳本在本機建立只含版本號的 commit「Release vX.Y.Z」；失敗或 `--dry-run` 會還原版本號。推送仍需手動執行 `git push origin main`。
+- 要查某一版改了什麼，看 git 紀錄中該 Release commit 之前的 commit。
+- App 版本號與其他版本各自獨立：研究模型（`entry-research-vN`）、摘要與研究快取版本、PWA 快取名稱、D1 migration 編號，各依自己的規則變更。研究模型換版時，App 通常同時升次版本。
+
 ## ETF 基金資料
 
 - 資料表在 migration `0011_etf_info.sql`、`0012_etf_products.sql` 與 `0013_etf_holdings.sql`；部署前先套用：`npx wrangler d1 migrations apply stockapps-t86 --remote`（`npm run deploy` 發現有未套用的 migration 會拒絕部署）。
