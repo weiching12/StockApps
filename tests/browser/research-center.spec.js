@@ -92,9 +92,9 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
       return stats.scrollWidth <= stats.clientWidth && items.length === 3 && items.every((item) => Math.abs(item.top - items[0].top) < 1)
         && labels.every((label) => label.scrollWidth <= label.clientWidth && label.getBoundingClientRect().height < 24);
     }), `stats at ${width}px`).toBe(true);
-    // No page heading: the figures come first and the session date sits under the list.
+    // No page heading: the 個股／ETF switch (when ETFs are favorited) and the figures come first; the session date sits under the list.
     const layout = await page.locator(".research-center").evaluate((node) => {
-      const stats = node.querySelector("#research-stats").getBoundingClientRect();
+      const kinds = node.querySelector(".research-kind"), stats = (kinds.hidden ? node.querySelector("#research-stats") : kinds).getBoundingClientRect();
       const list = node.querySelector("#research-list").getBoundingClientRect();
       const date = node.querySelector("#research-date").getBoundingClientRect();
       // Filters are tabs that scroll inside their own row; the sort menu stays on screen.
@@ -194,4 +194,39 @@ test("phone tracking cards align the code and name and open the detail without o
   await expect(page.locator("#info-dialog .entry-dialog")).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("favorites switch between companies and ETFs instead of listing ETFs under the companies", async ({ page }) => {
+  await page.addInitScript(() => {
+    const saved = JSON.parse(localStorage.getItem("stock-insight-v1") || "{}");
+    if (!saved.etfSplitSeeded) localStorage.setItem("stock-insight-v1", JSON.stringify({ ...saved, catalogVersion: 2, etfSplitSeeded: true, favorites: ["2330", "0050", "00878"] }));
+  });
+  await page.goto("/");
+  await page.locator('[data-page="favorites"]').first().click();
+  const kinds = page.locator(".research-kind");
+  await expect(kinds.locator("button")).toHaveText(["個股 1", "ETF 2"]);
+  await expect(kinds.locator('[data-research-kind="stocks"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#research-list .research-card")).toHaveCount(1);
+  await expect(page.locator("#research-list")).not.toContainText("ETF 不評估");
+  await expect(page.locator("#research-stats .research-stat strong").first()).toHaveText("1檔");
+  await expect(page.locator("#research-etfs")).toBeHidden();
+  await kinds.locator('[data-research-kind="etfs"]').click();
+  const etfs = page.locator("#research-etfs");
+  await expect(etfs).toBeVisible();
+  await expect(page.locator("#research-stats")).toBeHidden();
+  await expect(page.locator(".research-controls")).toBeHidden();
+  await expect(page.locator("#research-list")).toBeHidden();
+  await expect(etfs.locator(".research-card")).toHaveCount(2);
+  await expect(etfs.locator("thead th")).toHaveText(["ETF", "股價／今日", "收藏後"]);
+  await etfs.locator('.research-card[data-research-symbol="0050"] td').first().click();
+  await expect(page.locator("#info-dialog .etf-dialog")).toBeVisible();
+});
+
+test("without favorite ETFs there is no 個股／ETF switch", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("stock-insight-v1", JSON.stringify({ catalogVersion: 2, favorites: ["2330", "2317"] })));
+  await page.goto("/");
+  await page.locator('[data-page="favorites"]').first().click();
+  await expect(page.locator("#research-list .research-card")).toHaveCount(2);
+  await expect(page.locator(".research-kind")).toBeHidden();
+  await expect(page.locator("#research-etfs")).toBeHidden();
 });

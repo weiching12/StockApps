@@ -3846,3 +3846,23 @@ button.etf-holding-name:hover { text-decoration: underline; }
 #info-dialog .settings-notifications .app-version { color: var(--muted); font-size: var(--text-meta); }
 #info-dialog .update-check-status { margin: 8px 2px 0; }
 #info-dialog .settings-card :is(#app-version, .settings-version-title) { grid-column: auto; }
+
+/* Favorites: ETFs sit under the researched companies in a price list of their own (src/ui/research.js). */
+.research-etfs { margin-top: 4px; }
+/* 個股｜ETF: the first control on the favorites page, the same segmented style as the filters below it. */
+.research-kind { position: relative; isolation: isolate; display: flex; gap: 4px; width: fit-content; max-width: 100%; margin: 0 0 12px; padding: 4px; border: 1px solid var(--border); border-radius: 9px; background: #fff; --segment-inset: 4px; }
+.research-kind[hidden] { display: none; }
+.research-kind button { flex: none; min-height: 36px; padding: 6px 16px; border: 0; border-radius: 6px; background: transparent; color: #64748b; font: inherit; font-size: var(--text-secondary); font-weight: 600; cursor: pointer; }
+.research-kind button[aria-pressed="true"] { color: #245cac; }
+.research-kind button span { margin-left: 2px; font-variant-numeric: tabular-nums; font-weight: 500; }
+[data-theme="dark"] .research-kind { border-color: var(--border); background: #111b2b; }
+[data-theme="dark"] .research-kind button { color: var(--muted); }
+[data-theme="dark"] .research-kind button[aria-pressed="true"] { color: #93c5fd; }
+.research-controls[hidden], .research-stats[hidden], #research-list[hidden] { display: none; }
+.research-etfs h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0 0 6px; padding: 0 .35rem; color: var(--ink); font-size: var(--text-body); font-weight: 600; }
+.research-etfs h3 small { color: var(--muted); font-size: var(--text-meta); font-weight: 400; }
+.research-etf-table th:nth-child(1) { width: auto; }
+.research-etf-table :is(th, td):not(:first-child) { width: 28%; text-align: right; }
+.research-etf-table td:last-child strong.up { color: var(--up); }
+.research-etf-table td:last-child strong.down { color: var(--down); }
+#research-etf-list .research-table tbody tr:last-child > * { border-bottom: 0; }

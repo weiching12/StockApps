@@ -116,7 +116,8 @@ const backtest = createBacktestController({ client: marketClient, apiMode, esc, 
 const summaryCache = new RequestCache(), sectorDetailCache = new RequestCache(), stockDetailCache = new RequestCache();
 const chartRangeCache = new RequestCache();
 let researchStore;
-let researchSort = "nextDay", researchFilter = "all";
+// researchKind: the favorites page shows companies (with entry research) or ETFs (prices only), one at a time.
+let researchSort = "nextDay", researchFilter = "all", researchKind = "stocks";
 let selectedSummary, latestSummary, summaryRequest = 0;
 const latestCache = new Map(), historicalCache = new Map();
 const tableRowCache = new WeakMap();
@@ -183,7 +184,19 @@ function renderResearch() {
   document.querySelector("#research-date").textContent = `交易日 ${dataset.info.asOf || "—"}`;
   document.querySelector("#research-stats").innerHTML = result.stats;
   document.querySelector("#research-list").innerHTML = result.cards;
+  document.querySelector("#research-etf-list").innerHTML = result.etfs;
+  // Companies and ETFs are separate views, so neither list sits below a long run of the other.
+  if (!result.etfCount) researchKind = "stocks";
+  else if (!result.stockCount) researchKind = "etfs";
+  const showEtfs = researchKind === "etfs", kinds = document.querySelector(".research-kind");
+  kinds.hidden = !result.etfCount;
+  kinds.querySelectorAll("[data-research-kind]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.researchKind === researchKind)));
+  kinds.querySelector('[data-research-kind-count="stocks"]').textContent = result.stockCount;
+  kinds.querySelector('[data-research-kind-count="etfs"]').textContent = result.etfCount;
+  for (const selector of ["#research-stats", ".research-controls", "#research-list"]) document.querySelector(selector).hidden = showEtfs;
+  document.querySelector("#research-etfs").hidden = !showEtfs || !result.etfs;
   document.querySelector("#research-sort").value = researchSort;
+  if (!kinds.hidden) controls.updateSegmented(kinds);
   const tabs = document.querySelector(".research-filter-tabs");
   tabs.querySelectorAll("[data-research-filter]").forEach((button) =>
     button.setAttribute("aria-pressed", String(button.dataset.researchFilter === researchFilter)));
@@ -1031,7 +1044,7 @@ function bindEvents() {
       void openEntryScoreDialog(stockRow.dataset.symbol, !touchInteraction);
       return;
     }
-    const researchRow = event.target.closest(":is(#research-list, #home-list, #search-results) tr.research-card[data-entry-score]");
+    const researchRow = event.target.closest(":is(#research-list, #research-etf-list, #home-list, #search-results) tr.research-card[data-entry-score]");
     if (researchRow && !event.target.closest("button, a, input, select, textarea")) {
       void openEntryScoreDialog(researchRow.dataset.entryScore, !touchInteraction);
       return;
@@ -1106,6 +1119,11 @@ function bindEvents() {
     if (button.dataset.homeExpand !== undefined) {
       state.homeExpanded = true;
       renderHome();
+    }
+    if (button.dataset.researchKind) {
+      researchKind = button.dataset.researchKind;
+      renderResearch();
+      return;
     }
     if (button.dataset.researchFilter) {
       researchFilter = button.dataset.researchFilter;

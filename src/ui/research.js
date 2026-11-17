@@ -1,5 +1,6 @@
 import { activeResearchPeriod } from "./research-store.js";
 import { compareResearchStocks, matchesResearchFilter, researchListCells, researchSummaryOf } from "./entry-research.js";
+import { isEtf } from "../../shared/market-codec.js";
 
 const fmt = (value) => Number.isFinite(value) ? value.toFixed(2) : "—";
 const delta = (value) => Number.isFinite(value) ? `${value > 0 ? "+" : ""}${fmt(value)}` : "—";
@@ -28,13 +29,18 @@ const number = (value, digits = 2) => Number.isFinite(value)
 /** Yesterday's signal no longer holds: it lasts one session, unless a new one fired or a veto ended it. */
 const lapsedToday = (summary, previousDate) => Boolean(previousDate) && summary.signalDate === previousDate && summary.status !== "TRIGGERED";
 
+/**
+ * Favorite companies get the entry research table, its filters and counts; favorite ETFs are never researched,
+ * so they get their own price list (`etfs`) instead of rows that only say ETF 不評估.
+ */
 export function renderResearchCenter({ favorites, stocks, store, date, previousDate, sort, filter, esc }) {
   const bySymbol = new Map(stocks.map((stock) => [stock.symbol, stock]));
-  const values = favorites.map((symbol) => {
+  const all = favorites.map((symbol) => {
     const stock = bySymbol.get(symbol);
     return { symbol, stock: stock ?? { symbol }, summary: researchSummaryOf(stock),
       price: researchCardPrice(activeResearchPeriod(store, symbol), stock, date) };
   });
+  const values = all.filter(({ stock }) => !isEtf(stock)), etfValues = all.filter(({ stock }) => isEtf(stock));
   const filtered = values.filter(({ stock }) => matchesResearchFilter(stock, filter));
   const byValue = (value) => (a, b) => {
     const av = value(a), bv = value(b);
@@ -58,9 +64,24 @@ export function renderResearchCenter({ favorites, stocks, store, date, previousD
   const count = (test) => values.filter(({ summary }) => summary && test(summary)).length;
   const stat = (label, value, note, tone = "") => `<div class="research-stat"><span class="research-stat-label">${label}</span><strong class="${tone || (value ? "" : "is-zero")}">${value}<small>檔</small></strong><span class="research-stat-note">${note}</span></div>`;
   const candidates = count((summary) => summary.nextDayStatus === "NEXT_DAY_CANDIDATE");
-  return { stats: stat("自選股票", favorites.length, "點選股票查看完整研究") +
+  return { stockCount: values.length, etfCount: etfValues.length, etfs: etfListMarkup(etfValues, esc), stats: stat("自選股票", values.length, "點選股票查看完整研究") +
       stat("明日進場候選", candidates, "訊號觸發且價格在計畫內", candidates ? "up" : "") +
       stat("今日候選失效", count((summary) => lapsedToday(summary, previousDate)), "昨日訊號已不成立"),
     cards: entries ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col">初步門檻</th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${entries}</tbody></table>`
-      : `<p class="research-muted">${favorites.length ? "此篩選目前沒有股票。" : "尚無自選股票。"}</p>` };
+      : `<p class="research-muted">${values.length ? "此篩選目前沒有股票。" : etfValues.length ? "尚無自選個股；自選 ETF 列在下方。" : "尚無自選股票。"}</p>` };
+}
+
+/** Favorite ETFs: code and name, the day's close and change, and the change since it was added. Empty when none. */
+function etfListMarkup(values, esc) {
+  if (!values.length) return "";
+  // The ETF view has no sort control: ETFs are listed by code.
+  const sorted = [...values].sort((a, b) => a.symbol.localeCompare(b.symbol));
+  const rows = sorted.map(({ symbol, stock, price }) => {
+    const label = stock.name ?? symbol, change = stock.latest?.date === price.asOf ? stock.latest?.changePercent : null;
+    const priceDetail = price.baseline ? `收藏基準 ${price.baseline.asOf} ${fmt(price.baseline.close)} → ${price.asOf} ${fmt(price.close)}；未還原收盤價差，未計配息，不代表投資損益` : price.reason;
+    return `<tr class="research-card" data-research-symbol="${esc(symbol)}" data-entry-score="${esc(symbol)}"><th scope="row"><button type="button" class="research-card-main" data-entry-score="${esc(symbol)}" aria-label="查看 ${esc(symbol)} ${esc(label)}"><span class="research-stock"><span class="research-stock-head"><span class="research-code">${esc(symbol)}</span><strong>${esc(label)}</strong></span></span></button></th>`
+      + `<td class="research-price"><strong aria-label="${esc(price.asOf ?? "")} 收盤價 ${fmt(price.close)}">${fmt(price.close)}</strong><small class="research-price-change ${tone(change)}">${Number.isFinite(change) ? `${change > 0 ? "+" : ""}${change.toFixed(2)}%` : "—"}</small></td>`
+      + `<td class="research-price"><strong class="${tone(price.delta)}" title="${esc(priceDetail ?? "")}">${delta(price.delta)}</strong></td></tr>`;
+  }).join("");
+  return `<table class="research-table research-etf-table"><thead><tr><th scope="col">ETF</th><th scope="col">股價／今日</th><th scope="col">收藏後</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
