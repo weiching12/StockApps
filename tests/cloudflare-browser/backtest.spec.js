@@ -85,7 +85,7 @@ async function routeApi(page, { empty = false } = {}) {
 test("backtest page shows scoped results, follows filters and opens a saved sample", async ({ page }) => {
   const requests = await routeApi(page);
   await page.goto("/");
-  await page.locator('.sidebar [data-page="backtest"]').click();
+  await page.locator('.sidebar .nav-item[data-page="backtest"]').click();
   await expect(page.locator("#page-title")).toContainText("策略回測");
   await expect(page.locator("#backtest-scope")).toContainText(`${dates[0].replaceAll("-", "/")}～${dates.at(-1).replaceAll("-", "/")}，36 個交易日`);
   await expect(page.locator("#backtest-scope")).toContainText("暫定參數");
@@ -128,7 +128,9 @@ test("backtest page explains an empty sample store on phones without horizontal 
   await page.setViewportSize({ width: 390, height: 844 });
   await routeApi(page, { empty: true });
   await page.goto("/");
-  await page.locator('.sidebar [data-page="backtest"]').click();
+  // Phones keep 策略回測 in the ≡ menu beside the four pages.
+  await page.locator(".nav-more-toggle").click();
+  await page.locator('#nav-more-menu [data-page="backtest"]').click();
   await expect(page.locator(".backtest-empty-state")).toContainText("尚未累積研究樣本");
   await expect(page.locator(".backtest-empty-state")).toContainText("6 個月");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -138,8 +140,10 @@ test("backtest results fit a phone screen", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await routeApi(page);
   await page.goto("/");
-  await page.locator('.sidebar [data-page="backtest"]').click();
+  // Phones keep 策略回測 in the ≡ menu beside the four pages.
+  await page.locator(".nav-more-toggle").click();
+  await page.locator('#nav-more-menu [data-page="backtest"]').click();
   await expect(page.locator(".backtest-line")).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await expect(page.locator('.sidebar [data-page="backtest"]')).toBeInViewport();
+  await expect(page.locator(".nav-more-toggle")).toBeInViewport();
 });

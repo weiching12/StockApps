@@ -82,7 +82,12 @@ test("ETF search and favorites work while every industry ranking and detail excl
   await expect(page.locator('#stock-rows [data-symbol="00632R"] .signal-cell')).toContainText("資料不足");
   await page.locator('#stock-rows [data-favorite="00632R"]').click();
   await page.locator('[data-page="favorites"]').click();
-  await expect(page.locator('#research-list .research-card[data-research-symbol="00632R"]')).toBeVisible();
+  // Favorite ETFs have their own list on the 自選 page, behind the 個股／ETF switch when companies are favorited too.
+  const kinds = page.locator('[data-research-kind="etfs"]');
+  // Wait for the page to settle on one of the two layouts before deciding whether to switch.
+  await expect(page.locator('#research-kind:not([hidden]), #research-etfs:not([hidden])').first()).toBeVisible();
+  if (await kinds.isVisible()) await kinds.click();
+  await expect(page.locator('#research-etf-list .research-card[data-research-symbol="00632R"]')).toBeVisible();
   await page.locator('[data-page="market"]').first().click();
   await page.locator('[data-market-view-choice="sectors"]').click();
   for (const window of ["day", "5", "20"]) {

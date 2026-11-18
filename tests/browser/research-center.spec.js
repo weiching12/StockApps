@@ -94,7 +94,9 @@ test("phone research cards fit the viewport and remain operable", async ({ page 
     }), `stats at ${width}px`).toBe(true);
     // No page heading: the 個股／ETF switch (when ETFs are favorited) and the figures come first; the session date sits under the list.
     const layout = await page.locator(".research-center").evaluate((node) => {
-      const kinds = node.querySelector(".research-kind"), stats = (kinds.hidden ? node.querySelector("#research-stats") : kinds).getBoundingClientRect();
+      // On phones the switch floats at the bottom of the screen, so the figures lead the page there.
+      const kinds = document.querySelector(".research-kind"), floating = !kinds.hidden && getComputedStyle(kinds).position === "fixed";
+      const stats = (kinds.hidden || floating ? node.querySelector("#research-stats") : kinds).getBoundingClientRect();
       const list = node.querySelector("#research-list").getBoundingClientRect();
       const date = node.querySelector("#research-date").getBoundingClientRect();
       // Filters are tabs that scroll inside their own row; the sort menu stays on screen.

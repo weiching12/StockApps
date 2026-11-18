@@ -434,3 +434,34 @@ html.glass-preview .market-header .sector-flow {
   border-radius: 0;
   background: transparent;
 }
+
+/*
+ * Liquid joins (src/ui/goo-pills.js): the pills of the split filters are drawn on a layer behind the
+ * buttons through an SVG goo filter, so pieces that meet grow a neck and flow together like drops of
+ * water instead of snapping into one piece at a seam. The layer uses opaque equivalents of the pill and
+ * capsule colours over the panel, because the filter's threshold needs solid shapes. Reduced effects
+ * keep the plain split pills.
+ */
+html.glass-preview { --goo-pill: #fff; --goo-capsule: #eef2f7; --goo-ring: #e2e8f0; }
+html.glass-preview[data-theme="dark"] {
+  --goo-pill: rgb(31 41 56);
+  --goo-capsule: linear-gradient(180deg, rgb(59 83 127) 0%, rgb(38 61 104) 100%);
+  --goo-ring: rgb(255 255 255 / 13%);
+}
+.pill-goo-layer { display: none; }
+.pill-goo-ring { flood-color: var(--goo-ring, transparent); }
+html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > .pill-goo-layer {
+  display: block; position: absolute; top: 0; left: 0; z-index: 0; height: 100%; pointer-events: none; filter: url(#pill-goo);
+}
+html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > .pill-goo-layer > i {
+  position: absolute; background: var(--goo-pill);
+}
+html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > .pill-goo-layer > i.is-chosen { background: var(--goo-capsule); }
+/* The buttons only carry the text, and the capsule its inner highlight, above the liquid layer. */
+html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > button {
+  position: relative; z-index: 1; border-color: transparent !important; background: transparent !important;
+  /* The gaps close and open evenly (no overshoot), so the neck between two pieces is seen forming and
+     thinning out rather than snapping shut. */
+  transition: margin .7s cubic-bezier(.45, 0, .2, 1), border-radius .6s cubic-bezier(.22, 1, .36, 1), color .25s ease, box-shadow .25s ease;
+}
+html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > button:hover:not([aria-pressed="true"]) { color: var(--pill-hover-ink); }

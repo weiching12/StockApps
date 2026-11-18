@@ -18,7 +18,6 @@ export function renderPageView({ state, dataset, renderLoadState, updateSegmente
   document.querySelector("#page-eyebrow").textContent = eyebrow;
   document.querySelector("#page-title").innerHTML = `${title}<span class="heading-dot">.</span>`;
   document.querySelector("#page-description").textContent = description;
-  document.querySelector("#breadcrumb-current").textContent = title;
   // Only the market list browses past sessions; the other pages read the latest one.
   // The trading-day choice and the update countdown live on home; it sets the session the market list reads too.
   const sectors = state.page !== "home";

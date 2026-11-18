@@ -74,7 +74,9 @@ test("matches rank codes before names and a result opens the stock", async ({ pa
   await expect(page.locator("#search-summary")).toHaveText("沒有符合的股票。");
 });
 
-test("the slash key opens search from another page", async ({ page }) => {
+// Wider layouts send the key to the top bar's search box instead (tests/browser/topbar.spec.js).
+test("the slash key opens search from another page on a phone", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.locator('[data-page="market"]').first().click();
   // Nothing focused, so the key is not typed into a field.
@@ -82,6 +84,16 @@ test("the slash key opens search from another page", async ({ page }) => {
   await page.keyboard.press("/");
   await expect(page.locator("#page-title")).toContainText("搜尋");
   await expect(page.locator("#stock-search")).toBeFocused();
+});
+
+test("on wider screens the slash key focuses the top bar's search from another page", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press("/");
+  await expect(page.locator("#topbar-search")).toBeFocused();
+  await expect(page.locator("#page-title")).toContainText("市場觀察清單");
 });
 
 test("search fits a phone and the phone bar keeps every item on screen", async ({ page }) => {

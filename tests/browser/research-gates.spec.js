@@ -64,9 +64,18 @@ test("a passing stock keeps the research order and opens a gate panel when its i
   await expect(dialog.locator('.research-gate-panel[data-gate="institutional"] [data-institution-sector="2330"]')).toBeVisible();
 });
 
-test("the market list names the first triggered veto", async ({ page }) => {
+test("the market list names every triggered veto as a badge, up to three", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator('#stock-rows tr[data-symbol="2317"] .research-gate')).toHaveText("過度延伸 等 2 項");
+  await expect(page.locator('#stock-rows tr[data-symbol="2317"] .research-gate .research-gate-badge')).toHaveCount(2);
+  await expect(page.locator('#stock-rows tr[data-symbol="2317"] .research-gate')).not.toContainText("等");
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const fits = await page.locator('#stock-rows tr[data-symbol="2317"] .research-gate').evaluate((gate) => {
+      const cell = gate.closest("td, .research-readiness-cell") ?? gate.parentElement, box = cell.getBoundingClientRect();
+      return [...gate.querySelectorAll(".research-gate-badge")].every((badge) => { const b = badge.getBoundingClientRect(); return b.left >= box.left - 1 && b.right <= box.right + 1; });
+    });
+    expect(fits, `badges inside their cell at ${width}px`).toBe(true);
+  }
   await expect(page.locator('#stock-rows tr[data-symbol="2330"] .research-gate')).toHaveText("通過");
 });
 

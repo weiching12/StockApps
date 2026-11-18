@@ -40,14 +40,23 @@ const REFERENCE_NOTE = "參數為本站依參考資料調整，尚未以歷史�
 export const researchSummaryOf = (stock) => stock?.entryResearch?.gateResult
   ? entryResearchSummary(stock.entryResearch) : stock?.entryResearch ?? null;
 
-/** Gate column text (its heading says 初步門檻): pass, pending, or the first triggered veto; v1 keeps x/5. */
-function gateText(summary) {
+/** Up to this many triggered vetoes are named one badge each; more are counted in a single badge. */
+export const GATE_BADGE_LIMIT = 3;
+
+/**
+ * Gate column (its heading says 初步門檻): pass, pending, or the triggered vetoes — each named as a badge
+ * when there are at most three, otherwise one badge counting them all; v1 keeps x/5. Returns HTML.
+ */
+function gateMarkup(summary, esc) {
   if (!summary) return "—";
-  if (isV1(summary.modelVersion)) return summary.gateStatus === "UNKNOWN" ? `門檻 ${summary.gatePassed}/5 待確認` : `門檻 ${summary.gatePassed}/5`;
+  if (isV1(summary.modelVersion)) return esc(summary.gateStatus === "UNKNOWN" ? `門檻 ${summary.gatePassed}/5 待確認` : `門檻 ${summary.gatePassed}/5`);
   if (summary.gateStatus === "PASS") return "通過";
   if (summary.gateStatus === "UNKNOWN") return "待確認";
   const fired = Object.entries(summary.gateConditions ?? {}).filter(([, status]) => status === "FAIL").map(([key]) => VETO_LABELS[key] ?? key);
-  return fired.length > 1 ? `${fired[0]} 等 ${fired.length} 項` : fired[0] ?? "未通過初步門檻";
+  if (!fired.length) return "未通過初步門檻";
+  const badge = (text, title = text) => `<span class="research-gate-badge" title="${esc(title)}">${esc(text)}</span>`;
+  return fired.length <= GATE_BADGE_LIMIT ? fired.map((label) => badge(label)).join("")
+    : badge(`共 ${fired.length} 項`, `觸發：${fired.join("、")}`);
 }
 
 /** ETFs have no research status, so the phone market card shows their close and change in its place. */
@@ -64,7 +73,7 @@ export function researchListCells(stock, esc, number) {
   const gateTone = summary?.gateStatus === "PASS" ? "pass" : summary?.gateStatus === "FAIL" ? "fail" : "unknown";
   // ETFs are not researched: they say so instead of looking like missing data.
   const etf = !summary && isEtf(stock);
-  const readiness = etf ? "" : `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><small class="research-gate ${gateTone}">${esc(gateText(summary))}</small></button>`;
+  const readiness = etf ? "" : `<button type="button" class="entry-score-button research-score-button" data-entry-score="${esc(stock.symbol)}" aria-label="查看${esc(stock.name)}進場研究"><small class="research-gate ${gateTone}">${gateMarkup(summary, esc)}</small></button>`;
   const status = summary?.status, next = summary?.nextDayStatus;
   // A triggered signal's chip states the next-session outcome; the line under it (wide screens)
   // names why it is held back and the pattern, with the full wording on hover.

@@ -6,7 +6,7 @@ import "./glass-preview.css";
 import { withPageTransition } from "./glass-transition.js";
 import { refreshRows } from "./glass-refresh.js";
 import { enhanceGuideDialog } from "./glass-guide.js";
-import { applyInterfaceStyle } from "./glass-mode.js";
+import { applyInterfaceStyle, effectsReduced } from "./glass-mode.js";
 import { loadDataset, loadMarketSummary } from "./provider.js";
 import { MarketApiClient } from "./api/market-client.js";
 import { RequestCache } from "./api/request-cache.js";
@@ -41,6 +41,8 @@ import { priceBaseline } from "../shared/research-review.js";
 import { entryChartMarkup, entryChartShape, entryScoreDialogMarkup, morphEntryChart, selectEntryChartPoint, restoreEntryChartTitle } from "./ui/entry-score.js";
 import { moodStyleChoices, renderSentiment } from "./ui/sentiment.js";
 import { createBacktestController } from "./ui/backtest.js";
+import { attachGooPills } from "./ui/goo-pills.js";
+import { bindTopbarSearch, startDataStatus } from "./ui/topbar.js";
 import {
   DEFAULT_SETTINGS,
   getSnapshot,
@@ -128,6 +130,7 @@ const tableBatches = createTableBatchController({ state: tableState, batchSize: 
 let toastTimer;
 let isDemo;
 let presence, accountMenu, settingsAccountMenu, stopAccountWatch, stopUpdateCountdown, usingCachedData = false, backtestRestore = false;
+let stopDataStatus, topbarSearch;
 let nativeStorage, nativePush;
 let checkPwaUpdate = async () => false;
 let startupVersionCheck = Promise.resolve(false);
@@ -210,8 +213,37 @@ function applyTheme() {
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", state.theme === "dark" ? "#0b1220" : "#14243b");
 }
 
-function toast(message) {
+let toastHome, toastScrollHost = null;
+/** Keeps a toast placed inside a scrolling modal at the bottom of what is on screen. */
+function followToastScroll() {
   const node = document.querySelector("#toast");
+  if (toastScrollHost && node.parentElement === toastScrollHost) node.style.bottom = `${28 - toastScrollHost.scrollTop}px`;
+}
+/**
+ * A short status message at the bottom of the screen. An open dialog would cover it, so:
+ * - a modal (the phone stock sheet, settings) sits in the top layer and makes the page behind inert: the
+ *   message moves into it, positioned in the dialog's own box and kept at the bottom of its visible part
+ *   while it scrolls, so it is seen and still read out by screen readers;
+ * - the desktop drawer is not modal but stacks above the page: the message stays on the page, above the
+ *   drawer and centred on it. Its layout box (offsetLeft) is used, which its slide-in animation does not move.
+ * `origin` is the element the message is about; its dialog wins over any other open one.
+ */
+function toast(message, origin = null) {
+  const node = document.querySelector("#toast");
+  toastHome ??= node.parentElement;
+  const host = origin?.closest?.("dialog[open]") ?? [...document.querySelectorAll("dialog[open]")].findLast((dialog) => dialog.matches(":modal")) ?? null;
+  const modal = host?.matches(":modal") ? host : null;
+  if (node.parentElement !== (modal ?? toastHome)) (modal ?? toastHome).append(node);
+  toastScrollHost?.removeEventListener("scroll", followToastScroll);
+  toastScrollHost = modal;
+  Object.assign(node.style, { position: "", left: "", bottom: "", zIndex: "" });
+  if (modal) {
+    Object.assign(node.style, { position: "absolute", left: "50%" });
+    modal.addEventListener("scroll", followToastScroll, { passive: true });
+    followToastScroll();
+  } else if (host) {
+    Object.assign(node.style, { left: `${host.offsetLeft + host.offsetWidth / 2}px`, zIndex: "101" });
+  }
   node.textContent = message;
   node.classList.add("visible");
   clearTimeout(toastTimer);
@@ -249,6 +281,14 @@ function shell() {
   accountMenu?.stop(); settingsAccountMenu?.stop();
   document.querySelector("#app").innerHTML = shellMarkup({ dataset, state, isDemo, icon, loadingIcon, esc });
   presence?.stop();
+  // Top bar (wider layouts): search as you type, and which trading day is on show and when it updates.
+  stopDataStatus?.();
+  stopDataStatus = startDataStatus(document.querySelector("#data-status"),
+    () => ({ loading, demo: isDemo, asOf: dataset?.info?.asOf, updatedAt: dataset?.info?.updatedAt }));
+  topbarSearch = bindTopbarSearch({ input: document.querySelector("#topbar-search"), list: document.querySelector("#topbar-search-results"),
+    stocks: () => latestSnapshots ?? [], isLoading: () => loading || !latestSnapshots?.length, esc, number,
+    onOpen: (symbol) => void openEntryScoreDialog(symbol, !touchInteraction),
+    onShowAll: (query) => { state.searchQuery = query; openSearch(); const field = document.querySelector("#stock-search"); if (field) field.value = query; } });
   if (nativeMode) {
     document.querySelector("#online-count").hidden = true;
     document.querySelector("#account-menu").hidden = true;
@@ -742,7 +782,7 @@ async function changeChartRange(button) {
     chosen?.focus({ preventScroll: true });
   } catch {
     if (chart.isConnected) { press(previous); chart.removeAttribute("aria-busy"); }
-    toast("走勢資料載入失敗，請稍後再試");
+    toast("走勢資料載入失敗，請稍後再試", dialog);
   }
 }
 
@@ -864,6 +904,88 @@ function syncTableFavorite(symbol) {
   if (cached) cached.favorite = favorite;
 }
 
+/**
+ * Shows companies or ETFs on the favorites page. The new list slides in from the side of the option that
+ * was chosen (ETF is on the right), and when the switch was used far down a long list the page returns to
+ * the top of the list so the new one is read from its start.
+ */
+function selectResearchKind(kind) {
+  const kinds = document.querySelector(".research-kind");
+  if (kind === researchKind) { controls.updateSegmented(kinds); return; }
+  researchKind = kind;
+  renderResearch();
+  const center = document.querySelector(".research-center");
+  if (center && center.getBoundingClientRect().top < 0)
+    center.scrollIntoView({ block: "start", behavior: effectsReduced() ? "instant" : "smooth" });
+  if (effectsReduced()) return;
+  const shown = kind === "etfs" ? ["#research-etfs"] : ["#research-stats", ".research-controls", "#research-list"];
+  const name = kind === "etfs" ? "research-kind-enter-right" : "research-kind-enter-left";
+  for (const node of shown.map((selector) => document.querySelector(selector)).filter((node) => node && !node.hidden)) {
+    node.classList.remove("research-kind-enter-left", "research-kind-enter-right");
+    void node.offsetWidth; // restart when the options are switched quickly
+    node.classList.add(name);
+    node.addEventListener("animationend", () => node.classList.remove(name), { once: true });
+  }
+}
+
+/**
+ * Phones: press the 個股／ETF switch and slide the finger across it; the capsule follows and the option
+ * under the finger is chosen on release. A plain tap stays an ordinary click, and a mouse only clicks.
+ */
+function bindResearchKindDrag() {
+  const group = document.querySelector(".research-kind");
+  if (!group) return;
+  // Phones: the switch floats at the bottom of the screen. The 自選 page animates in with a transform and
+  // filter, which would make it the fixed switch's container and drag it along, so on phones the switch
+  // lives directly under <body> and returns to the top of the list on wider screens.
+  const home = group.parentElement, phone = matchMedia("(max-width: 700px)");
+  const place = () => {
+    const floating = phone.matches;
+    if (floating && group.parentElement !== document.body) document.body.append(group);
+    if (!floating && group.parentElement !== home) home.prepend(group);
+    group.classList.toggle("is-floating", floating);
+    controls.updateSegmented(group);
+  };
+  place();
+  phone.addEventListener("change", place);
+  const options = () => [...group.querySelectorAll("[data-research-kind]")];
+  const nearest = (x) => options().reduce((best, button) => {
+    const box = button.getBoundingClientRect(), distance = Math.abs(box.left + box.width / 2 - x);
+    return !best || distance < best.distance ? { button, distance } : best;
+  }, null)?.button;
+  let drag = null;
+  group.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" || !event.isPrimary) return;
+    drag = { id: event.pointerId, startX: event.clientX, moved: false };
+    group.setPointerCapture?.(event.pointerId);
+  });
+  group.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.id) return;
+    if (!drag.moved && Math.abs(event.clientX - drag.startX) < 6) return;
+    drag.moved = true;
+    group.classList.add("is-dragging");
+    const box = group.getBoundingClientRect(), inset = 4;
+    const width = parseFloat(group.style.getPropertyValue("--segment-width")) || box.width / 2;
+    const left = Math.min(Math.max(event.clientX - box.left - group.clientLeft - width / 2, inset - group.clientLeft),
+      group.clientWidth - width - inset + group.clientLeft);
+    group.style.setProperty("--segment-left", `${left}px`);
+    for (const button of options()) button.classList.toggle("is-under-finger", button === nearest(event.clientX));
+  });
+  const finish = (event, cancelled) => {
+    if (!drag || event.pointerId !== drag.id) return;
+    const moved = drag.moved;
+    drag = null;
+    group.classList.remove("is-dragging");
+    options().forEach((button) => button.classList.remove("is-under-finger"));
+    if (!moved) return;
+    // The click that follows a slide lands on the group, not an option, so it chooses nothing by itself.
+    if (cancelled) controls.updateSegmented(group);
+    else selectResearchKind(nearest(event.clientX)?.dataset.researchKind ?? researchKind);
+  };
+  group.addEventListener("pointerup", (event) => finish(event, false));
+  group.addEventListener("pointercancel", (event) => finish(event, true));
+}
+
 /** Phone bar: the backtest, guides and settings share one menu so the brand fits beside the four pages. */
 function bindNavMenu() {
   const toggle = document.querySelector(".nav-more-toggle"), menu = document.querySelector("#nav-more-menu");
@@ -891,6 +1013,7 @@ function bindNavMenu() {
 function bindEvents() {
   backtest.bind();
   bindNavMenu();
+  bindResearchKindDrag();
   document.addEventListener("click", (event) => {
     // Info messages close when the reader taps anywhere else.
     document.querySelectorAll(".research-plan-help[open]").forEach((hint) => {
@@ -999,6 +1122,8 @@ function bindEvents() {
   });
   tableBatches.observe();
   controls.bind();
+  // Glass filters join and part like drops of water; phone filter rows centre unless they overflow.
+  document.querySelectorAll(".table-toolbar > .filter-tabs, .research-filter-tabs").forEach(attachGooPills);
   bindInputMode((touch) => { touchInteraction = touch; });
   matchMedia("(min-width: 900px)").addEventListener("change", closeEntryDrawer);
   bindPullToRefresh(document.querySelector("#pull-refresh"));
@@ -1006,7 +1131,8 @@ function bindEvents() {
     event.preventDefault();
     void refreshWithVersionCheck();
   });
-  bindKeyboardNavigation({ onSearch: openSearch, onSectorDetails: openSectorDialog });
+  // "/" goes to the top bar's search where it shows, else to the search page.
+  bindKeyboardNavigation({ onSearch: () => { if (!topbarSearch?.focus()) openSearch(); }, onSectorDetails: openSectorDialog });
   // Phone list: draw the rows that scroll into view, at most once a frame.
   let listFrame = 0;
   document.querySelector(".table-scroll").addEventListener("scroll", () => {
@@ -1121,8 +1247,7 @@ function bindEvents() {
       renderHome();
     }
     if (button.dataset.researchKind) {
-      researchKind = button.dataset.researchKind;
-      renderResearch();
+      selectResearchKind(button.dataset.researchKind);
       return;
     }
     if (button.dataset.researchFilter) {
@@ -1176,21 +1301,26 @@ function bindEvents() {
       renderResearch();
       if (state.view === "favorites") renderTable();
       else syncTableFavorite(symbol);
+      // The nav's 自選 count is outside the table, so it follows every toggle, from any page.
+      const count = document.querySelector("#favorite-count");
+      if (count) count.textContent = state.favorites.length;
       const dialogFavorite = document.querySelector(`#info-dialog [data-favorite="${symbol}"]`);
       if (dialogFavorite) {
         dialogFavorite.classList.toggle("is-favorite", !wasFavorite);
         dialogFavorite.setAttribute("aria-pressed", String(!wasFavorite));
         dialogFavorite.setAttribute("aria-label", `${wasFavorite ? "加入" : "移除"}${snapshots.find((stock) => stock.symbol === symbol)?.name ?? symbol}自選`);
       }
+      // Focus stays with the star that was pressed: a star in the stock dialog keeps it there instead of
+      // jumping to the list behind it.
       if (position) restoreMarketPosition(position, !touchInteraction);
-      else {
+      else if (!touchInteraction && !button.closest("dialog")) {
         const focusTarget = document.querySelector(`#stock-rows [data-favorite="${symbol}"]`) ||
           document.querySelector('[data-view="favorites"]');
-        if (!touchInteraction) focusTarget.focus({ preventScroll: true });
+        focusTarget?.focus({ preventScroll: true });
       }
-      toast(
-        wasFavorite ? `已將 ${symbol} 移出自選` : `已將 ${symbol} 加入自選`,
-      );
+      // Named like the star's own label, and shown where the star was pressed (over the dialog when there).
+      const name = latestSnapshots.find((stock) => stock.symbol === symbol)?.name ?? "";
+      toast(`已將 ${symbol}${name ? ` ${name}` : ""}${wasFavorite ? "移出" : "加入"}自選`, button);
     }
     if (button.dataset.view) {
       // The phone row works as toggles: tapping the active chip or 全部 clears it.
@@ -1337,7 +1467,7 @@ async function init() {
     selectedSummary = loaded.summary;
     summaryCache.set(summaryKey(state.date), loaded.summary);
     loadProgress = { loaded: dataset.stocks.length, total: dataset.stocks.length };
-    document.querySelector(".demo-badge").innerHTML = `<span></span>${esc(dataset.info.label)}`;
+    stopDataStatus?.render?.();
     document.querySelector("#trade-date").innerHTML = dataset.dates.slice(-30).reverse()
       .map((date) => `<option value="${date}">${date.replaceAll("-", "/")}</option>`).join("");
     loading = false;
