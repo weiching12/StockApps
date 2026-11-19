@@ -124,11 +124,11 @@ function priceChartMarkup(stock, esc, number, series, marks = null, range = 30, 
   const planShown = Boolean(marks?.shown) && placed.length > 0;
   const planToggle = placed.length
     ? `<button type="button" class="entry-chart-plan-toggle" data-chart-series="plan" aria-pressed="${planShown}" aria-label="在走勢圖顯示計畫價位（${placed.map(({ label, value }) => `${label} ${number(value, 2)}`).join("、")}）"><span class="show">顯示計畫價位</span><span class="hide">隱藏計畫價位</span></button>` : "";
-  return `<section class="entry-price-chart${planShown ? "" : " hide-plan"}${series.length > 60 ? " dense" : ""}" data-trend="${trend}" data-range="${range}"${monthly ? ' data-monthly="true"' : ""}><div class="entry-chart-header"><div class="entry-chart-default">${heading}${planToggle}</div><div class="entry-chart-readout" aria-label="選定交易日資訊" hidden><div><strong class="entry-chart-selected-date">${esc(pointLabel(last.date, monthly))}</strong><span class="entry-chart-selected-close">${esc(Number.isFinite(last.close) ? `收盤 ${number(last.close, 2)}` : "無收盤價")}</span><small class="entry-chart-selected-volume">${esc(Number.isFinite(last.volume) ? `量 ${number(last.volume / 1000)} 張` : "成交量不足")}</small></div><strong class="entry-chart-selected-change ${Number.isFinite(last.changePercent) ? last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : "" : ""}">${chartChange(last.changePercent)}</strong></div></div>
-    ${ranges}<div class="entry-chart-legend">${[
+  return `<section class="entry-price-chart${planShown ? "" : " hide-plan"}${series.length > 60 ? " dense" : ""}" data-trend="${trend}" data-range="${range}"${monthly ? ' data-monthly="true"' : ""}><div class="entry-chart-header"><div class="entry-chart-default">${heading}${planToggle}</div><div class="entry-chart-readout" aria-label="交易日資訊" aria-live="off"><div class="entry-chart-readout-main"><span class="entry-chart-selected-close">${esc(Number.isFinite(last.close) ? `收盤 ${number(last.close, 2)}` : "無收盤價")}</span><strong class="entry-chart-selected-change ${Number.isFinite(last.changePercent) ? last.changePercent > 0 ? "up" : last.changePercent < 0 ? "down" : "" : ""}">${chartChange(last.changePercent)}</strong></div><div class="entry-chart-readout-sub"><span class="entry-chart-selected-date">${esc(pointLabel(last.date, monthly))}</span><small class="entry-chart-selected-volume">${esc(Number.isFinite(last.volume) ? `量 ${number(last.volume / 1000)} 張` : "成交量不足")}</small></div></div></div>
+    <div class="entry-chart-controls">${ranges}<div class="entry-chart-legend">${[
       ["close", monthly ? "月底收盤價" : "收盤價"], ...(monthly ? [] : [["ma20", "月線 MA20"], ["ma60", "季線 MA60"]]),
       ["volume", monthly ? "月成交量" : "成交量"],
-    ].map(([key, label]) => `<button type="button" data-chart-series="${key}" aria-pressed="true" aria-label="${label}">${label}</button>`).join("")}${monthly && options.events ? '<span class="entry-chart-event-key ex">除息</span><span class="entry-chart-event-key pay">發息</span>' : ""}</div>
+    ].map(([key, label]) => `<button type="button" data-chart-series="${key}" aria-pressed="true" aria-label="${label}">${label}</button>`).join("")}${monthly && options.events ? '<span class="entry-chart-event-key ex">除息</span><span class="entry-chart-event-key pay">發息</span>' : ""}</div></div>
     <div class="entry-chart-price-region"><div class="entry-chart-scale" aria-label="近 ${series.length} 個交易日收盤價最高與最低"><span style="top:${(highLabelY / 210 * 100).toFixed(2)}%">高<br>${number(closingHigh, 2)}</span><span style="top:${(lowLabelY / 210 * 100).toFixed(2)}%">低<br>${number(closingLow, 2)}</span></div>
     <div class="entry-chart-plot" role="slider" tabindex="0" aria-label="${esc(stock.symbol)}近 ${series.length} 個交易日收盤價；點選圖表查看，觸控長按後左右滑動，鍵盤可用方向鍵" aria-orientation="horizontal" aria-valuemin="1" aria-valuemax="${series.length}" aria-valuenow="${series.length}" aria-valuetext="${esc(readout)}" data-index="${series.length - 1}" data-points="${esc(JSON.stringify(series))}"><svg viewBox="0 0 600 210" preserveAspectRatio="none" aria-hidden="true">
       <line x1="8" y1="16" x2="592" y2="16"/><line x1="8" y1="78" x2="592" y2="78"/><line x1="8" y1="140" x2="592" y2="140"/><line x1="8" y1="197" x2="592" y2="197"/>
@@ -145,15 +145,9 @@ export function selectEntryChartPoint(plot, index, number) {
   plot.setAttribute("aria-valuenow", String(selected + 1));
   plot.setAttribute("aria-valuetext", readout);
   const chart = plot.closest(".entry-price-chart");
-  chart.querySelector(".entry-chart-default").hidden = true;
-  chart.querySelector(".entry-chart-readout").hidden = false;
   const monthly = chart.dataset.monthly === "true";
-  chart.querySelector(".entry-chart-selected-date").textContent = pointLabel(point.date, monthly);
-  chart.querySelector(".entry-chart-selected-close").textContent = Number.isFinite(point.close) ? `收盤 ${number(point.close, 2)}` : "無收盤價";
-  chart.querySelector(".entry-chart-selected-volume").textContent = Number.isFinite(point.volume) ? `量 ${number(point.volume / 1000)} 張` : "成交量不足";
-  const change = chart.querySelector(".entry-chart-selected-change");
-  change.textContent = chartChange(point.changePercent);
-  change.className = `entry-chart-selected-change ${Number.isFinite(point.changePercent) ? point.changePercent > 0 ? "up" : point.changePercent < 0 ? "down" : "" : ""}`;
+  chart.querySelector(".entry-chart-readout").classList.add("picked");
+  fillChartReadout(chart, point, number, monthly);
   const x = 8 + selected * 584 / Math.max(1, points.length - 1);
   const cursor = plot.querySelector(".entry-chart-cursor");
   cursor.setAttribute("x1", x.toFixed(1));
@@ -165,15 +159,26 @@ export function selectEntryChartPoint(plot, index, number) {
   if (monthly) showEtfMonth(chart.closest(".entry-dialog"), point.date.slice(0, 7));
 }
 
+/** The title row's right side: close and change, then date and volume, for the chosen (or latest) session. */
+function fillChartReadout(chart, point, number, monthly) {
+  chart.querySelector(".entry-chart-selected-date").textContent = pointLabel(point.date, monthly);
+  chart.querySelector(".entry-chart-selected-close").textContent = Number.isFinite(point.close) ? `收盤 ${number(point.close, 2)}` : "無收盤價";
+  chart.querySelector(".entry-chart-selected-volume").textContent = Number.isFinite(point.volume) ? `量 ${number(point.volume / 1000)} 張` : "成交量不足";
+  const change = chart.querySelector(".entry-chart-selected-change");
+  change.textContent = chartChange(point.changePercent);
+  change.className = `entry-chart-selected-change ${Number.isFinite(point.changePercent) ? point.changePercent > 0 ? "up" : point.changePercent < 0 ? "down" : "" : ""}`;
+}
+
 export function restoreEntryChartTitle(plot, number) {
-  const chart = plot.closest(".entry-price-chart");
-  if (!chart || chart.querySelector(".entry-chart-readout").hidden) return;
-  chart.querySelector(".entry-chart-default").hidden = false;
-  chart.querySelector(".entry-chart-readout").hidden = true;
-  // Back to the latest session, matching the title: the cursor and marked point move there too.
+  const chart = plot.closest(".entry-price-chart"), readout = chart?.querySelector(".entry-chart-readout");
+  if (!readout?.classList.contains("picked")) return;
+  readout.classList.remove("picked");
+  // Back to the latest session: the figures, the cursor and the marked point move there too.
   const points = JSON.parse(plot.dataset.points), last = points.length - 1;
+  fillChartReadout(chart, points[last], number, chart.dataset.monthly === "true");
   plot.dataset.index = String(last);
   plot.setAttribute("aria-valuenow", String(last + 1));
+  plot.setAttribute("aria-valuetext", chartReadout(points[last], number));
   const x = (8 + last * 584 / Math.max(1, last)).toFixed(1);
   const cursor = plot.querySelector(".entry-chart-cursor");
   cursor?.setAttribute("x1", x);

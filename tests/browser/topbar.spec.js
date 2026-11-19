@@ -145,10 +145,13 @@ test("the trading-day menu sits in the top bar on wider screens and in the page 
   await page.locator('.nav-item[data-page="market"]').first().click();
   await expect(page.locator(".topbar #trade-date")).toBeVisible();
   await expect(page.locator("#trade-date")).toHaveValue(second);
-  // Its other views read the latest session: no menu, and the status names the day in words.
-  await page.locator('[data-market-view-choice="sectors"]').first().click();
-  await expect(control).toBeHidden();
-  await expect(page.locator("#data-status strong")).toBeVisible();
+  // 法人買株 and ETF rank the same chosen day, so the menu stays with that day rather than turning into the latest.
+  for (const view of ["sectors", "etf"]) {
+    await page.locator(`[data-market-view-choice="${view}"]`).first().click();
+    await expect(page.locator(".topbar #trade-date"), view).toBeVisible();
+    await expect(page.locator("#trade-date"), view).toHaveValue(second);
+    await expect(page.locator("#data-status strong"), view).toBeHidden();
+  }
   await page.locator('[data-market-view-choice="list"]').first().click();
   await page.locator('.nav-item[data-page="favorites"]').first().click();
   await expect(control).toBeHidden();

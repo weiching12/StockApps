@@ -25,11 +25,16 @@ export function retentionCutoff(asOf, months = SAMPLE_RETENTION_MONTHS) {
 }
 
 /** The saved detail: everything the explanation views need, nothing recomputed later. */
+// Gate figures that only restate others for reading (G4's money totals, from the same shares × close) are
+// not stored: the samples keep what the verdict was decided on.
+const DISPLAY_ONLY_FIELDS = new Set(["netValue", "tradedValue"]);
+const storedData = (data) => data && Object.fromEntries(Object.entries(data).filter(([field]) => !DISPLAY_ONLY_FIELDS.has(field)));
+
 function sampleDetail(result) {
   const { gateResult: gate, entryResearch: research, nextDayPlan, dataQuality } = result;
   return { gate: { status: gate.status, passedCount: gate.passedCount, reasons: gate.reasons,
     conditions: Object.fromEntries(Object.entries(gate.details).map(([key, item]) =>
-      [key, { status: item.status, reason: item.reason, data: item.data }])) },
+      [key, { status: item.status, reason: item.reason, data: storedData(item.data) }])) },
   research: research.status === "NOT_ELIGIBLE" || research.status === "DATA_INSUFFICIENT"
     ? { status: research.status } : research,
   nextDayPlan, dataQuality, provisional: result.provisional };

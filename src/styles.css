@@ -836,15 +836,17 @@ h1 {
 .entry-price-chart[data-trend="up"] { --chart-tone: var(--up); }
 .entry-price-chart[data-trend="down"] { --chart-tone: var(--down); }
 .entry-price-chart[data-trend="flat"] { --chart-tone: var(--accent); }
-.entry-chart-header { position: relative; height: 48px; }
-.entry-chart-default { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* The title row: the title (and plan toggle) on the left, the latest or chosen session's close, change, date and volume on the right. */
+.entry-chart-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.entry-chart-default { display: flex; flex: 1 1 auto; align-items: center; gap: 8px; min-width: 0; min-height: 22px; }
 .entry-price-chart h3 { flex: 1; min-width: 0; margin: 0; color: var(--muted); font-size: 14px; font-weight: 500; line-height: 1.4; }
 .entry-chart-default[hidden], .entry-chart-readout[hidden] { display: none; }
-.entry-chart-readout { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; font-variant-numeric: tabular-nums; }
-.entry-chart-readout > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; min-width: 0; }
-.entry-chart-selected-date, .entry-chart-selected-close { color: var(--ink); font-size: 16px; font-weight: 600; }
-.entry-chart-selected-volume { color: var(--muted); font-size: 11px; white-space: nowrap; }
-.entry-chart-selected-change { flex: none; color: var(--muted); font-size: 14px; }
+.entry-chart-readout { display: grid; flex: none; justify-items: end; gap: 1px; font-variant-numeric: tabular-nums; }
+.entry-chart-readout.picked .entry-chart-selected-date { color: var(--accent); font-weight: 600; }
+.entry-chart-readout-main, .entry-chart-readout-sub { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.entry-chart-selected-close { color: var(--ink); font-size: 14px; font-weight: 600; }
+.entry-chart-selected-change { color: var(--muted); font-size: 14px; font-weight: 600; }
+.entry-chart-selected-date, .entry-chart-selected-volume { color: var(--muted); font-size: 12px; font-weight: 400; }
 .entry-chart-selected-change.up { color: var(--up); }
 .entry-chart-selected-change.down { color: var(--down); }
 .entry-chart-legend { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: 0 0 7px; }
@@ -914,7 +916,9 @@ h1 {
 .entry-institution-legend span b { display: block; overflow: hidden; text-overflow: ellipsis; }
 .entry-institution-head > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry-institution-legend span::before { display: inline-block; width: 6px; height: 6px; margin-right: 4px; border-radius: 50%; vertical-align: 1px; background: var(--line-tone); content: ""; }
-.sector-stock-table [data-sector-target] > :is(th, td) { background: var(--accent-soft); }
+/* The stock the sheet was opened for: one neutral fill across the whole row (red and green bars stay the only colour), with a grey edge. */
+.sector-stock-table [data-sector-target] { background: color-mix(in srgb, var(--ink) 4%, transparent); box-shadow: inset 3px 0 0 color-mix(in srgb, var(--ink) 35%, transparent); }
+.sector-stock-table [data-sector-target] > :is(th, td) { background: transparent; }
 .entry-disclaimer { margin-top: 22px; }
 .price-column { width: 135px; }
 .price-volume-column { width: 150px; }
@@ -4015,7 +4019,6 @@ html[data-effects="reduced"] #research-kind.is-floating:not([hidden]) { animatio
 .analysis-vetoes { display: grid; gap: 10px; margin: 12px 0 16px; }
 .analysis-veto { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
 .analysis-veto dt { display: flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 600; }
-.analysis-veto dt span { padding: 1px 6px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
 .analysis-veto dd { margin: 0; }
 .analysis-veto dd p { margin: 0; }
 .analysis-veto .analysis-why { margin-top: 2px; color: var(--muted); font-size: var(--text-secondary); }
@@ -4056,3 +4059,31 @@ html[data-effects="reduced"] #research-kind.is-floating:not([hidden]) { animatio
 @media (max-width: 1100px) {
   .sidebar { z-index: 45; }
 }
+
+/* Phone sector sheet: the opened stock's card is one rounded block, its content kept off the edges. */
+@media (max-width: 700px) {
+  .sector-stock-table tbody tr[data-sector-target] { padding-inline: 10px; border-radius: 12px; border-bottom-color: transparent; box-shadow: inset 0 0 0 1px var(--border); }
+}
+
+/* 株研分析說明 vetoes: the stock dialog's gate icon and short name head each one, then the rule, the reason and sources. */
+.analysis-veto { scroll-margin-top: 12px; }
+.analysis-veto dt { align-items: center; gap: 10px; }
+.analysis-veto-icon { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
+.analysis-veto-icon .icon { width: 20px; height: 20px; }
+.analysis-veto-name { display: grid; gap: 1px; }
+.analysis-veto-name small { color: var(--muted); font-size: var(--text-meta); font-weight: 400; }
+.analysis-veto h5 { margin: 8px 0 4px; color: var(--muted); font-size: var(--text-meta); font-weight: 600; }
+.analysis-back { margin: 0 0 8px; padding: 4px 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: var(--text-secondary); cursor: pointer; }
+.research-gate-guide { margin-top: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: var(--text-meta); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.research-gate-guide.inline { margin: 0 2px; }
+
+/* Fact labels stay on one line; long values wrap on their side instead of squeezing the label into a column. */
+:is(.research-gate-item dl, .research-signal-facts, .research-plan-table, .research-gate-panel dl) dt { flex: none; white-space: nowrap; }
+
+/* Chart controls: range buttons on the left, the legend beside them, one row while they fit. */
+.entry-chart-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 0 0 10px; }
+.entry-chart-controls .entry-chart-ranges { margin: 0; }
+.entry-chart-controls .entry-chart-legend { margin: 0; justify-content: flex-end; }
+/* The title reads on the close price's line; the date and volume sit under the price. */
+.entry-chart-header h3 { line-height: 22px; }
+.entry-chart-readout-main { line-height: 22px; }

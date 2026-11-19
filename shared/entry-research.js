@@ -63,7 +63,7 @@ const vetoRules = (g) => ({
 /** The current model's preliminary-gate vetoes in display order, with their rules (for the analysis guide). */
 export const vetoGateGuide = (model = ENTRY_RESEARCH_MODEL) => {
   const rules = vetoRules(model.gates);
-  return VETO_KEYS.map((key) => ({ key, label: VETO_LABELS[key], rule: rules[key] }));
+  return VETO_KEYS.map((key) => ({ key, label: VETO_LABELS[key], rule: rules[key], references: model.references?.[key] ?? [] }));
 };
 const shortDate = (date) => date.slice(5).replace("-", "/");
 const veto = (status, reason, data) => ({ status, reason, data });
@@ -104,15 +104,18 @@ function vetoChecks(reader, g) {
         : veto("PASS", `收盤距 MA20 為 ${round2(extension)} 倍 ATR14`, data);
   }
   {
-    let net = 0, volume = 0, complete = true;
+    let net = 0, volume = 0, netValue = 0, tradedValue = 0, complete = true;
     for (let age = 0; age < g.institutionSessions; age++) {
       const bar = reader.bar(at - age);
       const flows = ["外資", "投信"].map((name) => getInstitutionNet(bar?.institutions, name));
       if (!validBar(bar) || !Number.isFinite(bar.volume) || bar.volume < 0 || !flows.every(Number.isFinite)) { complete = false; break; }
       net += flows[0] + flows[1]; volume += bar.volume;
+      netValue += (flows[0] + flows[1]) * bar.close; tradedValue += bar.volume * bar.close;
     }
     const percent = complete && volume > 0 ? net / volume * 100 : null;
-    const data = { netShares: complete ? net : null, volumeShares: complete ? volume : null, netPercent: round2(percent) };
+    // The ratio is of shares (the model's rule); the money figures (shares × that day's close) are for reading.
+    const data = { netValue: complete ? Math.round(netValue) : null, tradedValue: complete ? Math.round(tradedValue) : null,
+      netShares: complete ? net : null, volumeShares: complete ? volume : null, netPercent: round2(percent) };
     checks.institutional = !Number.isFinite(percent) ? veto("UNKNOWN", `近 ${g.institutionSessions} 個交易日法人或成交量資料不足`, data)
       : percent <= -g.institutionNetSellPercent ? veto("FAIL", `近 ${g.institutionSessions} 日外資與投信合計淨賣超占成交量 ${round2(-percent)}%`, data)
         : veto("PASS", `近 ${g.institutionSessions} 日外資與投信合計淨額占成交量 ${round2(percent)}%`, data);

@@ -29,7 +29,7 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   const chart = page.locator(".entry-price-chart");
   const plot = chart.locator(".entry-chart-plot");
   await expect(chart.locator("h3")).toBeVisible();
-  await expect(chart.locator(".entry-chart-readout")).toBeHidden();
+  await expect(chart.locator(".entry-chart-readout")).not.toHaveClass(/picked/);
   await expect(chart.locator(".entry-chart-points circle")).toHaveCount(30);
   await expect(chart.locator(".entry-chart-bars rect")).toHaveCount(30);
   const chartPoints = JSON.parse(await plot.getAttribute("data-points"));
@@ -92,12 +92,13 @@ test("entry score stays usable in the market list, detail dialog and phone scrol
   expect(stroke).toBe(tone);
   const box = await plot.boundingBox();
   await page.mouse.click(box.x + 10, box.y + box.height / 2);
-  // The clicked day stays in place of the title after the button is released.
-  await expect(chart.locator("h3")).toBeHidden();
+  // The clicked day's figures stay beside the title after the button is released.
+  await expect(chart.locator("h3")).toBeVisible();
+  await expect(chart.locator(".entry-chart-readout")).toHaveClass(/picked/);
   await expect(plot).toHaveAttribute("aria-valuenow", "1");
   await page.keyboard.press("ArrowRight");
   await expect(plot).toHaveAttribute("aria-valuenow", "2");
-  await expect(chart.locator(".entry-chart-readout")).toBeVisible();
+  await expect(chart.locator(".entry-chart-readout")).toHaveClass(/picked/);
   await expect(page.locator(".entry-dialog-title [data-favorite]")).toHaveCount(1);
   await expect(page.locator("#info-dialog .dialog-top .eyebrow")).toBeHidden();
   const dialogFavorite = page.locator(".entry-dialog-title [data-favorite]");

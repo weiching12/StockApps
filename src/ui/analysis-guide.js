@@ -2,6 +2,7 @@
 // preliminary gate (初步門檻); the rules and thresholds come from the live model (shared/entry-research.js),
 // so the explanation always matches what the lists show.
 import { vetoGateGuide } from "../../shared/entry-research.js";
+import { REFERENCE_NOTE, VETO_ICONS, VETO_SHORT } from "./entry-research.js";
 
 // Why each veto exists, in a sentence; the rule itself comes from the model.
 const WHY = {
@@ -13,16 +14,25 @@ const WHY = {
 };
 
 /** Section ids, for links that open the guide at a section (data-analysis="…"). */
-export const ANALYSIS_SECTIONS = Object.freeze({ gate: "analysis-gate" });
+export const ANALYSIS_SECTIONS = Object.freeze({ gate: "analysis-gate",
+  ...Object.fromEntries(Object.keys(VETO_ICONS).map((key) => [`gate-${key}`, `analysis-gate-${key}`])) });
 
-export function analysisGuideMarkup(esc) {
-  const vetoes = vetoGateGuide().map(({ key, label, rule }, index) => `<div class="analysis-veto"><dt><span>G${index + 1}</span>${esc(label)}</dt><dd><p>${esc(rule)}。</p><p class="analysis-why">${esc(WHY[key] ?? "")}</p></dd></div>`).join("");
-  return `<h2 id="dialog-heading">株研分析說明</h2>
+const icon = (key) => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${VETO_ICONS[key] ?? '<circle cx="12" cy="12" r="8"/>'}</svg>`;
+
+/** `back` (a stock's code and name) adds a button that returns to that stock when the guide was opened from it. */
+export function analysisGuideMarkup(esc, back = null) {
+  const vetoes = vetoGateGuide().map(({ key, label, rule, references }, index) => {
+    const sources = references.map((ref) => `<li><span class="research-reference-kind">${esc(ref.kind)}</span><a href="${esc(ref.url)}" target="_blank" rel="noopener noreferrer">${esc(ref.title)}</a></li>`).join("");
+    return `<div class="analysis-veto" id="analysis-gate-${key}" data-gate="${key}"><dt><span class="analysis-veto-icon">${icon(key)}</span><span class="analysis-veto-name"><strong>${esc(VETO_SHORT[key] ?? label)}</strong><small>G${index + 1} ${esc(label)}</small></span></dt><dd><p>${esc(rule)}。</p><p class="analysis-why">${esc(WHY[key] ?? "")}</p>${sources ? `<h5>參考依據</h5><ul class="research-references">${sources}</ul>` : ""}</dd></div>`;
+  }).join("");
+  const backButton = back ? `<button type="button" class="analysis-back" data-entry-score="${esc(back.symbol)}">← 返回 ${esc(back.symbol)} ${esc(back.name ?? "")}</button>` : "";
+  return `${backButton}<h2 id="dialog-heading">株研分析說明</h2>
 <p class="dialog-intro">株研以固定規則逐日研讀每檔上市股票，分成三步：先過初步門檻，再看是否出現進場訊號，最後評估下一交易日能否進場並列出價格計畫。結果是條件判讀，並非買賣指令。</p>
 <article class="guide-item" id="${ANALYSIS_SECTIONS.gate}"><span>01</span><div><h3>初步門檻</h3>
 <p>第一步只回答一件事：這檔股票是否出現讓「波段順勢進場」前提失效的情況。門檻只放<strong>否決條件</strong>，出現即排除；不判斷強弱高低，也不打分數，明日候選之間不分高下。</p>
 <dl class="analysis-vetoes">${vetoes}</dl>
 <h4>怎麼判定</h4>
 <dl class="signal-rules"><div><dt>通過</dt><dd>五項都沒有觸發，才進入進場訊號與價格計畫的評估。</dd></div><div><dt>未通過</dt><dd>任一項觸發即未通過，不評估進場。清單以徽章列出觸發的項目，3 項以內逐項列出，更多時顯示「共 N 項」。</dd></div><div><dt>待確認</dt><dd>沒有觸發，但有項目資料不足（例如交易日數還不夠計算均線）；資料不足不當成未通過，也不補零。</dd></div></dl>
-<p>所有計算只使用該交易日及以前的資料；價格未還原，期間有除權息時以參考價調整。ETF 不做進場研究。</p></div></article>`;
+<p>所有計算只使用該交易日及以前的資料；價格未還原，期間有除權息時以參考價調整。ETF 不做進場研究。</p>
+<p class="research-gate-note">${esc(REFERENCE_NOTE)}</p></div></article>`;
 }

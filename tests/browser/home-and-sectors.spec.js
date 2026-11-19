@@ -256,7 +256,7 @@ test("on phones the market list fills the screen to its footer and only its rows
   await expect(page.locator(".stocks-panel")).not.toHaveClass(/is-fitted/);
 });
 
-test("home and (from the top bar) the market list show the trading day; the other pages do not", async ({ page }) => {
+test("home and (from the top bar) the market page show the trading day; the other pages do not", async ({ page }) => {
   for (const width of [390, 768, 1280]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/");
@@ -264,14 +264,16 @@ test("home and (from the top bar) the market list show the trading day; the othe
     await expect(page.locator("#trade-date")).toBeVisible();
     for (const target of ["market", "favorites", "search"]) {
       await page.locator(`[data-page="${target}"]`).first().click();
-      // The market list reads the chosen day: its menu sits in the top bar (701px up); phones choose it on home.
+      // The market page reads the chosen day: its menu sits in the top bar (701px up); phones choose it on home.
       if (target === "market" && width > 700) await expect(page.locator(".topbar .date-control"), `${width}px market`).toBeVisible();
       else await expect(page.locator(".date-control"), `${width}px ${target}`).toBeHidden();
       await expect(page.locator("#update-countdown"), `${width}px ${target}`).toBeHidden();
     }
     await page.locator('[data-page="market"]').first().click();
     await page.locator('[data-market-view-choice="sectors"]').click();
-    await expect(page.locator(".date-control")).toBeHidden();
+    // 法人買株 ranks the chosen day too: the menu stays in the top bar, and phones still choose on home.
+    if (width > 700) await expect(page.locator(".topbar .date-control"), `${width}px sectors`).toBeVisible();
+    else await expect(page.locator(".date-control"), `${width}px sectors`).toBeHidden();
     await expect(page.locator("#update-countdown")).toBeHidden();
     await page.locator('[data-market-view-choice="list"]').click();
   }

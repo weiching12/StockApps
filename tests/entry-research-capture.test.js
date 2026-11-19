@@ -399,3 +399,18 @@ test("after the switch to v4, retired v3 samples are left as they are until they
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM entry_research_samples WHERE ModelVersion='entry-research-v4'").get().n, saved.inserted);
   db.sqlite.close();
 });
+
+test("samples keep the gate figures the verdict used, not money totals that only restate them for reading", async () => {
+  const { sampleRow } = await import("../cloudflare/entry-research-capture.js");
+  const data = { netValue: -1_309_000_000, tradedValue: 116_540_000_000, netShares: -1_200_000, volumeShares: 106_000_000, netPercent: -1.13 };
+  const result = {
+    stockCode: "2330", asOf: "2026-11-19", modelVersion: ENTRY_RESEARCH_MODEL.version,
+    gateResult: { status: "PASS", passedCount: 5, reasons: [], conditions: { institutional: "PASS" },
+      details: { institutional: { status: "PASS", reason: "近 3 日外資與投信合計淨額占成交量 -1.13%", data } } },
+    entryResearch: { status: "NOT_ELIGIBLE" }, nextDayPlan: { referenceClose: 1085, status: "NOT_ELIGIBLE" },
+    dataQuality: { status: "OK", priceBasis: "unadjusted" }, provisional: false,
+  };
+  const row = sampleRow(result, { stock: { symbol: "2330" }, revisionId: "r1", capturedAt: "2026-11-19T12:00:00Z", source: "test" });
+  const stored = JSON.parse(row.DetailJson).gate.conditions.institutional.data;
+  assert.deepEqual(stored, { netShares: -1_200_000, volumeShares: 106_000_000, netPercent: -1.13 });
+});

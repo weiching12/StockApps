@@ -15,10 +15,10 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   // The chart follows the research sections; bring it on screen before touching it.
   await plot.scrollIntoViewIfNeeded();
   await expect(chart.locator("h3")).toBeVisible();
-  await expect(chart.locator(".entry-chart-readout")).toBeHidden();
-  // The latest close lives in the dialog header, not in the chart.
+  // The title row's right side shows the latest session until a day is picked.
+  await expect(chart.locator(".entry-chart-readout")).not.toHaveClass(/picked/);
+  await expect(chart.locator(".entry-chart-readout")).toBeVisible();
   const quote = page.locator("#info-dialog .entry-dialog-header .entry-dialog-quote");
-  await expect(chart.locator(".entry-chart-latest")).toHaveCount(0);
   await expect(quote.locator("strong")).toHaveCSS("font-size", "20px");
   await expect(quote.locator("small")).toHaveCSS("font-size", "16px");
   await expect(chart.locator(".entry-chart-scale span").first()).toHaveCSS("font-size", "11px");
@@ -30,9 +30,9 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   await page.touchscreen.tap(first.x + first.width / 2, first.y + first.height / 2);
   await expect(plot).toHaveAttribute("aria-valuenow", "1");
   expect(await plot.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe("none");
-  // A tap keeps that day's readout in place of the title after the finger lifts.
-  await expect(chart.locator(".entry-chart-readout")).toBeVisible();
-  await expect(chart.locator("h3")).toBeHidden();
+  // A tap keeps that day's figures beside the title after the finger lifts; the title stays.
+  await expect(chart.locator(".entry-chart-readout")).toHaveClass(/picked/);
+  await expect(chart.locator("h3")).toBeVisible();
   await expect(chart.locator(".entry-chart-hint")).toHaveCount(0);
   const last = await chart.locator(".entry-chart-points circle").last().boundingBox();
   await page.touchscreen.tap(last.x + last.width / 2, last.y + last.height / 2);
@@ -44,8 +44,8 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x + box.width - 8, y, id: 1 }] });
   await page.waitForTimeout(450);
   await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: first.x + first.width / 2, y, id: 1 }] });
-  await expect(chart.locator(".entry-chart-readout")).toBeVisible();
-  await expect(chart.locator("h3")).toBeHidden();
+  await expect(chart.locator(".entry-chart-readout")).toHaveClass(/picked/);
+  await expect(chart.locator("h3")).toBeVisible();
   expect((await plot.boundingBox()).y).toBe(stableY);
   await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect(plot).toHaveAttribute("aria-valuenow", "1");
@@ -54,14 +54,14 @@ test("phone chart shows the touched trading day without a separate slider", asyn
   await expect(chart.locator(".entry-chart-selected-volume")).toContainText("張");
   await expect(chart.locator(".entry-chart-selected-change")).toContainText("%");
   // The dragged-to day stays on show after release…
-  await expect(chart.locator(".entry-chart-readout")).toBeVisible();
+  await expect(chart.locator(".entry-chart-readout")).toHaveClass(/picked/);
   expect((await plot.boundingBox()).y).toBe(stableY);
-  // …until a tap elsewhere, which brings back the title and the latest session.
+  // …until a tap elsewhere, which brings back the latest session.
   // Tap well clear of the plot: Chrome's touch adjustment moves taps that land just beside it onto it.
   const readout = await chart.locator(".entry-chart-readout").boundingBox();
   await page.touchscreen.tap(readout.x + readout.width / 2, readout.y + 4);
   await expect(chart.locator("h3")).toBeVisible();
-  await expect(chart.locator(".entry-chart-readout")).toBeHidden();
+  await expect(chart.locator(".entry-chart-readout")).not.toHaveClass(/picked/);
   await expect(plot).toHaveAttribute("aria-valuenow", "30");
   expect((await plot.boundingBox()).y).toBe(stableY);
   expect(await chart.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -78,11 +78,11 @@ test("dragging the phone chart after a hold does not scroll the detail panel", a
   const session = await page.context().newCDPSession(page);
   await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x + box.width - 12, y: box.y + box.height * 0.35, id: 1 }] });
   await page.waitForTimeout(450);
-  await expect(dialog.locator(".entry-chart-readout")).toBeVisible();
+  await expect(dialog.locator(".entry-chart-readout")).toHaveClass(/picked/);
   for (let step = 1; step <= 5; step++) {
     await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: box.x + box.width - 12 - step * (box.width - 24) / 5, y: box.y + box.height * (0.35 + step * 0.08), id: 1 }] });
   }
-  await expect(dialog.locator(".entry-chart-readout")).toBeVisible();
+  await expect(dialog.locator(".entry-chart-readout")).toHaveClass(/picked/);
   await expect.poll(async () => Number(await plot.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(2);
   await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   expect(await dialog.evaluate((element) => element.scrollTop)).toBe(startScroll);
@@ -105,7 +105,7 @@ test("a quick vertical swipe on the phone chart scrolls the detail panel instead
   await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect.poll(() => dialog.evaluate((element) => element.scrollTop)).toBeGreaterThan(startScroll);
   await expect(plot).toHaveAttribute("aria-valuenow", startIndex);
-  await expect(dialog.locator(".entry-chart-readout")).toBeHidden();
+  await expect(dialog.locator(".entry-chart-readout")).not.toHaveClass(/picked/);
 });
 
 test("touching a market row does not leave a blue focus outline", async ({ page }) => {

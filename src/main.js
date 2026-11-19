@@ -694,6 +694,7 @@ function marketScope() {
 }
 
 
+let analysisFrom = null;
 function openDialog(type, focusClose = true) {
   settingsAccountMenu?.stop(); settingsAccountMenu = null;
   const infoDialog = document.querySelector("#info-dialog");
@@ -721,7 +722,8 @@ function openDialog(type, focusClose = true) {
       state.favorites.includes(symbol), icon, loadingIcon) :
       `<h2 id="dialog-heading">個股進場評估</h2><p>找不到這檔股票。</p>`;
   } else if (type === "analysis") {
-    content.innerHTML = analysisGuideMarkup(esc);
+    const from = analysisFrom && snapshots.find((stock) => stock.symbol === analysisFrom);
+    content.innerHTML = analysisGuideMarkup(esc, from ? { symbol: from.symbol, name: from.name } : null);
   } else if (type === "backtest-sample") {
     content.innerHTML = `<h2 id="dialog-heading">研究樣本說明</h2><div class="backtest-loading">${loadingIcon("樣本說明載入中")}</div>`;
   } else if (type === "source" && !isDemo && !dataset.info.updatedAt) {
@@ -792,8 +794,17 @@ async function changeChartRange(button) {
     if (!chart.isConnected || !dialog.open || dialog.dataset.entrySymbol !== symbol || state.date !== date) return;
     const stock = { ...snapshots.find((item) => item.symbol === symbol), ...stockDetailCache.get(key) };
     const shape = entryChartShape(chart);
+    // The new range is drawn from defaults; what the viewer turned on or off (plan levels, legend series) stays so.
+    const toggled = [...chart.querySelectorAll("[data-chart-series]")].map((item) => [item.dataset.chartSeries, item.getAttribute("aria-pressed") === "true"]);
     chart.outerHTML = entryChartMarkup(stock, esc, number, series, days);
     const chosen = dialog.querySelector(`.entry-price-chart [data-chart-range="${days}"]`);
+    const redrawn = chosen?.closest(".entry-price-chart");
+    for (const [name, visible] of toggled) {
+      const item = redrawn?.querySelector(`[data-chart-series="${name}"]`);
+      if (!item) continue;
+      item.setAttribute("aria-pressed", String(visible));
+      redrawn.classList.toggle(`hide-${name}`, !visible);
+    }
     // The lines bend from the previous range's shape into the new one.
     morphEntryChart(chosen?.closest(".entry-price-chart"), shape);
     chosen?.focus({ preventScroll: true });
@@ -1249,7 +1260,11 @@ function bindEvents() {
     }
       if (button.dataset.dialog) openDialog(button.dataset.dialog, !touchInteraction);
     if (button.dataset.analysis) {
+      // From inside a stock's detail, the guide offers a way back to that stock.
+      const info = document.querySelector("#info-dialog");
+      analysisFrom = info.open && info.contains(button) ? info.dataset.entrySymbol || null : null;
       openDialog("analysis", !touchInteraction);
+      analysisFrom = null;
       document.getElementById(ANALYSIS_SECTIONS[button.dataset.analysis])?.scrollIntoView({ block: "start" });
     }
     if (button.dataset.guide) {

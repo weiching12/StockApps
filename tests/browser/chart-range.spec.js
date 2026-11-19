@@ -115,3 +115,25 @@ test("sector choices list the busiest sector of the day first, and its sub-indus
     await expect(page.locator("#sub-sector-chips button")).toHaveText([`全部${group.name}`, ...group.subs]);
   }
 });
+
+// Demo data has no stock with plan levels; the plan toggle uses the same carry-over and is checked against
+// real data in tests/cloudflare-browser/chart-plan.spec.js.
+test("switching the range keeps the legend series as the viewer left them", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await page.locator('[data-page="market"]').first().click();
+  await page.locator('#stock-rows tr[data-symbol="2330"] .stock-name').click();
+  const chart = page.locator("#info-dialog .entry-price-chart");
+  await expect(chart.locator("h3")).toHaveText("30 個交易日走勢圖");
+  await chart.locator('.entry-chart-legend [data-chart-series="ma60"]').click();
+  await chart.locator('.entry-chart-legend [data-chart-series="volume"]').click();
+  for (const range of ["60", "260", "30"]) {
+    await chart.locator(`[data-chart-range="${range}"]`).click();
+    await expect(chart.locator(`[data-chart-range="${range}"]`)).toHaveAttribute("aria-pressed", "true");
+    await expect(chart.locator('.entry-chart-legend [data-chart-series="ma60"]')).toHaveAttribute("aria-pressed", "false");
+    await expect(chart.locator('.entry-chart-legend [data-chart-series="volume"]')).toHaveAttribute("aria-pressed", "false");
+    await expect(chart.locator('.entry-chart-legend [data-chart-series="close"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(chart).toHaveClass(/hide-ma60/);
+    await expect(chart).toHaveClass(/hide-volume/);
+  }
+});

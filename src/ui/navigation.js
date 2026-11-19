@@ -20,11 +20,11 @@ export function renderPageView({ state, dataset, renderLoadState, updateSegmente
   // Home names the session it shows, since its trading-day menu sits in the top bar rather than beside the title.
   const day = state.page === "home" && state.date ? `${state.date.replaceAll("-", "/")} 收盤後的` : "";
   document.querySelector("#page-description").textContent = day + description;
-  // Home and the market list read the chosen session; the other pages read the latest one.
-  // The trading-day menu shows on home, and on the market list too while it sits in the top bar (701px up);
-  // the phone heading of the market list has no room for it, so it stays on home there (styles.css).
+  // Home and every market view (list, 法人買株 ranking, ETF) read the chosen session; 自選 and search read the latest.
+  // The trading-day menu shows on home, and on the market page too while it sits in the top bar (701px up);
+  // the phone heading of the market page has no room for it, so it stays on home there (styles.css).
   const favorites = state.page === "favorites";
-  const choosesDay = state.page === "home" || (market && state.marketView === "list");
+  const choosesDay = state.page === "home" || market;
   const control = document.querySelector(".date-control");
   const dateSelect = document.querySelector("#trade-date");
   dateSelect.hidden = !choosesDay;

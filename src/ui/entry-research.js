@@ -9,8 +9,8 @@ import { ENTRY_RESEARCH_MODEL, ENTRY_RESEARCH_STATUS_LABELS, NEXT_DAY_STATUS_LAB
 const V1_GATE_LABELS = { trend: "趨勢結構", momentum: "KD 動能", priceVolume: "量價表現", institutional: "法人籌碼", entryRisk: "基礎價格風險" };
 // v2 vetoes: full label for lists and panels, short name under each icon.
 const VETO_LABELS = { trend: "趨勢遭破壞", distribution: "近期放量下跌", extension: "過度延伸", institutional: "法人明顯賣壓", liquidity: "流動性不足" };
-const VETO_SHORT = { trend: "趨勢", distribution: "放量下跌", extension: "過度延伸", institutional: "法人賣壓", liquidity: "流動性" };
-const VETO_ICONS = {
+export const VETO_SHORT = { trend: "趨勢", distribution: "放量下跌", extension: "過度延伸", institutional: "法人賣壓", liquidity: "流動性" };
+export const VETO_ICONS = {
   trend: '<path d="m3 7 6 6 4-4 8 8"/><path d="M21 11v6h-6"/>',
   distribution: '<path d="M4 20v-8m5 8v-5m5 5V11"/><path d="M19 4v10m-3-3 3 3 3-3"/>',
   extension: '<path d="M4 20h16"/><path d="M12 16V4m-4 4 4-4 4 4"/>',
@@ -33,8 +33,18 @@ const DATA_LABELS = { close: "收盤價", ma20: "MA20", ma60: "MA60", previousMa
   k: "K", d: "D", previousK: "前日 K", dayBeforeK: "前二日 K", changePercent: "漲跌幅 %", rvol20: "RVOL20",
   institutionalNet5: "近五日法人淨額（股）", deviation20: "MA20 乖離 %", previous10Low: "前十日最低價", atr14: "ATR14",
   slopeSessions: "季線比較期間（交易日）", earlierMa60: "比較期初 MA60", date: "放量下跌日", high: "當日最高價", extensionAtr: "距 MA20（ATR 倍數）", netShares: "外資＋投信淨額（股）",
-  volumeShares: "期間成交量（股）", netPercent: "淨額占成交量 %", averageTradingValue: "平均成交金額（元）" };
-const REFERENCE_NOTE = "參數為本站依參考資料調整，尚未以歷史資料驗證。";
+  volumeShares: "期間成交量（股）", netPercent: "淨額占成交量 %", averageTradingValue: "平均成交金額",
+  netValue: "外資＋投信淨額", tradedValue: "期間成交金額" };
+// Money figures read in 億 (萬 below NT$100 million); where a panel has them, its share counts are left out.
+const MONEY_FIELDS = new Set(["netValue", "tradedValue", "averageTradingValue"]);
+const SHARE_FIELDS = new Set(["netShares", "volumeShares"]);
+const moneyText = (value) => {
+  const sign = value < 0 ? "−" : "", size = Math.abs(value);
+  return size >= 100_000_000
+    ? `${sign}${(size / 100_000_000).toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 億元`
+    : `${sign}${Math.round(size / 10_000).toLocaleString("zh-TW")} 萬元`;
+};
+export const REFERENCE_NOTE = "參數為本站依參考資料調整，尚未以歷史資料驗證。";
 
 /** Compact fields for lists, from either the summary API or a full result (demo/analysis). */
 export const researchSummaryOf = (stock) => stock?.entryResearch?.gateResult
@@ -202,7 +212,7 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
   const gates = gatesSection(result, { esc, number }, isV1(result.modelVersion) || research.weights ? "" : sectorFlowLink(stock, esc));
   const signal = research.signal;
   const evidence = signal?.setupType === "PULLBACK_RECOVERY" ? [
-    ["回踩日期", signal.evidence.pullbackDates.join("、") || "—"], ["回踩低點", price(signal.evidence.pullbackLow, number)],
+    pullbackDatesFact(signal.evidence.pullbackDates), ["回踩低點", price(signal.evidence.pullbackLow, number)],
     ["MA20", price(signal.evidence.ma20, number)], ["前日最高價", price(signal.evidence.previousHigh, number)],
   ] : signal ? [
     ["整理區間", `${signal.evidence.rangeStart} ～ ${signal.evidence.rangeEnd}`], ["區間上緣", price(signal.evidence.rangeHigh, number)],
@@ -210,7 +220,7 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
   ] : [];
   const signalSection = `<section class="research-signal" aria-labelledby="research-signal-title"><h3 id="research-signal-title">進場訊號分析</h3>${signal
     ? `<p><span class="research-chip ${STATUS_TONE[signal.status]}">${esc(ENTRY_RESEARCH_STATUS_LABELS[signal.status])}</span> ${esc(signal.setupLabel)} · ${esc(signal.date)}${signal.invalidatedOn ? ` · ${esc(signal.invalidatedOn)} 收盤跌破失效價` : ""}</p><dl class="research-signal-facts">${[["觸發價格", price(signal.triggerPrice, number)], ...evidence,
-      ["KD 確認", signal.kdConfirmed ? "已確認" : "未完全確認"], ["量能確認", signal.volumeConfirmed === null ? "資料不足" : signal.volumeConfirmed ? `已確認（RVOL20 ${price(signal.rvol20, number)}）` : `未達標準（RVOL20 ${price(signal.rvol20, number)}）`],
+      ["KD 確認", signal.kdConfirmed ? "已確認" : "未完全確認"], ["量能確認", signal.volumeConfirmed === null ? "資料不足" : signal.volumeConfirmed ? `已確認（${price(signal.rvol20, number)} 倍）` : `未達標準（${price(signal.rvol20, number)} 倍）`],
       ["有效期間", validityText(signal.validSessions)]].map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>`
     : `<p><span class="research-chip ${STATUS_TONE[research.status] ?? "muted"}">${esc(research.label ?? "—")}</span></p>`}${signalRules(research, signal, esc)}</section>`;
 
@@ -313,6 +323,9 @@ function signalRules(research, signal, esc) {
 }
 
 const shortDate = (date) => String(date).slice(5).replace("-", "/");
+/** Pullback sessions in short: one or two listed (10/02、10/05); more as the span, with the count in the label (回踩 5 天). */
+const pullbackDatesFact = (dates = []) => dates.length <= 2 ? ["回踩日期", dates.map(shortDate).join("、") || "—"]
+  : [`回踩 ${dates.length} 天`, `${shortDate(dates[0])}～${shortDate(dates.at(-1))}`];
 
 function gateSummary(gate, version) {
   if (isV1(version)) return `${gate.passedCount} / 5${gate.status === "UNKNOWN" ? "（待確認）" : ""}`;
@@ -341,15 +354,20 @@ function gatesSection(result, { esc, number }, sectorLink = "") {
   }).join("");
   const panels = entries.map(([key, item]) => {
     const [label, tone] = status(item);
-    const data = Object.entries(item.data ?? {}).filter(([, value]) => value !== null && value !== undefined)
-      .map(([field, value]) => `<div><dt>${esc(DATA_LABELS[field] ?? field)}</dt><dd>${esc(dataValue(value, number))}</dd></div>`).join("");
+    const money = Object.keys(item.data ?? {}).some((field) => MONEY_FIELDS.has(field) && Number.isFinite(item.data[field]));
+    const data = Object.entries(item.data ?? {}).filter(([field, value]) => value !== null && value !== undefined && !(money && SHARE_FIELDS.has(field)))
+      .map(([field, value]) => `<div><dt>${esc(DATA_LABELS[field] ?? field)}</dt><dd>${esc(MONEY_FIELDS.has(field) && typeof value === "number" ? moneyText(value) : dataValue(value, number))}</dd></div>`).join("");
     const references = (item.references ?? []).map((ref) => `<li><span class="research-reference-kind">${esc(ref.kind)}</span><a href="${esc(ref.url)}" target="_blank" rel="noopener noreferrer">${esc(ref.title)}</a></li>`).join("");
-    return `<div class="research-gate-panel" data-gate="${key}"><div class="research-gate-head"><strong>${esc(item.label ?? key)}</strong><span class="research-gate-status ${tone}">${label}</span></div><p>${esc(item.reason)}</p><p class="research-rule">計算方式：${esc(item.rule)}</p>${data ? `<dl>${data}</dl>` : ""}${key === "institutional" ? sectorLink : ""}${references ? `<details class="research-reference-details"><summary>參考依據</summary><ul class="research-references">${references}</ul><p class="research-gate-note">${REFERENCE_NOTE}</p></details>` : ""}</div>`;
+    // The stock's own result and figures stay here; how the gate is computed and its sources are read in
+    // 株研分析說明, linked once under the icons (v1 samples, which the guide does not cover, keep their rule inline).
+    const explain = v1 ? `<p class="research-rule">計算方式：${esc(item.rule)}</p>` : "";
+    const sources = v1 && references ? `<details class="research-reference-details"><summary>參考依據</summary><ul class="research-references">${references}</ul><p class="research-gate-note">${REFERENCE_NOTE}</p></details>` : "";
+    return `<div class="research-gate-panel" data-gate="${key}"><div class="research-gate-head"><strong>${esc(item.label ?? key)}</strong><span class="research-gate-status ${tone}">${label}</span></div><p>${esc(item.reason)}</p>${data ? `<dl>${data}</dl>` : ""}${key === "institutional" ? sectorLink : ""}${explain}${sources}</div>`;
   }).join("");
   const fired = entries.filter(([, item]) => item.status === "FAIL").length;
   const heading = v1 ? "五大核心門檻" : "初步門檻（否決條件）";
   const badge = v1 ? `${gate.passedCount} / 5` : gate.status === "PASS" ? "皆未觸發" : fired ? `觸發 ${fired} 項` : "待確認";
-  return `<section class="research-gates" aria-labelledby="research-gates-title"><h3 id="research-gates-title">${heading} <small class="${gate.status === "FAIL" ? "fail" : ""}">${badge}</small></h3>${inputs}<div class="research-gate-tiles">${tiles}</div><div class="research-gate-panels">${panels}</div>${gate.status === "PASS" ? '<p class="research-gate-hint">點選圖示查看計算方式。</p>' : ""}</section>`;
+  return `<section class="research-gates" aria-labelledby="research-gates-title"><h3 id="research-gates-title">${heading} <small class="${gate.status === "FAIL" ? "fail" : ""}">${badge}</small></h3>${inputs}<div class="research-gate-tiles">${tiles}</div><div class="research-gate-panels">${panels}</div><p class="research-gate-hint">${gate.status === "PASS" ? "點選圖示查看本檔數據；" : ""}${v1 ? "" : '規則與參考依據見<button type="button" class="research-gate-guide inline" data-analysis="gate">株研分析說明</button>。'}</p></section>`;
 }
 
 /** Prices and the signal date to mark on the price chart, when a plan exists. */

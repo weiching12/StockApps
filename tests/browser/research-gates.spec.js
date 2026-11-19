@@ -27,14 +27,34 @@ test("a vetoed stock leads with the next-day card, then the chart and the gates,
   await expect(dialog.locator(`.research-gate-tile[data-gate="${opened}"] small`)).toHaveText("觸發");
   const panel = dialog.locator(`.research-gate-panel[data-gate="${opened}"]`);
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText("計算方式");
-  // References are extra detail: collapsed until asked for.
-  await expect(panel.locator(".research-references")).toBeHidden();
-  await panel.locator(".research-reference-details summary").click();
-  await expect(panel.locator(".research-references a").first()).toHaveAttribute("target", "_blank");
-  await expect(panel.locator(".research-gate-note")).toContainText("尚未以歷史資料驗證");
+  // The stock shows its own result and figures; the rule and sources are read in 株研分析說明.
+  await expect(panel.locator(".research-rule, .research-references")).toHaveCount(0);
   await expect(dialog.locator(".research-gate-panel:visible")).toHaveCount(1);
   expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  const name = await page.locator('#stock-rows tr[data-symbol="2317"]').getAttribute("data-symbol");
+  // The panel itself carries no link; the one note under the icons opens the guide at the gate section.
+  await expect(panel.locator(".research-gate-guide")).toHaveCount(0);
+  await dialog.locator(".research-gate-hint .research-gate-guide").click();
+  await expect(dialog.locator("#dialog-heading")).toHaveText("株研分析說明");
+  await expect(dialog.locator("#analysis-gate")).toBeInViewport();
+  // Each veto sits under the same icon, with its sources.
+  const veto = dialog.locator(`#analysis-gate-${opened}`);
+  await expect(veto.locator(".research-references a").first()).toHaveAttribute("target", "_blank");
+  await expect(dialog.locator(".research-gate-note")).toContainText("尚未以歷史資料驗證");
+  // And it leads back to the stock.
+  await dialog.locator(".analysis-back").click();
+  await expect(dialog.locator(".research-gates")).toBeVisible();
+  await expect(dialog).toHaveAttribute("data-entry-symbol", name);
+});
+
+test("the guide's veto icons are the stock dialog's gate icons", async ({ page }) => {
+  await openStock(page, "2330");
+  const dialog = page.locator("#info-dialog");
+  const tiles = await dialog.locator(".research-gate-tile").evaluateAll((nodes) => nodes.map((node) => [node.dataset.gate, node.querySelector("svg").innerHTML, node.querySelector("strong").textContent]));
+  await dialog.locator(".research-gate-hint .research-gate-guide").click();
+  await expect(dialog.locator("#dialog-heading")).toHaveText("株研分析說明");
+  const guide = await dialog.locator(".analysis-veto").evaluateAll((nodes) => nodes.map((node) => [node.dataset.gate, node.querySelector(".analysis-veto-icon svg").innerHTML, node.querySelector(".analysis-veto-name strong").textContent]));
+  expect(guide).toEqual(tiles);
 });
 
 test("a passing stock keeps the research order and opens a gate panel when its icon is chosen", async ({ page }) => {
@@ -55,6 +75,12 @@ test("a passing stock keeps the research order and opens a gate panel when its i
   await dialog.locator('.research-gate-tile[data-gate="liquidity"]').click();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toBeVisible();
   await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"]')).toContainText("平均成交金額");
+  // Money reads in 億, not in yuan or shares.
+  await expect(dialog.locator('.research-gate-panel[data-gate="liquidity"] dd')).toHaveText(/^[\d,]+\.\d{2} 億元$/);
+  await dialog.locator('.research-gate-tile[data-gate="institutional"]').click();
+  await expect(dialog.locator('.research-gate-panel[data-gate="institutional"] dt')).toHaveText(["外資＋投信淨額", "期間成交金額", "淨額占成交量 %"]);
+  await expect(dialog.locator('.research-gate-panel[data-gate="institutional"] dd').nth(1)).toHaveText(/ (億|萬)元$/);
+  await dialog.locator('.research-gate-tile[data-gate="liquidity"]').click();
   // Arrow keys move between gates like any radio group.
   await dialog.locator('.research-gate-choice[value="liquidity"]').focus();
   await page.keyboard.press("ArrowLeft");
