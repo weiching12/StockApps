@@ -35,9 +35,12 @@ test("a stop too far away says no entry, telling the loss from today's close aga
   assert.match(card, /停損距離太遠：以 11\/09 收盤價 460\.00 買進、跌到停損價 392\.49 會虧損 14\.68%，超過單筆上限 8%/);
   assert.doesNotMatch(sections.card, /research-buy-range/);
   assert.match(sections.plan, /research-risk-check fail/);
-  assert.match(plan, /以收盤價 460\.00 買進 14\.68%/);
-  assert.match(plan, /以開盤上限 476\.02 買進 17\.55%/);
-  assert.match(plan, /單筆虧損上限（標準） 8%/);
+  // One row per way of buying: the price, then the loss on a bar against the 8% limit.
+  assert.match(plan, /停損虧損 跌到停損價 392\.49 超過 8%/);
+  assert.match(plan, /以收盤價買進 460\.00 14\.68%/);
+  assert.match(plan, /以開盤上限買進 476\.02 17\.55%/);
+  assert.match(plan, /單筆虧損上限 8%/);
+  assert.equal((sections.plan.match(/research-risk-row over/g) ?? []).length, 2);
   assert.match(plan, /買入價需 ≤ 426\.62/);
   assert.match(plan, /回踩低點 400\.50 − 0\.25 × ATR14 32\.04 = 392\.49/);
   assert.match(plan, /參考買入價 460\.00 ＋ 0\.5 × ATR14 32\.04 = 476\.02/);
