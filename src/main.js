@@ -1,5 +1,5 @@
 import { onAccountChange, startAccountMenu } from "./account.js";
-import { renderMarketView } from "./ui/market.js";
+import { renderEtfCategoryChips, renderMarketView } from "./ui/market.js";
 import "./styles.css";
 import "./typography.css";
 import "./glass-preview.css";
@@ -672,6 +672,8 @@ function renderTable() {
   // The nav's 自選 count shows on every page, so it stays current even while the list waits.
   if (!shownOrStale("market", "table")) { const count = document.querySelector("#favorite-count"); if (count) count.textContent = state.favorites.length; return; }
   renderMarketView({ state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl });
+  // The ETF view's category chips count the ETFs of the same day as the list.
+  if (state.marketView === "etf") renderEtfCategoryChips({ state, snapshots, esc });
 }
 
 function technicalSignalGuide() {
@@ -1286,6 +1288,10 @@ function bindEvents() {
       // Each view starts from its whole list.
       clearListSearch();
       renderPage(); renderSectorOverview(); renderTable();
+    }
+    if (button.dataset.etfCategory) {
+      state.etfCategory = button.dataset.etfCategory;
+      renderTable();
     }
     if (button.dataset.sectorChip) {
       const changed = state.sector !== button.dataset.sectorChip;

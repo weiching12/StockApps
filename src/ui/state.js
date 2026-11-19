@@ -5,6 +5,7 @@ export const createState = () => ({
   marketView: "list",
   view: "all",
   sector: "all",
+  etfCategory: "all",
   searchQuery: "",
   listQuery: "",
   listSearchOpen: false,

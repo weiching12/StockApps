@@ -10,6 +10,12 @@ const assign = (columns) => columns.map((column) => `${column}=excluded.${column
 export class EtfInfoRepository {
   constructor(db) { this.db = db; }
 
+  /** Every ETF's fund type, for the list's categories: one query over the small profiles table. */
+  async fundTypes() {
+    const { results } = await this.db.prepare("SELECT Symbol, FundType FROM etf_profiles").all();
+    return new Map((results ?? []).map((row) => [row.Symbol, row.FundType]));
+  }
+
   /**
    * Whether the day still has an attempt to make: one read of one row. The cron fires every minute, so
    * a day that is already complete, out of attempts or cooling down must cost nothing more than this.

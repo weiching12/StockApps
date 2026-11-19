@@ -1775,6 +1775,18 @@
               "stock",
               "etf"
             ]
+          },
+          "etfCategory": {
+            "type": ["string", "null"],
+            "enum": [
+              "domestic",
+              "foreign",
+              "active",
+              "leveraged",
+              "other",
+              null
+            ],
+            "description": "只有市場摘要的 ETF 才有：依證交所基金類型分為國內股票、國外股票、主動式、槓桿反向與其他；基金資料尚未同步時為 null"
           }
         }
       },

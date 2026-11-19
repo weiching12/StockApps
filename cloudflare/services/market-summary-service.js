@@ -8,6 +8,8 @@ import { compareResearchSnapshots, researchConfigId } from "../../shared/researc
 import { REVIEW_HISTORY_LIMIT, reviewEventTimeline } from "../../shared/research-review.js";
 import { getSectorDetail, getSectorGroupOverview, getSectorOverview, sectorMatches } from "../../shared/sectors.js";
 import { DomainError } from "../../shared/domain-error.js";
+import { etfCategory } from "../../shared/etf-info.js";
+import { isEtf } from "../../shared/market-codec.js";
 
 const WINDOWS = ["day", "5", "20"];
 const INSTITUTIONS = ["total", "外資", "投信", "自營商"];
@@ -19,8 +21,8 @@ function validateFavoriteSymbols(symbols) {
 }
 
 export class MarketSummaryService {
-  constructor(market, actions = null, research = null) {
-    this.market = market; this.actions = actions; this.researchStore = research;
+  constructor(market, actions = null, research = null, etfProfiles = null) {
+    this.market = market; this.actions = actions; this.researchStore = research; this.etfProfiles = etfProfiles;
   }
 
   async snapshots(date, settings, sector, symbols) {
@@ -59,6 +61,8 @@ export class MarketSummaryService {
     const actionRevision = this.actions ? await this.actions.revision() : "no-actions";
     const actions = this.actions ? await this.actions.window(dates.slice(-61)) : null;
     const stableActions = !this.actions || actionRevision === await this.actions.revision();
+    // One read of the ETF profiles (when any ETF is listed); a failure only leaves the categories out.
+    const fundTypes = this.etfProfiles && stocks.some(isEtf) ? await this.etfProfiles.fundTypes().catch(() => null) : null;
     const data = stocks.map((stock) => {
       // V1.2 is computed only as entry research's input (structure scores and price-data notes).
       const score = getEntryScore(stock, dates, asOf,
@@ -66,6 +70,7 @@ export class MarketSummaryService {
       return {
         symbol: stock.symbol, name: stock.name, sector: stock.sector, sectorGroup: stock.sectorGroup, market: stock.market,
         assetType: stock.assetType, currency: stock.currency, listedOn: stock.listedOn,
+        ...(isEtf(stock) ? { etfCategory: fundTypes?.has(stock.symbol) ? etfCategory(fundTypes.get(stock.symbol)) : null } : {}),
         latest: stock.latest, signal: stock.signal, priceVolume: stock.priceVolume,
         trend: stock.trend, entryScore: entryScoreSummary(score),
         entryResearch: entryResearchApplies(stock) ? entryResearchSummary(evaluateEntryResearch({ stock, tradingDates: dates, asOf,

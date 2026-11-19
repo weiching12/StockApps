@@ -44,6 +44,7 @@ export function renderPageView({ state, dataset, renderLoadState, updateSegmente
   document.querySelector(".topbar")?.classList.toggle("is-redundant", state.page === "search");
   // Sector choices narrow the list only, so they sit in the header just for that view.
   document.querySelector(".sector-nav").hidden = state.marketView !== "list";
+  document.querySelector(".etf-category-nav").hidden = state.marketView !== "etf";
   document.querySelector(".sector-toolbar").hidden = state.marketView !== "sectors";
   // ETFs are not researched, so their view drops the readiness and research columns and filter.
   document.querySelector(".stocks-panel")?.classList.toggle("is-etf", state.marketView === "etf");

@@ -1,3 +1,4 @@
+import { ETF_CATEGORIES } from "../../shared/etf-info.js";
 import { filterStocks, getDominantInstitution } from "../../shared/indicators.js";
 import { isEtf } from "../../shared/market-codec.js";
 import { compareResearchStocks, matchesResearchFilter, researchListCells } from "./entry-research.js";
@@ -147,8 +148,10 @@ function sortedMarketList({ state, snapshots: allSnapshots, pendingSymbols, stoc
   const query = (state.listQuery ?? "").trim();
   // The ETF view has a search field only: no filters, no research, listed by code.
   if (state.marketView === "etf") {
-    const found = filterStocks(snapshots, { query });
-    if (!query) found.push(...snapshots.filter((stock) => pendingSymbols.has(stock.symbol)));
+    const category = state.etfCategory ?? "all";
+    const inCategory = category === "all" ? snapshots : snapshots.filter((stock) => (stock.etfCategory ?? "other") === category);
+    const found = filterStocks(inCategory, { query });
+    if (!query) found.push(...inCategory.filter((stock) => pendingSymbols.has(stock.symbol)));
     return found.sort((a, b) => a.symbol.localeCompare(b.symbol));
   }
   const sector = state.sector;
@@ -215,4 +218,21 @@ function drawVisibleRows({ list, body, scroller, drawRow, tableState }) {
     body.style.setProperty("--market-row-height", `${tableState.rowHeight}px`);
     if (Math.abs(tableState.rowHeight - rowHeight) > 1) drawVisibleRows({ list, body, scroller, drawRow, tableState });
   }
+}
+
+/**
+ * The ETF view's category chips (全部, 國內股票, 國外股票, 主動式, 槓桿反向, 其他), each with its count on the
+ * chosen day. A category with no ETF is left out; ETFs whose type is not known yet count as 其他.
+ */
+export function renderEtfCategoryChips({ state, snapshots, esc }) {
+  const row = document.querySelector("#etf-category-chips");
+  if (!row) return;
+  const etfs = marketListStocks(snapshots ?? [], "etf");
+  const counts = new Map();
+  for (const stock of etfs) counts.set(stock.etfCategory ?? "other", (counts.get(stock.etfCategory ?? "other") ?? 0) + 1);
+  const chosen = state.etfCategory ?? "all";
+  const chip = (key, label, count) => `<button type="button" data-etf-category="${esc(key)}" aria-pressed="${key === chosen}">${esc(label)}<small>${count}</small></button>`;
+  const markup = chip("all", "全部", etfs.length) + ETF_CATEGORIES.filter(({ key }) => counts.get(key))
+    .map(({ key, label }) => chip(key, label, counts.get(key))).join("");
+  if (row.innerHTML !== markup) row.innerHTML = markup;
 }

@@ -557,3 +557,26 @@ test("the evening sync stays inside a free-plan invocation and a finished day co
   assert.ok(queries.length <= 12, `${queries.length} D1 queries on an ordinary evening`);
   assert.equal(fetches, 5, "four reports and one look at the holdings form");
 });
+
+test("ETF categories follow TWSE's fund types: leveraged first, then bond/futures/balanced/feeder, active, domestic, foreign", async () => {
+  const { ETF_CATEGORIES, etfCategory } = await import("../shared/etf-info.js");
+  const types = {
+    "國外成分證券指數股票型基金": "foreign", "國內成分證券指數股票型基金": "domestic", "槓桿/反向指數股票型基金": "leveraged",
+    "國內成分證券主動式交易所交易基金(股票)": "active", "國外成分證券主動式交易所交易基金(股票)": "active",
+    "指數股票型期貨信託基金": "other", "國外成份/加掛外幣證券指數股票型基金": "foreign", "連結式證券指數股票型基金": "other",
+    "境外指數股票型基金": "foreign", "國外成分證券主動式交易所交易基金(債券)": "other", "國外成分證券平衡型指數股票型基金": "other",
+  };
+  for (const [type, key] of Object.entries(types)) assert.equal(etfCategory(type), key, type);
+  assert.equal(etfCategory(null), "other");
+  assert.equal(etfCategory("新的基金類型"), "other");
+  assert.deepEqual(ETF_CATEGORIES.map(({ label }) => label), ["國內股票", "國外股票", "主動式", "槓桿反向", "其他"]);
+});
+
+test("the ETF fund types for the list are one query over the profiles table", async () => {
+  const { repository } = fixture();
+  await repository.saveProfiles([{ symbol: "0050", fundType: "國內成分證券指數股票型基金" }, { symbol: "00632R", fundType: "槓桿/反向指數股票型基金" }], "2026-11-19T12:00:00Z");
+  const types = await repository.fundTypes();
+  assert.equal(types.get("0050"), "國內成分證券指數股票型基金");
+  assert.equal(types.get("00632R"), "槓桿/反向指數股票型基金");
+  assert.equal(types.size, 2);
+});

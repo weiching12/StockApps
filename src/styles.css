@@ -4096,3 +4096,8 @@ html[data-effects="reduced"] #research-kind.is-floating:not([hidden]) { animatio
 /* The title reads on the close price's line; the date and volume sit under the price. */
 .entry-chart-header h3 { line-height: 22px; }
 .entry-chart-readout-main { line-height: 22px; }
+
+/* ETF view: category chips in the market header (as the market list's sector chips), each with its count. */
+.etf-category-nav[hidden] { display: none; }
+.etf-category-nav { margin-top: 10px; }
+.etf-category-nav button small { margin-left: 6px; font-size: var(--text-meta); font-variant-numeric: tabular-nums; opacity: .75; }

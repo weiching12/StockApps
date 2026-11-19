@@ -24,7 +24,8 @@ export function createApplicationServices(env) {
   const market = createMarketService(env);
   const actions = env.CORPORATE_ACTIONS_ENABLED === "1" ? new CorporateActionRepository(env.T86_DB) : null;
   const research = env.T86_DB ? new ResearchSnapshotRepository(env.T86_DB) : null;
-  return { market, actions, research, analysis: new AnalysisService(market, actions), summary: new MarketSummaryService(market, actions, research), history: new HistoryService(market, actions),
+  return { market, actions, research, analysis: new AnalysisService(market, actions), summary: new MarketSummaryService(market, actions, research,
+    env.ETF_INFO_ENABLED === "1" && env.T86_DB ? new EtfInfoRepository(env.T86_DB) : null), history: new HistoryService(market, actions),
     etfInfo: new EtfInfoService(market, env.ETF_INFO_ENABLED === "1" && env.T86_DB ? new EtfInfoRepository(env.T86_DB) : null),
     entryResearch: new EntryResearchService(env.T86_DB ? new EntryResearchRepository(env.T86_DB) : null),
     push: new PushService(new PushRepository(env.T86_DB), env),

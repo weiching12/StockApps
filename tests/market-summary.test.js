@@ -312,3 +312,22 @@ test("simultaneous HEAD then GET receives a complete shared summary body", async
   assert.equal((await get.json()).data.stocks.length, catalog.length);
   assert.equal((await (await coordinator.fetch(new Request(url))).json()).data.stocks.length, catalog.length);
 });
+
+test("market summary gives each ETF its category from one read of the fund types", async () => {
+  const symbol = manifest.stocks[0].symbol;
+  const etfManifest = { ...manifest, stocks: manifest.stocks.map((stock) => stock.symbol === symbol ? { ...stock, assetType: "etf", sector: "ETF" } : stock) };
+  let reads = 0;
+  const profiles = { fundTypes: async () => { reads++; return new Map([[symbol, "槓桿/反向指數股票型基金"]]); } };
+  const etfService = new MarketSummaryService({ market: async () => etfManifest,
+    shards: async (_generation, indices) => indices.map((index) => shards[index]) }, null, null, profiles);
+  const result = await etfService.summary(date, { period: 9, kSmooth: 3, dSmooth: 3 });
+  assert.equal(reads, 1);
+  assert.equal(result.data.stocks.find((stock) => stock.symbol === symbol).etfCategory, "leveraged");
+  assert.ok(result.data.stocks.filter((stock) => stock.symbol !== symbol).every((stock) => !("etfCategory" in stock)));
+  // Without any ETF the profiles are not read; a failed read only leaves the category empty.
+  await service.summary(date, { period: 9, kSmooth: 3, dSmooth: 3 });
+  const failing = new MarketSummaryService({ market: async () => etfManifest, shards: async (_g, indices) => indices.map((index) => shards[index]) },
+    null, null, { fundTypes: async () => { throw new Error("D1 unavailable"); } });
+  const fallback = await failing.summary(date, { period: 9, kSmooth: 3, dSmooth: 3 });
+  assert.equal(fallback.data.stocks.find((stock) => stock.symbol === symbol).etfCategory, null);
+});

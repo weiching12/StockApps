@@ -333,8 +333,8 @@ html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button[aria-presse
   color: var(--capsule-ink) !important;
   box-shadow: var(--capsule-shadow);
 }
-/* The pop plays only while the control is switching (src/ui/controls.js), not each time a page shows it. It grows
-   once, without overshoot: a scale that springs past full size and back reads as the capsule trembling. */
+/* The pop plays only while the control is switching (src/ui/controls.js), not each time a page shows it. It only
+   fades the rim and fill in: any change of size reads as the labels trembling, so nothing moves or scales. */
 html.glass-preview :is(.filter-tabs, .research-filter-tabs).is-switching > button[aria-pressed="true"] {
   animation: capsule-detach .45s cubic-bezier(.22, 1, .36, 1);
 }
@@ -344,15 +344,13 @@ html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button:hover:not([
   background: var(--pill-hover-bg);
   color: var(--pill-hover-ink);
 }
-/* On selection the capsule pops out as clear glass with a blue rim, then fills. */
+/* On selection the capsule shows as clear glass with a blue rim, then fills. */
 @keyframes capsule-detach {
   from {
-    transform: scale(.96);
     background: rgb(96 132 194 / 14%);
     border-color: rgb(140 175 235 / 80%);
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 30%);
   }
-  to { transform: none; }
 }
 
 /* Other segmented controls keep the sliding indicator, in the same muted capsule. */
@@ -395,6 +393,7 @@ html.glass-preview .segmented-control:not(.filter-tabs, .research-filter-tabs, .
 }
 @media (prefers-reduced-motion: reduce) {
   html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button { transition: none; animation: none !important; }
+  html.glass-preview :is(.filter-tabs, .research-filter-tabs) > .pill-goo-layer > i { transition: none !important; }
   html.glass-preview .segmented-indicator { transition: none; }
   html.glass-preview .segmented-control.is-moving .segmented-indicator { transform: none; }
 }
@@ -478,11 +477,22 @@ html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-fil
   position: absolute; background: var(--goo-pill);
 }
 html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > .pill-goo-layer > i.is-chosen { background: var(--goo-capsule); }
-/* The buttons only carry the text, and the capsule its inner highlight, above the liquid layer. */
+/* The buttons only carry the text, and the capsule its inner highlight, above the liquid layer. They sit at
+   one fixed gap whatever is chosen, so no label moves when the choice changes (src/ui/goo-pills.js). */
 html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > button {
-  position: relative; z-index: 1; border-color: transparent !important; background: transparent !important;
-  /* The gaps close and open evenly (no overshoot), so the neck between two pieces is seen forming and
-     thinning out rather than snapping shut. */
-  transition: margin .7s cubic-bezier(.45, 0, .2, 1), border-radius .6s cubic-bezier(.22, 1, .36, 1), color .25s ease, box-shadow .25s ease;
+  position: relative; z-index: 1; border: 1px solid transparent !important; background: transparent !important;
+  /* The same border on every option (the chosen one has a ring, the joined ones none), so no width changes either. */
+  /* A fixed 8px gap; the padding gives back what the gaps take, so the row is no wider than before. */
+  margin-inline: 4px; padding-inline: 10px; transition: color .25s ease, box-shadow .25s ease;
+}
+/* The shapes glide between pieces: edges move evenly (no overshoot), so the neck between two pieces is seen
+   forming and thinning out rather than snapping shut. */
+html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > .pill-goo-layer.is-flowing > i {
+  transition: left .6s cubic-bezier(.45, 0, .2, 1), width .6s cubic-bezier(.45, 0, .2, 1), border-radius .5s cubic-bezier(.22, 1, .36, 1), background-color .25s ease;
 }
 html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > button:hover:not([aria-pressed="true"]) { color: var(--pill-hover-ink); }
+
+/* Narrow tablets fit the filters beside the list menus (src/styles.css): the pills give up a little padding. */
+@media (min-width: 701px) and (max-width: 880px) {
+  html.glass-preview:not([data-effects="reduced"]) .table-toolbar > .filter-tabs.has-goo > button { padding-inline: 8px; }
+}

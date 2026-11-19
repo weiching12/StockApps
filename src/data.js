@@ -1,4 +1,4 @@
-import { lastBuyDate, summarizeEtfDividends } from "../shared/etf-info.js";
+import { etfCategory, lastBuyDate, summarizeEtfDividends } from "../shared/etf-info.js";
 import { classifyStock } from "../shared/custom-sectors.js";
 
 /**
@@ -92,7 +92,9 @@ const stocks = catalog.map(createStock).map(classifyStock);
 /** Provider boundary: network-backed adapters can replace this object later. */
 export const demoProvider = {
   async load() {
-    return { info: DATA_INFO, stocks, dates, etfInfo: demoEtfInfo };
+    // Demo ETFs carry the category the API gives (from their illustrative fund type).
+    const listed = stocks.map((stock) => DEMO_FUNDS[stock.symbol] ? { ...stock, etfCategory: etfCategory(DEMO_FUNDS[stock.symbol].fundType) } : stock);
+    return { info: DATA_INFO, stocks: listed, dates, etfInfo: demoEtfInfo };
   },
 };
 

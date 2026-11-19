@@ -5,14 +5,18 @@
 // hard seam. Here the pill shapes are drawn on a separate layer behind the buttons and passed through an
 // SVG "goo" filter (blur, then a sharp alpha threshold): shapes that come within a few pixels of each other
 // grow a neck and flow together like drops of water, and separate the same way. The buttons keep their
-// text crisp above the layer. The layer follows the buttons frame by frame while they move.
+// text crisp above the layer and never move: they sit at a fixed gap, and only the shapes change. Options
+// that share a piece reach across the gap to each other; the chosen option's shape stays within its button,
+// so a gap opens on each side of it. Changing the choice animates the shapes' edges (a CSS transition), so
+// the pieces flow apart and together while the labels stay still.
 //
 // Also marks a phone filter row that is wider than its space (.is-overflowing) so only then does it scroll
 // with a fading edge; otherwise the row is centred.
 
 const SVG = "http://www.w3.org/2000/svg";
 export const PILL_GOO_FILTER = "pill-goo";
-const MOTION_MS = 900; // the longest glass transition (margins .75s) plus the pop
+const MOTION_MS = 700; // the shapes glide .6s (src/glass-preview.css), and the chosen capsule fades in
+const RADIUS = 10; // the pills' corner radius (var(--r) in src/glass-preview.css)
 
 /** One filter definition for the page: goo, then a hairline ring around the merged shape. */
 function ensureFilter() {
@@ -43,36 +47,53 @@ export function attachGooPills(group) {
   layer.setAttribute("aria-hidden", "true");
   group.prepend(layer);
   group.classList.add("has-goo");
-  let frame = 0, until = 0;
+  let frame = 0, until = 0, lastChosen = null;
 
   const sync = () => {
     const buttons = [...group.querySelectorAll(":scope > button")].filter((button) => button.getClientRects().length);
     while (layer.children.length < buttons.length) layer.append(document.createElement("i"));
     while (layer.children.length > buttons.length) layer.lastElementChild.remove();
     layer.style.width = `${group.scrollWidth}px`;
+    const chosen = buttons.map((button) => button.getAttribute("aria-pressed") === "true");
+    // Two neighbours share a piece unless either is the chosen one.
+    const joined = (index) => index > 0 && index < buttons.length && !chosen[index] && !chosen[index - 1];
     buttons.forEach((button, index) => {
       // Layout offsets, which a page's entry animation (a transform on an ancestor) does not distort; the
       // chosen capsule's own pop is a transform on the button, so the blob takes it over as well.
-      const blob = layer.children[index], style = getComputedStyle(button);
-      blob.style.left = `${button.offsetLeft}px`;
+      const blob = layer.children[index], style = getComputedStyle(button), previous = buttons[index - 1], next = buttons[index + 1];
+      const before = joined(index) ? (button.offsetLeft - previous.offsetLeft - previous.offsetWidth) / 2 : 0;
+      const after = joined(index + 1) ? (next.offsetLeft - button.offsetLeft - button.offsetWidth) / 2 : 0;
+      blob.style.left = `${button.offsetLeft - before}px`;
       blob.style.top = `${button.offsetTop}px`;
-      blob.style.width = `${button.offsetWidth}px`;
+      blob.style.width = `${button.offsetWidth + before + after}px`;
       blob.style.height = `${button.offsetHeight}px`;
       blob.style.transform = style.transform === "none" ? "" : style.transform;
-      // Corners follow the button: square where two options share a piece, so a joined piece is smooth at
-      // rest, and rounding as they part or meet, which is when the liquid neck shows.
-      blob.style.borderRadius = style.borderRadius;
-      blob.classList.toggle("is-chosen", button.getAttribute("aria-pressed") === "true");
+      // Square where two options share a piece, so a joined piece is smooth at rest; round at a free edge.
+      const left = before ? 0 : RADIUS, right = after ? 0 : RADIUS;
+      blob.style.borderRadius = `${left}px ${right}px ${right}px ${left}px`;
+      blob.classList.toggle("is-chosen", chosen[index]);
     });
     group.classList.toggle("is-overflowing", group.scrollWidth > group.clientWidth + 1);
   };
-  /** Follows the buttons every frame while their margins and corners animate. */
+  /**
+   * A change of choice: the shapes glide to their new places (only then; a resize or a font arriving just
+   * redraws them in place), and the chosen button's pop is followed every frame.
+   */
   const follow = () => {
+    // Only a move of the choice from one shown option to another glides; the first drawing, a page coming
+    // into view or a resize just places the shapes.
+    const buttons = [...group.querySelectorAll(":scope > button")];
+    const chosen = buttons.find((button) => button.getAttribute("aria-pressed") === "true") ?? null;
+    const moved = lastChosen && chosen && chosen !== lastChosen && group.getClientRects().length > 0;
+    lastChosen = chosen;
+    if (!moved) { sync(); return; }
     until = performance.now() + MOTION_MS;
+    layer.classList.add("is-flowing");
     if (frame) return;
     const step = () => {
       sync();
       frame = performance.now() < until ? requestAnimationFrame(step) : 0;
+      if (!frame) layer.classList.remove("is-flowing");
     };
     frame = requestAnimationFrame(step);
   };
@@ -80,10 +101,13 @@ export function attachGooPills(group) {
   // The layer's own blobs change classes too; only the buttons and the group start a follow.
   new MutationObserver((records) => { if (records.some((record) => !layer.contains(record.target))) follow(); })
     .observe(group, { subtree: true, attributes: true, attributeFilter: ["aria-pressed", "class", "hidden"] });
-  new ResizeObserver(sync).observe(group);
+  // The row and each option: a label changing width (a font arriving, a narrower layout) redraws the shapes.
+  const resized = new ResizeObserver(sync);
+  resized.observe(group);
+  group.querySelectorAll(":scope > button").forEach((button) => resized.observe(button));
   group.addEventListener("scroll", sync, { passive: true });
-  group.addEventListener("transitionrun", follow);
   group.gooSync = sync;
+  lastChosen = group.querySelector(":scope > button[aria-pressed=\"true\"]");
   sync();
   return sync;
 }

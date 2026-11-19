@@ -55,3 +55,29 @@ export function summarizeEtfDividends(dividends, asOf, close) {
     latest: event(ordered.findLast((row) => row.exDate <= asOf)),
   };
 }
+
+/**
+ * ETF categories for the ETF list, from TWSE's fund type (基金類型). Order is the chips' order.
+ * Leveraged/inverse first (they track any market); then bond, futures, balanced and feeder funds, which are
+ * too few on the listed market for categories of their own; then active funds; then by where the
+ * constituents are listed.
+ */
+export const ETF_CATEGORIES = Object.freeze([
+  Object.freeze({ key: "domestic", label: "國內股票" }),
+  Object.freeze({ key: "foreign", label: "國外股票" }),
+  Object.freeze({ key: "active", label: "主動式" }),
+  Object.freeze({ key: "leveraged", label: "槓桿反向" }),
+  Object.freeze({ key: "other", label: "其他" }),
+]);
+
+/** One category key for a TWSE fund type; an unknown or missing type is "other". */
+export function etfCategory(fundType) {
+  const type = String(fundType ?? "");
+  if (!type) return "other";
+  if (/槓桿|反向/.test(type)) return "leveraged";
+  if (/債券|期貨|平衡|連結/.test(type)) return "other";
+  if (/主動/.test(type)) return "active";
+  if (/國內/.test(type)) return "domestic";
+  if (/國外|境外/.test(type)) return "foreign";
+  return "other";
+}
