@@ -84,13 +84,15 @@ const esc = (value) =>
         char
       ],
   );
-const number = (value, digits = 0) =>
-  value === null || value === undefined
-    ? "—"
-    : value.toLocaleString("en-US", {
-        minimumFractionDigits: digits,
-        maximumFractionDigits: digits,
-      });
+// toLocaleString builds a formatter on every call; the market list formats thousands of numbers.
+const numberFormats = new Map();
+const number = (value, digits = 0) => {
+  if (value === null || value === undefined) return "—";
+  let format = numberFormats.get(digits);
+  if (!format) numberFormats.set(digits, format = new Intl.NumberFormat("en-US",
+    { minimumFractionDigits: digits, maximumFractionDigits: digits }));
+  return format.format(value);
+};
 const signed = (value, digits = 2) =>
   value === null || value === undefined
     ? "—"
@@ -169,7 +171,8 @@ function shownOrStale(page, view) {
 }
 
 function renderStaleViews() {
-  for (const view of [...staleViews]) {
+  // The sector chips set the header's height, which the list's box and its rows depend on.
+  for (const view of ["sectors", "table", "research", "search", "home"].filter((view) => staleViews.has(view))) {
     if (view === "table" && state.page === "market") renderTable();
     if (view === "sectors" && state.page === "market") renderSectorOverview();
     if (view === "research" && state.page === "favorites") renderResearch();
@@ -545,12 +548,18 @@ function showLatestPage(page, afterRender) {
   });
 }
 
+/**
+ * Showing a page draws its stale views first and measures last: the segmented controls read
+ * their layout once, after every view is in place, instead of between each DOM change.
+ */
 function renderPage() {
-  renderPageView({ state, dataset, renderLoadState, updateSegmentedControls });
-  renderStaleViews();
-  if (state.page === "backtest") backtest.show();
+  controls.batch(() => {
+    renderPageView({ state, dataset, renderLoadState, updateSegmentedControls });
+    renderStaleViews();
+    if (state.page === "backtest") backtest.show();
+    fitMarketPanel();
+  });
   rememberPage(state.page, nativeMode ? nativeStorage : undefined);
-  fitMarketPanel();
 }
 
 /**

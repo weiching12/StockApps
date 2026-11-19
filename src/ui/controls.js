@@ -1,5 +1,8 @@
 export function createControlsController() {
+  // While a batch runs, groups are only collected; each is measured once when it ends.
+  let pending = null;
   const updateSegmented = (group) => {
+    if (pending) { if (group) pending.add(group); return; }
     if (!group?.getClientRects().length) return;
     // Skip pressed buttons this layout hides, such as the phone-only research chips.
     const selected = [...group.querySelectorAll('button[aria-pressed="true"]')].find((button) => button.getClientRects().length);
@@ -35,10 +38,22 @@ export function createControlsController() {
     document.querySelectorAll(".segmented-control").forEach(updateSegmented);
   };
 
+  /** Runs `render`, deferring indicator measurement until all its DOM changes are done. */
+  const batch = (render) => {
+    if (pending) return render();
+    pending = new Set();
+    try { return render(); }
+    finally {
+      const groups = pending;
+      pending = null;
+      groups.forEach(updateSegmented);
+    }
+  };
+
   const bind = () => {
     const segmentedResize = new ResizeObserver(updateSegmentedAll);
     document.querySelectorAll(".segmented-control").forEach((group) => segmentedResize.observe(group));
   };
 
-  return { updateSegmented, updateSegmentedAll, bind };
+  return { updateSegmented, updateSegmentedAll, batch, bind };
 }
