@@ -15,10 +15,14 @@ for (const style of ["gauge", "scale"]) {
       await expect(card.locator(".sentiment-date")).toHaveText(/^\d+ 檔上市個股$/);
       await expect(card.locator(".sentiment-score")).toHaveText(/^\d+$/);
       // One compact line: counts at the ends of a thin split bar.
-      await expect(card.locator(".sentiment-breadth > span")).toHaveText([/^漲 \d+$/, /^跌 \d+$/]);
+      // The counts say what they count: listed stocks that closed up, flat and down.
+      await expect(card.locator(".sentiment-breadth-head span")).toHaveText("上市個股漲跌家數");
+      await expect(card.locator(".sentiment-breadth-head small")).toHaveText(/^平盤 [\d,]+ 家$/);
+      await expect(card.locator(".sentiment-breadth-line > span")).toHaveText([/^上漲 [\d,]+ 家$/, /^下跌 [\d,]+ 家$/]);
       await expect(card.locator(".sentiment-breadth-bar i")).toHaveCount(3);
-      await expect(card.locator(".sentiment-breadth-bar")).toHaveAttribute("title", /^上漲 \d+、平盤 \d+、下跌 \d+ 檔$/);
-      expect((await card.locator(".sentiment-breadth").boundingBox()).height).toBeLessThan(24);
+      await expect(card.locator(".sentiment-breadth-bar")).toHaveAttribute("title", /^上漲 [\d,]+、平盤 [\d,]+、下跌 [\d,]+ 家$/);
+      expect((await card.locator(".sentiment-breadth").boundingBox()).height).toBeLessThan(44);
+      expect((await card.locator(".sentiment-breadth-line").boundingBox()).height).toBeLessThan(24);
       await expect(card.locator(".sentiment-arc")).toBeVisible({ visible: style === "gauge" });
       await expect(card.locator(".sentiment-scale")).toBeVisible({ visible: style === "scale" });
       await expect(card.locator('[data-fact="institutions"]')).toHaveText(/^法人淨買賣\s*[+-]?[\d,.]+ 億\s*(連[買賣] \d+ 日|買賣持平)$/);

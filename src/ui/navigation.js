@@ -1,5 +1,5 @@
 const pageCopy = {
-  home: ["TODAY'S OVERVIEW", "主頁面", "今日市場情緒與進場篩選結果，點選股票查看完整研究。"],
+  home: ["TODAY'S OVERVIEW", "盤後總覽", "市場情緒、盤後法人動向與進場篩選，點選股票查看完整研究。"],
   market: ["MARKET WATCHLIST", "市場觀察清單", "依產業切換個股，同時查看該產業的法人買賣超。"],
   search: ["STOCK SEARCH", "搜尋", "輸入股票代碼或名稱，點選結果查看完整研究。"],
   favorites: ["MY RESEARCH WATCHLIST", "自選", "查看自選股票的進場研究：初步門檻與明日進場評估，預設明日候選優先。點選股票查看完整研究。"],
@@ -17,17 +17,22 @@ export function renderPageView({ state, dataset, renderLoadState, updateSegmente
   const [eyebrow, title, description] = market ? marketCopy[state.marketView] : pageCopy[state.page];
   document.querySelector("#page-eyebrow").textContent = eyebrow;
   document.querySelector("#page-title").innerHTML = `${title}<span class="heading-dot">.</span>`;
-  document.querySelector("#page-description").textContent = description;
-  // Only the market list browses past sessions; the other pages read the latest one.
-  // The trading-day choice and the update countdown live on home; it sets the session the market list reads too.
-  const sectors = state.page !== "home";
+  // Home names the session it shows, since its trading-day menu sits in the top bar rather than beside the title.
+  const day = state.page === "home" && state.date ? `${state.date.replaceAll("-", "/")} 收盤後的` : "";
+  document.querySelector("#page-description").textContent = day + description;
+  // Home and the market list read the chosen session; the other pages read the latest one.
+  // The trading-day menu shows on home, and on the market list too while it sits in the top bar (701px up);
+  // the phone heading of the market list has no room for it, so it stays on home there (styles.css).
   const favorites = state.page === "favorites";
+  const choosesDay = state.page === "home" || (market && state.marketView === "list");
+  const control = document.querySelector(".date-control");
   const dateSelect = document.querySelector("#trade-date");
-  dateSelect.hidden = sectors || favorites;
-  dateSelect.disabled = sectors || favorites || !dataset.dates.length;
-  document.querySelector(".date-control label").hidden = sectors || favorites;
-  document.querySelector(".date-control").hidden = sectors || favorites;
-  document.querySelector(".page-heading").classList.toggle("without-date", sectors || favorites);
+  dateSelect.hidden = !choosesDay;
+  dateSelect.disabled = !choosesDay || !dataset.dates.length;
+  document.querySelector(".date-control label").hidden = !choosesDay;
+  control.hidden = !choosesDay;
+  control.dataset.scope = state.page;
+  document.querySelector(".page-heading").classList.toggle("without-date", state.page !== "home");
   document.querySelector(".page-heading").classList.toggle("favorites-heading", favorites);
   document.querySelector("#research-date").hidden = !favorites;
   // The market page shows its views as a switch in place of the title.
@@ -35,6 +40,8 @@ export function renderPageView({ state, dataset, renderLoadState, updateSegmente
   document.querySelector(".market-header").hidden = !market;
   // The search page opens straight on its field; its heading stays for screen readers only.
   document.querySelector(".page-heading").classList.toggle("sr-only", state.page === "search" || favorites);
+  // The search page is one big search field; the top bar's own search and status would only repeat it.
+  document.querySelector(".topbar")?.classList.toggle("is-redundant", state.page === "search");
   // Sector choices narrow the list only, so they sit in the header just for that view.
   document.querySelector(".sector-nav").hidden = state.marketView !== "list";
   document.querySelector(".sector-toolbar").hidden = state.marketView !== "sectors";

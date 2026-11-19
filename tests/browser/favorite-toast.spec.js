@@ -59,10 +59,13 @@ for (const [width, kind, inside] of [[390, "phone sheet", true], [1280, "desktop
     const toast = page.locator("#toast");
     await expect(toast).toHaveClass(/visible/);
     await expect(toast).toHaveText(`已將 2454 聯發科${wasFavorite ? "移出" : "加入"}自選`);
-    const placed = await toastPlacement(page);
-    expect(placed).toMatchObject({ inDialog: inside, insideDialog: true, onScreen: true });
+    // The drawer may still be sliding in on a busy machine, so the placement is checked until it settles.
+    await expect(async () => {
+      const placed = await toastPlacement(page);
+      expect(placed).toMatchObject({ inDialog: inside, insideDialog: true, onScreen: true });
+      expect(Math.abs(placed.centre - placed.dialogCentre)).toBeLessThan(2);
+    }).toPass({ timeout: 3000 });
     if (!inside) expect(Number(await toast.evaluate((node) => getComputedStyle(node).zIndex))).toBeGreaterThan(Number(await dialog.evaluate((node) => getComputedStyle(node).zIndex)));
-    expect(Math.abs(placed.centre - placed.dialogCentre)).toBeLessThan(2);
     await expect(toast).toBeVisible();
     // Focus does not jump to the list behind the dialog.
     await expect(star).toBeFocused();

@@ -6,6 +6,7 @@ import "./glass-preview.css";
 import { withPageTransition } from "./glass-transition.js";
 import { refreshRows } from "./glass-refresh.js";
 import { enhanceGuideDialog } from "./glass-guide.js";
+import { ANALYSIS_SECTIONS, analysisGuideMarkup } from "./ui/analysis-guide.js";
 import { applyInterfaceStyle, effectsReduced } from "./glass-mode.js";
 import { loadDataset, loadMarketSummary } from "./provider.js";
 import { MarketApiClient } from "./api/market-client.js";
@@ -15,7 +16,7 @@ import { startPwa } from "./pwa.js";
 import { createUpdateFlow } from "./update-flow.js";
 import { createUpdateDialog } from "./ui/update-dialog.js";
 import { startPushNotifications } from "./push.js";
-import { startUpdateCountdown } from "./update-countdown.js";
+import { countdownText, startUpdateCountdown } from "./update-countdown.js";
 import { sourceAbout } from "./about.js";
 import { isEtf } from "./market-codec.js";
 import { createState } from "./ui/state.js";
@@ -42,7 +43,7 @@ import { entryChartMarkup, entryChartShape, entryScoreDialogMarkup, morphEntryCh
 import { moodStyleChoices, renderSentiment } from "./ui/sentiment.js";
 import { createBacktestController } from "./ui/backtest.js";
 import { attachGooPills } from "./ui/goo-pills.js";
-import { bindTopbarSearch, startDataStatus } from "./ui/topbar.js";
+import { bindTopbarSearch, dataStatusText, startDataStatus } from "./ui/topbar.js";
 import {
   DEFAULT_SETTINGS,
   getSnapshot,
@@ -52,6 +53,7 @@ import {
 
 const icons = {
   chart: '<path d="M4 19V9m8 10V4m8 15v-7"/>',
+  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/>',
   home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/><path d="M10 19v-5h4v5"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   star: '<path d="m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.3L12 17.5l-5.7 3 1.1-6.3-4.6-4.5 6.4-.9Z"/>',
@@ -288,6 +290,7 @@ function shell() {
   stopDataStatus?.();
   stopDataStatus = startDataStatus(document.querySelector("#data-status"),
     () => ({ loading, demo: isDemo, asOf: dataset?.info?.asOf, updatedAt: dataset?.info?.updatedAt }));
+  placeDateControl();
   topbarSearch = bindTopbarSearch({ input: document.querySelector("#topbar-search"), list: document.querySelector("#topbar-search-results"),
     stocks: () => latestSnapshots ?? [], isLoading: () => loading || !latestSnapshots?.length, esc, number,
     onOpen: (symbol) => void openEntryScoreDialog(symbol, !touchInteraction),
@@ -468,7 +471,7 @@ function enablePwa() {
               : "尚未開啟通知";
     } });
   stopUpdateCountdown?.();
-  stopUpdateCountdown = startUpdateCountdown(document.querySelector("#update-countdown"));
+  stopUpdateCountdown = startUpdateCountdown(document.querySelector("#update-countdown"), menuStatusText);
 }
 
 async function enableNativeApp() {
@@ -517,7 +520,7 @@ async function enableNativeApp() {
     void nativePush?.toggle().catch((error) => toast(error.message));
   });
   stopUpdateCountdown?.();
-  stopUpdateCountdown = startUpdateCountdown(document.querySelector("#update-countdown"));
+  stopUpdateCountdown = startUpdateCountdown(document.querySelector("#update-countdown"), menuStatusText);
 }
 
 let refreshingApp = false;
@@ -717,6 +720,8 @@ function openDialog(type, focusClose = true) {
     content.innerHTML = stock ? entryScoreDialogMarkup(detail ? { ...stock, ...detail } : apiMode && isEtf(stock) ? { ...stock, etfInfoPending: true } : stock, esc, number, percent,
       state.favorites.includes(symbol), icon, loadingIcon) :
       `<h2 id="dialog-heading">個股進場評估</h2><p>找不到這檔股票。</p>`;
+  } else if (type === "analysis") {
+    content.innerHTML = analysisGuideMarkup(esc);
   } else if (type === "backtest-sample") {
     content.innerHTML = `<h2 id="dialog-heading">研究樣本說明</h2><div class="backtest-loading">${loadingIcon("樣本說明載入中")}</div>`;
   } else if (type === "source" && !isDemo && !dataset.info.updatedAt) {
@@ -731,7 +736,10 @@ function openDialog(type, focusClose = true) {
     content.innerHTML = `<h2 id="dialog-heading">讀懂價格背後的訊號</h2><p class="dialog-intro">指標提供觀察角度。搭配價量與籌碼，建立更完整的判斷。</p><article class="guide-item" id="guide-ma60"><span>01</span><div><h3>季線 MA60</h3><p>最近 60 個交易日收盤價的簡單移動平均，包含選定資料日。股價高於季線時，位置顯示為正值。</p><code>乖離率 = (收盤價 ÷ MA60 − 1) × 100%</code></div></article><article class="guide-item" id="guide-kd"><span>02</span><div><h3>KD 隨機指標</h3><p>預設以 9 日最高、最低與當日收盤價計算 RSV，再以平滑係數 3 遞推 K、D。K、D 初始值為 50；不足 9 日不顯示。最高與最低相同時 RSV 採 50。</p><code>RSV = (收盤 − 最低) ÷ (最高 − 最低) × 100<br>K = 前日 K × 2/3 + RSV × 1/3<br>D = 前日 D × 2/3 + 當日 K × 1/3</code><div class="kd-zone-bar" role="img" aria-label="K 值 0 到 100：20 以下為低檔區，80 以上為高檔區"><span class="kd-zone low">低檔區</span><span class="kd-zone mid">中間區</span><span class="kd-zone high">高檔區</span><span class="kd-zone-tick" style="--at: 0%">0</span><span class="kd-zone-tick" style="--at: 20%">20</span><span class="kd-zone-tick" style="--at: 80%">80</span><span class="kd-zone-tick" style="--at: 100%">100</span></div><p>K &gt; 80 為高檔區，K &lt; 20 為低檔區，不能單獨視為買賣訊號。你可以在指標設定調整參數。</p></div></article><article class="guide-item" id="guide-institutional"><span>03</span><div><h3>三大法人買賣超</h3><dl class="signal-rules"><div><dt>定義</dt><dd>外資、投信及自營商的買進股數減去賣出股數。正值為買超，負值為賣超。</dd></div><div><dt>單位</dt><dd>1 張 = 1,000 股；法人買賣量與全市場成交量的統計範圍不同。</dd></div><div><dt>近 5／20 日累計</dt><dd>包含資料日，依實際交易日加總後換算為張；資料不足不補零。</dd></div><div><dt>連買／連賣</dt><dd>外資、投信的連買／連賣日數從資料日回溯，遇反向、持平或缺漏即中止；若回溯到資料起點或缺漏，顯示「至少」。</dd></div></dl></div></article><article class="guide-item" id="guide-session"><span>04</span><div><h3>前一交易日</h3><p>目前預設資料日為 ${dataset.info.asOf}。日期選單可回看最近 30 個${isDemo ? "模擬" : "實際"}交易日，所有指標僅使用選定日及之前的資料。</p></div></article><article class="guide-item" id="guide-signal"><span>05</span><div><h3>KD 技術建議</h3>${technicalSignalGuide()}</div></article><article class="guide-item" id="guide-price-volume"><span>06</span><div><h3>今日量價</h3><p>比較選定交易日的成交量與此前 20 個市場交易日的平均成交量；平均量不包含當日。成交量均以股計算，畫面顯示倍數至小數點後兩位。</p><code>RVOL20 = 當日成交量 ÷ 前 20 個交易日平均成交量</code><p>RVOL20 ≥ 1.20 為量增；0.80 ≤ RVOL20 &lt; 1.20 為量平；RVOL20 &lt; 0.80 為量縮。收盤價相對前一有效交易日上漲超過 0.50% 為價漲、下跌超過 0.50% 為價跌，介於 ±0.50%（含邊界）為價格變動有限。依價格與量能的組合顯示量價術語；量增且價格變動有限為「量增價滯」，量平為「量價持平」，量縮為「量縮盤整」。即使 RVOL20 ≥ 2.00，只要價格變動有限仍為「量增價滯」。</p><p>當日或前 20 個市場交易日任一天缺少成交量、歷史不足、前 20 日平均量為 0，或漲跌無法計算時，顯示「資料不足」；不會以更早日期補足缺漏。切換歷史日期時只使用該日及以前的資料。量價狀態僅供觀察，不代表買賣訊號。</p></div></article>`;
   }
   const dialog = document.querySelector("#info-dialog");
-  const entryDrawer = type.startsWith("entry:") && matchMedia("(min-width: 900px)").matches;
+  // The side drawer is a non-modal dialog, so it would open under a modal already showing (a sector's sheet in
+  // 法人買株): over another modal the stock opens as a modal too, which stacks it on top.
+  const overModal = [...document.querySelectorAll("dialog")].some((other) => other !== dialog && other.matches(":modal"));
+  const entryDrawer = type.startsWith("entry:") && matchMedia("(min-width: 900px)").matches && !overModal;
   if (dialog.open && dialog.dataset.entryDrawer !== String(entryDrawer)) dialog.close();
   dialog.dataset.entryDrawer = String(entryDrawer);
   if (!dialog.open) {
@@ -995,6 +1003,22 @@ function bindResearchKindDrag() {
   group.addEventListener("pointercancel", (event) => finish(event, true));
 }
 
+/**
+ * Wider layouts keep the trading-day menu (with its update bell) in the top bar beside the data status,
+ * instead of floating at the right of the page heading; phones have no top bar and keep it in the heading.
+ * The same element moves, so its listeners, loading icon and the page's show/hide rules come along.
+ */
+const WIDE_TOPBAR = matchMedia("(min-width: 701px)");
+/** The line under the phone trading-day menu: the countdown, then "today's data is updating", then the update time. */
+const menuStatusText = () => isDemo ? countdownText() : dataStatusText({ loading, demo: false, asOf: dataset?.info?.asOf, updatedAt: dataset?.info?.updatedAt }).detail;
+function placeDateControl() {
+  const control = document.querySelector(".date-control"), slot = document.querySelector(".topbar-date"), heading = document.querySelector(".page-heading");
+  if (!control || !slot || !heading) return;
+  const target = WIDE_TOPBAR.matches ? slot : heading;
+  if (control.parentElement !== target) target.append(control);
+}
+WIDE_TOPBAR.addEventListener("change", placeDateControl);
+
 /** Phone bar: the backtest, guides and settings share one menu so the brand fits beside the four pages. */
 function bindNavMenu() {
   const toggle = document.querySelector(".nav-more-toggle"), menu = document.querySelector("#nav-more-menu");
@@ -1224,6 +1248,10 @@ function bindEvents() {
       return;
     }
       if (button.dataset.dialog) openDialog(button.dataset.dialog, !touchInteraction);
+    if (button.dataset.analysis) {
+      openDialog("analysis", !touchInteraction);
+      document.getElementById(ANALYSIS_SECTIONS[button.dataset.analysis])?.scrollIntoView({ block: "start" });
+    }
     if (button.dataset.guide) {
       openDialog("methodology", !touchInteraction);
       document.getElementById(button.dataset.guide)?.scrollIntoView({ block: "start" });

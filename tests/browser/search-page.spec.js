@@ -110,3 +110,26 @@ test("search fits a phone and the phone bar keeps every item on screen", async (
       .every((item) => item.getBoundingClientRect().right <= innerWidth + 1) }));
   expect(fit).toEqual({ overflow: false, inside: true });
 });
+
+test("on wider screens the search page hides the top bar, whose search would only repeat its own", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto("/");
+  await page.locator('[data-page="search"]').first().click();
+  await expect(page.locator(".topbar")).toBeHidden();
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press("/");
+  await expect(page.locator("#stock-search")).toBeFocused();
+  await page.locator('[data-page="market"]').first().click();
+  await expect(page.locator(".topbar")).toBeVisible();
+});
+
+test("the top bar's menu opens above the page's search and status bar", async ({ page }) => {
+  await page.setViewportSize({ width: 857, height: 860 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "更多選單" }).click();
+  const item = page.getByRole("menuitem", { name: "分析說明" });
+  await expect(item).toBeVisible();
+  const onTop = await item.evaluate((node) => { const box = node.getBoundingClientRect();
+    return node.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)); });
+  expect(onTop).toBe(true);
+});

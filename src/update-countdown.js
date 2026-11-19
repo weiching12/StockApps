@@ -34,10 +34,21 @@ export function countdownText(now = new Date()) {
   return `預計 ${next.label} 更新 · ${duration}`;
 }
 
-export function startUpdateCountdown(node, now = () => new Date()) {
+/**
+ * Today's date in Taipei ("YYYY-MM-DD") when today's evening update is under way: a weekday at or after
+ * 18:30, so the countdown has ended. Null otherwise (before 18:30, or a weekend).
+ */
+export function updatingDay(now = new Date()) {
+  const current = taipeiParts(now);
+  if (current.day === 0 || current.day === 6 || now.getTime() < epoch(current, 18)) return null;
+  return [current.year, current.month + 1, current.date].map((part, index) => String(part).padStart(index ? 2 : 4, "0")).join("-");
+}
+
+/** Writes `text()` (by default the countdown) into the node every second; returns a stop function. */
+export function startUpdateCountdown(node, read = () => countdownText(new Date())) {
   if (!node) return () => {};
   const render = () => {
-    const text = countdownText(now());
+    const text = read();
     node.textContent = text;
     node.hidden = !text;
   };

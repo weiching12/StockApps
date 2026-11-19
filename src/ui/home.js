@@ -33,5 +33,5 @@ export function renderHomeView({ state, stocks, loading, loadFailed, asOf, loadi
   const rows = shown.map((stock) => researchRowMarkup(stock, { esc, number, percent, direction })).join("");
   const more = shown.length < chosen.length
     ? `<button type="button" class="outline-button home-show-all" data-home-expand>顯示全部 ${chosen.length} 檔</button>` : "";
-  list.innerHTML = `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col">初步門檻</th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${rows}</tbody></table>${more}`;
+  list.innerHTML = `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col"><button type="button" class="column-guide-link" data-analysis="gate" aria-label="初步門檻：查看說明">初步門檻</button></th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${rows}</tbody></table>${more}`;
 }

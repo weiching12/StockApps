@@ -1,34 +1,52 @@
 // The desktop top bar (hidden on phones): a search box that lists matching stocks as you type, the data
-// status (which trading day is shown and when it was updated), and the account. The time to the next
-// update is the countdown under the home page's trading-day menu, so it is not repeated here.
+// status (which trading day is shown and when the next update is due, or when it was last updated), and the
+// account. On these widths the countdown under the home page's trading-day menu is hidden: it lives here.
 import { searchStocks } from "./search.js";
+import { countdownText, updatingDay } from "../update-countdown.js";
 
 const OPTION_LIMIT = 8;
 const taipei = (date, options) => new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", hour12: false, ...options }).format(date);
 const slash = (date) => date.replaceAll("-", "/");
 
-/** The data status as two parts: `main` names the trading day on show; `detail` says when it was updated. */
-export function dataStatusText({ loading, demo, asOf, updatedAt }) {
+/**
+ * The data status as two parts: `main` names the trading day on show; `detail` is the countdown to the next
+ * scheduled update ("預計 18:30 更新 · 01:02:03", the same text as the home page's) while one is due, and
+ * otherwise when the data was last updated — with its date when that is not the trading day itself, so
+ * "16:17 更新" is never read as a time on the trading day.
+ */
+export function dataStatusText({ loading, demo, asOf, updatedAt }, now = new Date()) {
   if (loading && !asOf) return { main: "資料載入中", detail: "" };
   if (!asOf) return { main: "", detail: "" };
   if (demo) return { main: `示範資料 · ${slash(asOf)}`, detail: "模擬行情，非交易所資料" };
-  const updated = updatedAt && Number.isFinite(Date.parse(updatedAt))
-    ? `${taipei(new Date(updatedAt), { hour: "2-digit", minute: "2-digit" })} 更新` : "";
-  return { main: `資料日 ${slash(asOf)}`, detail: updated };
+  const countdown = countdownText(now);
+  if (countdown) return { main: `資料日 ${slash(asOf)}`, detail: countdown };
+  // After 18:30 on a weekday, until that day's data is published, the run is under way: say so, rather than
+  // showing nothing (the countdown has ended) or the previous day's update time.
+  const today = updatingDay(now);
+  if (today && asOf < today) return { main: `資料日 ${slash(asOf)}`, detail: "今日資料更新中" };
+  if (!updatedAt || !Number.isFinite(Date.parse(updatedAt))) return { main: `資料日 ${slash(asOf)}`, detail: "" };
+  const at = new Date(updatedAt);
+  const day = taipei(at, { year: "numeric", month: "2-digit", day: "2-digit" }).replaceAll("/", "-");
+  const date = day === asOf ? "" : `${taipei(at, { month: "numeric", day: "numeric" })} `;
+  return { main: `資料日 ${slash(asOf)}`, detail: `${date}${taipei(at, { hour: "2-digit", minute: "2-digit" })} 更新` };
 }
 
-/** Writes the status into the bar and refreshes it every minute; returns a stop function. */
+/** Writes the status into the bar and refreshes it every second (the countdown ticks); returns a stop function. */
 export function startDataStatus(node, read) {
   if (!node) return () => {};
   const render = () => {
-    const { main, detail } = dataStatusText(read());
-    node.innerHTML = main ? `<strong></strong>${detail ? "<small></small>" : ""}` : "";
+    const input = read(), { main, detail } = dataStatusText(input);
+    // The demo label must stay readable; a real trading day is left to the menu beside it when that shows.
+    node.dataset.kind = input.demo ? "demo" : "date";
+    // Rebuilt only when the shape changes, so the ticking countdown does not replace the nodes every second.
+    if (!node.querySelector("strong") !== !main || !node.querySelector("small") !== !detail)
+      node.innerHTML = main ? `<strong></strong>${detail ? "<small></small>" : ""}` : "";
     if (main) node.querySelector("strong").textContent = main;
     if (detail) node.querySelector("small").textContent = detail;
     node.hidden = !main;
   };
   render();
-  const timer = setInterval(render, 60_000);
+  const timer = setInterval(render, 1000);
   return Object.assign(() => clearInterval(timer), { render });
 }
 

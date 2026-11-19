@@ -16,10 +16,10 @@ test("phone bar keeps the brand and moves guides and settings into one menu", as
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await toggle.click();
   const menu = page.getByRole("menu", { name: "更多選單" });
-  await expect(menu.getByRole("menuitem")).toHaveText(["指標說明", "資料說明", "設定"]);
-  await expect(menu.getByRole("menuitem", { name: "指標說明" })).toBeFocused();
+  await expect(menu.getByRole("menuitem")).toHaveText(["分析說明", "指標說明", "資料說明", "設定"]);
+  await expect(menu.getByRole("menuitem", { name: "分析說明" })).toBeFocused();
   await page.keyboard.press("ArrowDown");
-  await expect(menu.getByRole("menuitem", { name: "資料說明" })).toBeFocused();
+  await expect(menu.getByRole("menuitem", { name: "指標說明" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
   await expect(toggle).toBeFocused();

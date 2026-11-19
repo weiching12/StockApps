@@ -49,13 +49,22 @@ const VETO_KEYS = ["trend", "distribution", "extension", "institutional", "liqui
 export const gateKeysForModel = (version) => version === "entry-research-v1" ? [...GATE_KEYS] : [...VETO_KEYS];
 const VETO_LABELS = Object.freeze({ trend: "趨勢遭破壞", distribution: "近期放量下跌", extension: "過度延伸",
   institutional: "法人明顯賣壓", liquidity: "流動性不足" });
+/** NT$ amounts in words: 億 from NT$100 million up (3 億元, 2.8 億元), otherwise 萬 (1,000 萬元). */
+const tradedValueText = (value) => value >= 100_000_000
+  ? `${(value / 100_000_000).toLocaleString("zh-TW", { maximumFractionDigits: 2 })} 億元`
+  : `${Math.round(value / 10_000).toLocaleString("zh-TW")} 萬元`;
 const vetoRules = (g) => ({
   trend: `MA20 低於 MA60，或 MA60 低於 ${g.trendSlopeSessions} 個交易日前即否決`,
   distribution: `近 ${g.distributionSessions} 個交易日內出現跌幅超過 ${Math.abs(g.heavySellChange).toFixed(2)}% 且 RVOL20 ≥ ${g.heavySellRvol}，且收盤尚未站回該日最高價即否決`,
   extension: `(收盤 − MA20) ÷ ATR14 大於 ${g.maxExtensionAtr} 即否決`,
   institutional: `近 ${g.institutionSessions} 個交易日外資與投信合計淨賣超達成交量 ${g.institutionNetSellPercent}% 即否決`,
-  liquidity: `近 ${g.liquiditySessions} 個交易日平均成交金額低於 ${(g.minTradingValue / 10_000).toLocaleString("zh-TW")} 萬元即否決`,
+  liquidity: `近 ${g.liquiditySessions} 個交易日平均成交金額低於 ${tradedValueText(g.minTradingValue)}即否決`,
 });
+/** The current model's preliminary-gate vetoes in display order, with their rules (for the analysis guide). */
+export const vetoGateGuide = (model = ENTRY_RESEARCH_MODEL) => {
+  const rules = vetoRules(model.gates);
+  return VETO_KEYS.map((key) => ({ key, label: VETO_LABELS[key], rule: rules[key] }));
+};
 const shortDate = (date) => date.slice(5).replace("-", "/");
 const veto = (status, reason, data) => ({ status, reason, data });
 
@@ -113,10 +122,9 @@ function vetoChecks(reader, g) {
     const average = bars?.every((bar) => Number.isFinite(bar.volume) && bar.volume >= 0)
       ? bars.reduce((sum, bar) => sum + bar.close * bar.volume, 0) / bars.length : null;
     const data = { averageTradingValue: Number.isFinite(average) ? Math.round(average) : null };
-    const wan = (value) => Math.round(value / 10_000).toLocaleString("zh-TW");
     checks.liquidity = !Number.isFinite(average) ? veto("UNKNOWN", `近 ${g.liquiditySessions} 個交易日成交資料不足`, data)
-      : average < g.minTradingValue ? veto("FAIL", `近 ${g.liquiditySessions} 日平均成交金額 ${wan(average)} 萬元`, data)
-        : veto("PASS", `近 ${g.liquiditySessions} 日平均成交金額 ${wan(average)} 萬元`, data);
+      : average < g.minTradingValue ? veto("FAIL", `近 ${g.liquiditySessions} 日平均成交金額 ${tradedValueText(average)}`, data)
+        : veto("PASS", `近 ${g.liquiditySessions} 日平均成交金額 ${tradedValueText(average)}`, data);
   }
   return checks;
 }

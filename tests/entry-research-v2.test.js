@@ -159,7 +159,9 @@ test("v4 vetoes an average traded value below NT$300 million and keeps the other
   const v4 = (bars) => gates(bars, { model: ENTRY_RESEARCH_MODEL_V4 });
   assert.equal(v4(traded(2_400_000)).conditions.liquidity, "FAIL", "≈ NT$280 million");
   assert.equal(v4(traded(3_000_000)).conditions.liquidity, "PASS", "≈ NT$350 million");
-  assert.match(v4(traded(2_400_000)).details.liquidity.rule, /30,000 萬元/);
+  assert.match(v4(traded(2_400_000)).details.liquidity.rule, /低於 3 億元即否決/);
+  // Amounts of NT$100 million and more read in 億.
+  assert.match(v4(traded(2_400_000)).details.liquidity.reason, /^近 20 日平均成交金額 \d+(\.\d+)? 億元$/);
   assert.equal(gates(traded(2_400_000), { model: ENTRY_RESEARCH_MODEL_V3 }).conditions.liquidity, "PASS", "v3 keeps NT$10 million");
   const { minTradingValue, ...rest } = ENTRY_RESEARCH_MODEL_V4.gates, { minTradingValue: old, ...v3Rest } = ENTRY_RESEARCH_MODEL_V3.gates;
   assert.deepEqual([minTradingValue, old], [300_000_000, 10_000_000]);

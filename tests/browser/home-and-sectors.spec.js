@@ -4,7 +4,7 @@ const signedIn = { user: { username: "tester", role: "user", mustChangePassword:
 
 test("the app opens on home with the mood and only today's next-day candidates", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("#page-title")).toContainText("主頁面");
+  await expect(page.locator("#page-title")).toContainText("盤後總覽");
   await expect(page.locator("#market-sentiment")).toBeVisible();
   await expect(page.locator(".stocks-panel")).toBeHidden();
   await expect(page.locator("#trade-date")).toBeVisible();
@@ -151,7 +151,7 @@ test.describe("backtest needs an account", () => {
     await account(page, { user: null });
     await page.addInitScript(() => sessionStorage.setItem("stock-insight-current-page", "backtest"));
     await page.goto("/");
-    await expect(page.locator("#page-title")).toContainText("主頁面");
+    await expect(page.locator("#page-title")).toContainText("盤後總覽");
     await expect(page.locator('.sidebar nav [data-page="backtest"]')).toBeHidden();
     await expect(page.locator("#backtest-page")).toBeHidden();
   });
@@ -185,11 +185,14 @@ test.describe("backtest needs an account", () => {
     expect(fit).toEqual({ pageOverflow: false, inside: true });
   });
 
-  for (const width of [560, 967, 1100]) test(`on a ${width}px top bar the extra page keeps every item on one row`, async ({ page }) => {
+  for (const width of [560, 967, 1100]) test(`on a ${width}px top bar the backtest sits in the menu and the bar keeps one row`, async ({ page }) => {
     await account(page, signedIn);
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/");
-    await expect(page.locator('.sidebar nav [data-page="backtest"]')).toBeVisible();
+    await expect(page.locator('.sidebar nav [data-page="backtest"]')).toBeHidden();
+    await page.getByRole("button", { name: "更多選單" }).click();
+    await expect(page.getByRole("menuitem", { name: "策略回測" })).toBeVisible();
+    await page.keyboard.press("Escape");
     const rows = await page.locator(".sidebar nav").evaluate((nav) => new Set([...nav.children]
       .filter((item) => item.getClientRects().length).map((item) => Math.round(item.getBoundingClientRect().top))).size);
     expect(rows).toBe(1);
@@ -205,8 +208,9 @@ test.describe("backtest needs an account", () => {
 
 test("the trading day is chosen on home and the market list follows it", async ({ page }) => {
   await page.goto("/");
+  // On wider screens the market list keeps the menu in the top bar, since it reads the chosen day too.
   await page.locator('[data-page="market"]').first().click();
-  await expect(page.locator(".date-control")).toBeHidden();
+  await expect(page.locator(".topbar .date-control")).toBeVisible();
   await page.locator('[data-page="home"]').first().click();
   await expect(page.locator(".date-control")).toBeVisible();
   const older = await page.locator("#trade-date option").nth(2).getAttribute("value");
@@ -252,7 +256,7 @@ test("on phones the market list fills the screen to its footer and only its rows
   await expect(page.locator(".stocks-panel")).not.toHaveClass(/is-fitted/);
 });
 
-test("only home shows the trading day and the update countdown, at every width", async ({ page }) => {
+test("home and (from the top bar) the market list show the trading day; the other pages do not", async ({ page }) => {
   for (const width of [390, 768, 1280]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/");
@@ -260,12 +264,16 @@ test("only home shows the trading day and the update countdown, at every width",
     await expect(page.locator("#trade-date")).toBeVisible();
     for (const target of ["market", "favorites", "search"]) {
       await page.locator(`[data-page="${target}"]`).first().click();
-      await expect(page.locator(".date-control"), `${width}px ${target}`).toBeHidden();
+      // The market list reads the chosen day: its menu sits in the top bar (701px up); phones choose it on home.
+      if (target === "market" && width > 700) await expect(page.locator(".topbar .date-control"), `${width}px market`).toBeVisible();
+      else await expect(page.locator(".date-control"), `${width}px ${target}`).toBeHidden();
       await expect(page.locator("#update-countdown"), `${width}px ${target}`).toBeHidden();
     }
     await page.locator('[data-page="market"]').first().click();
     await page.locator('[data-market-view-choice="sectors"]').click();
+    await expect(page.locator(".date-control")).toBeHidden();
     await expect(page.locator("#update-countdown")).toBeHidden();
+    await page.locator('[data-market-view-choice="list"]').click();
   }
 });
 

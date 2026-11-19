@@ -54,10 +54,17 @@ export const factAmountText = (amount) => !(Math.abs(amount) >= 1e10) ? netAmoun
 export const streakText = (streak) => !Number.isFinite(streak) ? "—"
   : streak === 0 ? "買賣持平" : `${streak > 0 ? "連買" : "連賣"} ${Math.abs(streak)} 日`;
 
+/**
+ * How many listed stocks closed up, flat and down on the session: the counts are of stocks (家數), not
+ * points or amounts, so the line says so in words above the bar instead of a bare 漲／跌 with a number.
+ */
 function breadthMarkup({ advancing, unchanged, declining }) {
   const known = Number.isFinite(advancing);
   const part = (tone, number) => `<i class="${tone}" style="flex-grow:${known ? number : 0}"></i>`;
-  return `<span class="up" title="上漲 ${count(advancing)} 檔">漲 <b>${count(advancing)}</b></span><div class="sentiment-breadth-bar" title="上漲 ${count(advancing)}、平盤 ${count(unchanged)}、下跌 ${count(declining)} 檔">${part("up", advancing)}${part("flat", unchanged)}${part("down", declining)}</div><span class="down" title="下跌 ${count(declining)} 檔">跌 <b>${count(declining)}</b></span>`;
+  return `<div class="sentiment-breadth-head"><span>上市個股漲跌家數</span><small>平盤 ${count(unchanged)} 家</small></div>`
+    + `<div class="sentiment-breadth-line"><span class="up" title="上漲 ${count(advancing)} 家">上漲 <b>${count(advancing)}</b> 家</span>`
+    + `<div class="sentiment-breadth-bar" title="上漲 ${count(advancing)}、平盤 ${count(unchanged)}、下跌 ${count(declining)} 家">${part("up", advancing)}${part("flat", unchanged)}${part("down", declining)}</div>`
+    + `<span class="down" title="下跌 ${count(declining)} 家">下跌 <b>${count(declining)}</b> 家</span></div>`;
 }
 
 // Inflow points up and outflow down; a flat or unknown amount gets a level line.

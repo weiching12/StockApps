@@ -24,7 +24,15 @@ clients; view modules never call `fetch` directly.
 - `ui/keyboard.js`: sector-card and search keyboard navigation.
 - `ui/search.js`: the search page: code and name matching over the latest session, shown as research rows.
 - `ui/table-batches.js`: viewport-driven progressive table rendering.
-- `about.js`: purpose, current capabilities and future goals.
+- `about.js`: purpose, current capabilities and future goals（各目標的「目前階段」隨功能上線更新）。
+- `ui/topbar.js`: the wider-layout top bar: search as you type and the data status. The status is the countdown to 18:30 while one is due, 「今日資料更新中」 from 18:30 on a weekday until that day's data is published, then the update time (with its date when it differs from the trading day).
+- `ui/analysis-guide.js`: 株研分析說明 (see `docs/entry-research.md`).
+
+頂部列與導覽（701px 以上才有頂部列）：
+- 交易日選單（含更新通知鈴鐺）由 `placeDateControl()` 在頂部列與手機頁首之間搬移同一個元素；狀態文字排在選單正下方，頂部列維持單列。首頁與市場觀察清單（清單分頁）讀所選交易日，所以顯示選單；法人買株、ETF、自選與搜尋只讀最新一日，顯示文字。手機的市場頁首沒有空間，只在首頁選擇。
+- 搜尋頁本身就是大搜尋框，頂部列隱藏（`.topbar.is-redundant`）；`/` 改為聚焦頁面的搜尋框。
+- 1100px 以下側欄變成頂部導覽：四個頁面之外的策略回測、分析說明、指標說明、資料說明與設定收進「更多」選單；701～760px 用簡短頁名。導覽的層級高於頁面頂部列，選單不會被蓋住。
+- 個股明細在桌機是非 modal 的側邊抽屜；若已有 modal 開著（法人買株的產業視窗），改以 modal 開啟，才會疊在上方。701～899px 的產業視窗為滿版高度的下拉視窗。
 
 Application event delegation remains in the composition root because those actions
 coordinate state, persistence and multiple views. View-specific presentation and
