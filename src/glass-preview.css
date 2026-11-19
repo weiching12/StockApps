@@ -98,6 +98,14 @@ html.glass-preview dialog::backdrop {
   backdrop-filter: blur(10px) saturate(140%);
 }
 
+@media (min-width: 1101px) {
+  /*
+   * The wide sidebar sits over the still background glows, where a blur barely shows but is
+   * redrawn on every frame of a page switch. Its tint stays; the blur does not.
+   */
+  html.glass-preview .sidebar { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
 @media (max-width: 1100px) {
   /* The top bar stays on screen while the page scrolls under it; a lighter blur keeps phones smooth. */
   html.glass-preview .sidebar {
@@ -132,6 +140,20 @@ html.glass-preview :is(
   .market-sentiment:not([hidden]) .sentiment-board > *
 ) {
   animation: glass-frost-in .52s cubic-bezier(.22, 1, .36, 1) var(--glass-enter-delay, 0ms) backwards;
+}
+/*
+ * Wide windows: the cards are large, and blurring them is redrawn on every frame of the
+ * animation, which drops frames. They rise and fade in without the blur (see glass-transition.js).
+ */
+@keyframes glass-rise-in {
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+@media (min-width: 1101px) {
+  html.glass-preview :is(
+    [data-page-panel]:not([hidden], .market-sentiment),
+    .market-sentiment:not([hidden]) .sentiment-board > *
+  ) { animation-name: glass-rise-in; }
 }
 /* During a page switch the new cards wait for the old page to start fading. */
 html.glass-preview.glass-switching { --glass-enter-delay: 120ms; }
