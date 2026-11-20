@@ -6,7 +6,8 @@ import { compareResearchStocks, matchesResearchFilter, researchListCells } from 
 export function renderMarketView(context) {
   const { state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl } = context;
   // Loading the next batch keeps the same list: reuse it instead of filtering and sorting every stock again.
-  const listKey = [state.date, state.marketView, state.listQuery, state.view, state.sector, state.research, state.sort, state.sortDirection,
+  // Every choice that changes which rows show belongs in the key, or a cached list is reused for it.
+  const listKey = [state.date, state.marketView, state.etfCategory, state.listQuery, state.view, state.sector, state.research, state.sort, state.sortDirection,
     state.favorites.join(","), pendingSymbols.size, loading].join("|");
   if (tableState.listSource !== snapshots || tableState.listKey !== listKey) {
     tableState.list = sortedMarketList(context);
@@ -28,7 +29,7 @@ export function renderMarketView(context) {
   };
   const sortSelect = document.querySelector("#market-sort");
   if (sortSelect) sortSelect.value = [...sortSelect.options].some((option) => option.value === state.sort) ? state.sort : "";
-  const nextViewKey = [state.date, state.marketView, state.listQuery, state.view, state.sector, state.research, state.sort, state.sortDirection].join("|");
+  const nextViewKey = [state.date, state.marketView, state.etfCategory, state.listQuery, state.view, state.sector, state.research, state.sort, state.sortDirection].join("|");
   // On phones the list scrolls inside its own box and only the rows in view are drawn.
   const scroller = document.querySelector(".stocks-panel.is-fitted .table-scroll");
   if (nextViewKey !== tableState.viewKey) {
@@ -227,7 +228,8 @@ function drawVisibleRows({ list, body, scroller, drawRow, tableState }) {
 export function renderEtfCategoryChips({ state, snapshots, esc }) {
   const row = document.querySelector("#etf-category-chips");
   if (!row) return;
-  const etfs = marketListStocks(snapshots ?? [], "etf");
+  // Counted as the list counts them: ETFs without a price on the day (suspended, not yet listed) are left out.
+  const etfs = filterStocks(marketListStocks(snapshots ?? [], "etf"), { query: "" });
   const counts = new Map();
   for (const stock of etfs) counts.set(stock.etfCategory ?? "other", (counts.get(stock.etfCategory ?? "other") ?? 0) + 1);
   const chosen = state.etfCategory ?? "all";
