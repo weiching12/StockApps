@@ -280,7 +280,7 @@ html.glass-preview[data-theme="dark"] {
  * Split capsules (list filters on wider screens): the
  * options sit in frosted pills, and the chosen option detaches into its own
  * capsule, splitting the bar into "before", "chosen" and "after" pieces.
- * Margins and corners animate, so the gaps open and close as the choice moves.
+ * Margins and corners animate, so the gaps open and close as the choice moves (evenly, see the liquid layer).
  */
 @media (min-width: 701px) {
   html.glass-preview .filter-tabs {
@@ -477,22 +477,27 @@ html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-fil
   position: absolute; background: var(--goo-pill);
 }
 html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > .pill-goo-layer > i.is-chosen { background: var(--goo-capsule); }
-/* The buttons only carry the text, and the capsule its inner highlight, above the liquid layer. They sit at
-   one fixed gap whatever is chosen, so no label moves when the choice changes (src/ui/goo-pills.js). */
+/* The buttons only carry the text, and the capsule its inner highlight, above the liquid layer. Options in a
+   piece touch, and the chosen one moves apart on a 10px gap each side: the gaps open and close as the choice
+   moves, and the buttons travel with them.
+   Two things kept the travel from trembling (2026-11-20): every option has the same 1px border (transparent
+   here; joined options used to have none, so a width jumped by 1-2px the moment the choice changed), and the
+   gaps open and close evenly, without overshoot (a spring that passes its mark and comes back reads as
+   shaking). The chosen capsule's pop only fades its colours in; it does not scale. */
 html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > button {
   position: relative; z-index: 1; border: 1px solid transparent !important; background: transparent !important;
-  /* The same border on every option (the chosen one has a ring, the joined ones none), so no width changes either. */
-  /* A fixed 8px gap; the padding gives back what the gaps take, so the row is no wider than before. */
-  margin-inline: 4px; padding-inline: 10px; transition: color .25s ease, box-shadow .25s ease;
-}
-/* The shapes glide between pieces: edges move evenly (no overshoot), so the neck between two pieces is seen
-   forming and thinning out rather than snapping shut. */
-html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > .pill-goo-layer.is-flowing > i {
-  transition: left .6s cubic-bezier(.45, 0, .2, 1), width .6s cubic-bezier(.45, 0, .2, 1), border-radius .5s cubic-bezier(.22, 1, .36, 1), background-color .25s ease;
+  transition: margin .6s cubic-bezier(.45, 0, .2, 1), border-radius .5s cubic-bezier(.22, 1, .36, 1), color .25s ease, box-shadow .25s ease;
 }
 html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > button:hover:not([aria-pressed="true"]) { color: var(--pill-hover-ink); }
+/* The chosen label keeps the same weight (phones set it bold, src/typography.css): bold glyphs are wider, so the
+   row jumped by a pixel before it moved. A thin stroke makes it read as bold without changing its width. */
+html.glass-preview:not([data-effects="reduced"]) :is(.filter-tabs, .research-filter-tabs).has-goo > button[aria-pressed="true"] {
+  font-weight: 500; -webkit-text-stroke: .35px currentColor;
+}
 
-/* Narrow tablets fit the filters beside the list menus (src/styles.css): the pills give up a little padding. */
-@media (min-width: 701px) and (max-width: 880px) {
-  html.glass-preview:not([data-effects="reduced"]) .table-toolbar > .filter-tabs.has-goo > button { padding-inline: 8px; }
+
+/* Narrow tablets (701-760px) fit the filters beside the list menus (src/styles.css): every option's 1px
+   border leaves the row a few pixels too wide there, so the pills give up a pixel of padding each side. */
+@media (min-width: 701px) and (max-width: 760px) {
+  html.glass-preview:not([data-effects="reduced"]) .table-toolbar > .filter-tabs.has-goo > button { padding-inline: 11px; }
 }
