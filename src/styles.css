@@ -437,30 +437,20 @@ button .icon {
   padding: 12px 34px;
   gap: 16px;
   background: #f9fafc;
+  /* Its own layer above the page (glass gives it a backdrop filter), so the search results cover the content below. */
+  position: relative;
+  z-index: 40;
 }
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  color: #7a8ba2;
-}
-.breadcrumb .icon {
-  width: 10px;
-  height: 10px;
-  color: #909eb2;
-}
-.breadcrumb span {
-  color: #434f60;
-}
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+/*
+ * The actions keep one block at every width the bar shows (701px up): the trading-day menu with the update
+ * countdown (or update time) under it, lined up with the menu, and the account at the right. The search gives way.
+ */
+.topbar-actions { flex: none; display: grid; grid-template-columns: auto auto; grid-template-areas: "date account" "status account"; align-items: center; column-gap: 18px; row-gap: 0; }
+@media (max-width: 960px) {
+  .topbar-actions { column-gap: 12px; }
 }
 /* Top bar search: a box that lists matching stocks under it as you type. */
-/* The bar is its own layer above the page (glass gives it a backdrop filter), so its result list covers the content below. */
-.topbar { position: relative; z-index: 40; }
-.topbar-search { position: relative; display: flex; align-items: center; flex: 1 1 auto; max-width: 420px; min-width: 200px; }
+.topbar-search { position: relative; display: flex; align-items: center; flex: 1 1 auto; max-width: 420px; min-width: 150px; }
 .topbar-search > .icon { position: absolute; left: 12px; width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
 .topbar-search input { width: 100%; min-height: 38px; padding: 0 40px 0 36px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface, #fff); color: var(--ink); font: inherit; font-size: var(--text-secondary); }
 .topbar-search input::placeholder { color: var(--muted); }
@@ -481,24 +471,14 @@ button .icon {
 .topbar-search-note { margin: 0; padding: 10px; color: var(--muted); font-size: var(--text-secondary); }
 [data-theme="dark"] .topbar-search input { background: rgb(255 255 255 / 4%); }
 [data-theme="dark"] .topbar-search-results { background: #111b2b; box-shadow: 0 16px 40px -12px rgb(0 0 0 / 60%); }
-/* The trading-day menu in the top bar (src/main.js placeDateControl): calendar icon, menu, update bell. */
-/*
- * The actions keep one block at every width the bar shows (701px up): the trading-day menu with the update
- * countdown (or update time) under it, lined up with the menu, and the account at the right. The search gives way.
- */
-.topbar .topbar-actions { flex: none; display: grid; grid-template-columns: auto auto; grid-template-areas: "date account" "status account"; align-items: center; column-gap: 18px; row-gap: 0; }
 /* With the status under the menu the bar is two lines tall, so its own padding and the menu stay compact. */
 .topbar:has(.topbar-date .date-control:not([hidden])) { padding-top: 7px; padding-bottom: 7px; }
-.topbar .data-status { line-height: 1.2; }
-.topbar .topbar-date { grid-area: date; }
-.topbar #data-status { grid-area: status; justify-items: start; }
+.topbar-date { grid-area: date; }
+#data-status { grid-area: status; }
 .topbar-actions:has(.date-control:not([hidden])) #data-status { padding-left: 22px; }
 .topbar .account-menu { grid-area: account; flex-wrap: nowrap; white-space: nowrap; }
 .topbar #online-count { grid-area: account; }
-.topbar .topbar-search { min-width: 150px; }
-@media (max-width: 960px) {
-  .topbar .topbar-actions { column-gap: 12px; }
-}
+/* The trading-day menu in the top bar (src/main.js placeDateControl): calendar icon, menu, update bell. */
 .topbar-date { display: flex; align-items: center; }
 .topbar-date:empty { display: none; }
 .topbar .date-control { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: none; flex: none; margin: 0; }
@@ -512,26 +492,10 @@ button .icon {
 /* While the menu is in the bar it names the day, so the status keeps only the countdown or update time. */
 .topbar-actions:has(.date-control:not([hidden])) #data-status strong { display: none; }
 /* Data status: the trading day on show, when it was updated and when the next update is due. */
-.data-status { display: grid; justify-items: end; gap: 1px; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.data-status { display: grid; justify-items: start; gap: 1px; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .data-status[hidden] { display: none; }
 .data-status strong { color: var(--ink); font-size: var(--text-secondary); font-weight: 600; }
 .data-status small { color: var(--muted); font-size: var(--text-meta); }
-.demo-badge {
-  color: #8c7946;
-  border: 1px solid #e7dfc1;
-  border-radius: 4px;
-  padding: 5px 9px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #fbf8ed;
-}
-.demo-badge > span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #ad965c;
-}
 .text-button {
   display: flex;
   align-items: center;
@@ -616,7 +580,6 @@ h1 {
 .date-notification-button .icon { width: 17px; height: 17px; }
 .update-countdown { position: absolute; right: 0; bottom: -18px; color: var(--muted); font-size: 12px; line-height: 1.4; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .date-notification-button[hidden] { display: none; }
-.date-control[hidden] { display: none; }
 .icon-button {
   display: inline-grid;
   place-items: center;
@@ -840,7 +803,6 @@ h1 {
 .entry-chart-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .entry-chart-default { display: flex; flex: 1 1 auto; align-items: center; gap: 8px; min-width: 0; min-height: 22px; }
 .entry-price-chart h3 { flex: 1; min-width: 0; margin: 0; color: var(--muted); font-size: 14px; font-weight: 500; line-height: 1.4; }
-.entry-chart-default[hidden], .entry-chart-readout[hidden] { display: none; }
 .entry-chart-readout { display: grid; flex: none; justify-items: end; gap: 1px; font-variant-numeric: tabular-nums; }
 .entry-chart-readout.picked .entry-chart-selected-date { color: var(--accent); font-weight: 600; }
 .entry-chart-readout-main, .entry-chart-readout-sub { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
@@ -1619,15 +1581,6 @@ dialog h2 {
   .topbar {
     padding: 12px 18px;
   }
-  .breadcrumb {
-    gap: 9px;
-  }
-  .topbar-actions {
-    gap: 12px;
-  }
-  .demo-badge {
-    padding: 4px 6px;
-  }
   .text-button {
     gap: 5px;
   }
@@ -1900,7 +1853,8 @@ dialog h2 {
     position: sticky;
     top: 0;
     bottom: auto;
-    z-index: 20;
+    /* Above the page's top bar (z-index 40), so the navigation's menu is not covered. */
+    z-index: 45;
     width: 100%;
     height: auto;
     min-height: 64px;
@@ -1936,7 +1890,7 @@ dialog h2 {
   }
   .sidebar nav {
     display: grid;
-    grid-template-columns: repeat(4, minmax(44px, 1fr)) 44px 44px;
+    grid-template-columns: repeat(4, minmax(44px, 1fr));
     gap: 3px;
     margin: 0;
   }
@@ -2016,7 +1970,6 @@ dialog h2 {
    (分析說明, 指標說明, 資料說明) and settings move into one menu, so the row never wraps onto a second line. */
 .nav-more { display: none; position: relative; }
 @media (max-width: 1100px) {
-  .sidebar nav { grid-template-columns: repeat(4, minmax(44px, 1fr)); }
   .sidebar nav :is([data-dialog], [data-page="backtest"]),
   .sidebar-bottom > .nav-item[data-dialog="settings"] { display: none; }
   .nav-more { display: block; }
@@ -2039,10 +1992,6 @@ dialog h2 {
 /* Layout follows the shared type scale; narrow screens wrap instead of shrinking copy. */
 .page-heading > div:first-child {
   min-width: 0;
-}
-.topbar-actions,
-.breadcrumb {
-  flex-wrap: wrap;
 }
 .filter-tabs {
   flex-wrap: nowrap;
@@ -2398,10 +2347,6 @@ dialog h2 {
 @keyframes sector-line-grow { from { transform: scaleX(0); opacity: 0; } 60% { opacity: 1; } to { transform: scaleX(1); opacity: .85; } }
 @keyframes field-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .loading-spinner { animation: none; } }
-@media (max-width: 700px) {
-  .topbar { display: none; }
-  .topbar .breadcrumb { display: none; }
-}
 .initial-load { padding: 32px; color: var(--muted); }
 .load-status,
 .app-status {
@@ -3219,16 +3164,14 @@ button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outli
   .table-scroll { overflow-x: visible; }
   .table-scroll table, .table-scroll tbody { display: block; width: 100%; min-width: 0; }
   .table-scroll colgroup, .table-scroll thead { display: none; }
-  #stock-rows > tr { display: grid; grid-template-columns: var(--table-favorite-width) minmax(0, 1fr) auto auto;
-    grid-template-areas: "favorite stock gate gate" ". price research readiness" ". extras extras extras"; align-items: center; column-gap: 8px; row-gap: 6px;
+  #stock-rows > tr { display: grid; grid-template-columns: var(--table-favorite-width) minmax(0, 1fr) auto;
+    grid-template-areas: "favorite stock research" ". price price" ". extras extras"; align-items: center; column-gap: 8px; row-gap: 6px;
     padding: 10px 12px 10px 4px; border-bottom: 1px solid var(--border); }
   #stock-rows > tr > :is(td, th) { position: static; height: auto; min-height: 0; padding: 0; border: 0;
     background: transparent; box-shadow: none; }
-  #stock-rows > tr > .research-cell { text-align: left; }
   :is(#market-research-filter, #market-sort) { width: 100%; max-width: none; min-height: 34px; padding-block: 5px; font-size: var(--text-meta); }
   #stock-rows > tr > td:first-child { grid-area: favorite; width: auto; min-width: 0; max-width: none; }
   #stock-rows > tr > th { grid-area: stock; }
-  #stock-rows > tr > .entry-cell { display: contents; }
   #stock-rows > tr > .research-cell { grid-area: research; }
   #stock-rows > tr > :nth-child(5) { grid-area: price; text-align: left; }
   #stock-rows > tr > :nth-child(n+6) { display: none; }
@@ -3690,7 +3633,6 @@ button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outli
   .sector-nav .sector-chip-row::-webkit-scrollbar { display: none; }
   .sector-flow { margin: 8px 8px 0; }
   /* The market card keeps one status; readiness and strategy live on the home page and in the detail. */
-  #stock-rows > tr { grid-template-columns: var(--table-favorite-width) minmax(0, 1fr) auto; grid-template-areas: "favorite stock research" ". price price" ". extras extras"; }
   #stock-rows > tr > .entry-cell, #stock-rows .research-next { display: none; }
   #stock-rows > tr > .research-cell { align-self: center; justify-self: end; }
   /* An ETF card has no research status: its close and change take that spot, so the price row goes. */
@@ -4027,7 +3969,7 @@ html[data-effects="reduced"] #research-kind.is-floating:not([hidden]) { animatio
 /* 株研分析說明: the five vetoes as numbered rows of rule and reason. */
 .analysis-vetoes { display: grid; gap: 10px; margin: 12px 0 16px; }
 .analysis-veto { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
-.analysis-veto dt { display: flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 600; }
+.analysis-veto dt { display: flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 600; }
 .analysis-veto dd { margin: 0; }
 .analysis-veto dd p { margin: 0; }
 .analysis-veto .analysis-why { margin-top: 2px; color: var(--muted); font-size: var(--text-secondary); }
@@ -4064,10 +4006,6 @@ html[data-effects="reduced"] #research-kind.is-floating:not([hidden]) { animatio
 }
 
 .topbar.is-redundant { display: none; }
-/* The top-bar layout of the sidebar (1100px and below) stacks above the page's top bar, so its menu is not covered. */
-@media (max-width: 1100px) {
-  .sidebar { z-index: 45; }
-}
 
 /* Phone sector sheet: the opened stock's card is one rounded block, its content kept off the edges. */
 @media (max-width: 700px) {
@@ -4076,15 +4014,13 @@ html[data-effects="reduced"] #research-kind.is-floating:not([hidden]) { animatio
 
 /* 株研分析說明 vetoes: the stock dialog's gate icon and short name head each one, then the rule, the reason and sources. */
 .analysis-veto { scroll-margin-top: 12px; }
-.analysis-veto dt { align-items: center; gap: 10px; }
 .analysis-veto-icon { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
 .analysis-veto-icon .icon { width: 20px; height: 20px; }
 .analysis-veto-name { display: grid; gap: 1px; }
 .analysis-veto-name small { color: var(--muted); font-size: var(--text-meta); font-weight: 400; }
 .analysis-veto h5 { margin: 8px 0 4px; color: var(--muted); font-size: var(--text-meta); font-weight: 600; }
 .analysis-back { margin: 0 0 8px; padding: 4px 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: var(--text-secondary); cursor: pointer; }
-.research-gate-guide { margin-top: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: var(--text-meta); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-.research-gate-guide.inline { margin: 0 2px; }
+.research-gate-guide { margin: 0 2px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: var(--text-meta); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 
 /* Fact labels stay on one line; long values wrap on their side instead of squeezing the label into a column. */
 :is(.research-gate-item dl, .research-signal-facts, .research-plan-table, .research-gate-panel dl) dt { flex: none; white-space: nowrap; }

@@ -1,5 +1,5 @@
 import { expandStock, shardOf, SHARD_COUNT, validSymbol } from "../../shared/market-codec.js";
-import { DEFAULT_SETTINGS, getSnapshot, getStockInstitutionEstimate, getStockInstitutionSeries,
+import { getSnapshot, getStockInstitutionEstimate, getStockInstitutionSeries,
   getDominantInstitution, getInstitutionNet } from "../../shared/indicators.js";
 import { calculateMarketSentiment } from "../../shared/sentiment.js";
 import { entryScoreSummary, getEntryScore } from "../../shared/entry-score.js";

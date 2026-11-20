@@ -39,7 +39,7 @@ import { addResearchPeriod, loadResearchStore, persistResearchStore, removeResea
 import { renderResearchCenter } from "./ui/research.js";
 import { dailyCloseSeries } from "../shared/price-history.js";
 import { priceBaseline } from "../shared/research-review.js";
-import { entryChartMarkup, entryChartShape, entryScoreDialogMarkup, morphEntryChart, selectEntryChartPoint, restoreEntryChartTitle } from "./ui/entry-score.js";
+import { entryChartMarkup, entryChartShape, entryScoreDialogMarkup, morphEntryChart, selectEntryChartPoint, restoreLatestSession } from "./ui/entry-score.js";
 import { moodStyleChoices, renderSentiment } from "./ui/sentiment.js";
 import { createBacktestController } from "./ui/backtest.js";
 import { attachGooPills } from "./ui/goo-pills.js";
@@ -48,7 +48,6 @@ import {
   DEFAULT_SETTINGS,
   getSnapshot,
   getStockInstitutionEstimate,
-  getStockInstitutionSeries,
 } from "./indicators.js";
 
 const icons = {
@@ -1133,18 +1132,18 @@ function bindEvents() {
   // A click or tap anywhere else blurs the chart and brings back its title and latest session.
   document.addEventListener("focusout", (event) => {
     const plot = event.target.closest(".entry-chart-plot");
-    if (plot) restoreEntryChartTitle(plot, number);
+    if (plot) restoreLatestSession(plot, number);
   });
   // A tap on a phone does not always move focus, so any press outside a picked chart restores it too.
   document.addEventListener("pointerdown", (event) => {
     for (const plot of document.querySelectorAll(".entry-chart-plot"))
-      if (!plot.contains(event.target)) restoreEntryChartTitle(plot, number);
+      if (!plot.contains(event.target)) restoreLatestSession(plot, number);
   }, true);
   // So does scrolling the chart out of view.
   const entryChartViews = globalThis.IntersectionObserver && new IntersectionObserver((entries) => {
     for (const entry of entries) if (!entry.isIntersecting) {
       entryChartViews.unobserve(entry.target);
-      if (entry.target.isConnected) restoreEntryChartTitle(entry.target, number);
+      if (entry.target.isConnected) restoreLatestSession(entry.target, number);
     }
   });
   function watchEntryChart(plot) { entryChartViews?.observe(plot); }

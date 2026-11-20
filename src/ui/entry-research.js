@@ -370,7 +370,7 @@ function gatesSection(result, { esc, number }, sectorLink = "") {
   const fired = entries.filter(([, item]) => item.status === "FAIL").length;
   const heading = v1 ? "五大核心門檻" : "初步門檻（否決條件）";
   const badge = v1 ? `${gate.passedCount} / 5` : gate.status === "PASS" ? "皆未觸發" : fired ? `觸發 ${fired} 項` : "待確認";
-  return `<section class="research-gates" aria-labelledby="research-gates-title"><h3 id="research-gates-title">${heading} <small class="${gate.status === "FAIL" ? "fail" : ""}">${badge}</small></h3>${inputs}<div class="research-gate-tiles">${tiles}</div><div class="research-gate-panels">${panels}</div><p class="research-gate-hint">${gate.status === "PASS" ? "點選圖示查看本檔數據；" : ""}${v1 ? "" : '規則與參考依據見<button type="button" class="research-gate-guide inline" data-analysis="gate">株研分析說明</button>。'}</p></section>`;
+  return `<section class="research-gates" aria-labelledby="research-gates-title"><h3 id="research-gates-title">${heading} <small class="${gate.status === "FAIL" ? "fail" : ""}">${badge}</small></h3>${inputs}<div class="research-gate-tiles">${tiles}</div><div class="research-gate-panels">${panels}</div><p class="research-gate-hint">${gate.status === "PASS" ? "點選圖示查看本檔數據；" : ""}${v1 ? "" : '規則與參考依據見<button type="button" class="research-gate-guide" data-analysis="gate">株研分析說明</button>。'}</p></section>`;
 }
 
 /** Prices and the signal date to mark on the price chart, when a plan exists. */

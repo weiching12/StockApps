@@ -169,7 +169,8 @@ function fillChartReadout(chart, point, number, monthly) {
   change.className = `entry-chart-selected-change ${Number.isFinite(point.changePercent) ? point.changePercent > 0 ? "up" : point.changePercent < 0 ? "down" : "" : ""}`;
 }
 
-export function restoreEntryChartTitle(plot, number) {
+/** Back to the latest session after a picked one: the figures beside the title, the cursor and the dot. */
+export function restoreLatestSession(plot, number) {
   const chart = plot.closest(".entry-price-chart"), readout = chart?.querySelector(".entry-chart-readout");
   if (!readout?.classList.contains("picked")) return;
   readout.classList.remove("picked");

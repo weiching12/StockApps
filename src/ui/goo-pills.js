@@ -12,7 +12,7 @@
 
 const SVG = "http://www.w3.org/2000/svg";
 export const PILL_GOO_FILTER = "pill-goo";
-const MOTION_MS = 900; // the longest glass transition (margins .75s) plus the pop
+const MOTION_MS = 700; // the gaps open and close in .6s (src/glass-preview.css); a frame of margin to settle
 
 /** One filter definition for the page: goo, then a hairline ring around the merged shape. */
 function ensureFilter() {

@@ -14,8 +14,7 @@ const WHY = {
 };
 
 /** Section ids, for links that open the guide at a section (data-analysis="…"). */
-export const ANALYSIS_SECTIONS = Object.freeze({ gate: "analysis-gate",
-  ...Object.fromEntries(Object.keys(VETO_ICONS).map((key) => [`gate-${key}`, `analysis-gate-${key}`])) });
+export const ANALYSIS_SECTIONS = Object.freeze({ gate: "analysis-gate" });
 
 const icon = (key) => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${VETO_ICONS[key] ?? '<circle cx="12" cy="12" r="8"/>'}</svg>`;
 

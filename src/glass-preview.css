@@ -72,8 +72,6 @@ html.glass-preview .topbar {
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   backdrop-filter: blur(18px) saturate(150%);
 }
-html.glass-preview .demo-badge { border-radius: 999px; background: rgb(255 255 255 / 35%); }
-html.glass-preview[data-theme="dark"] .demo-badge { background: rgb(255 255 255 / 6%); }
 
 /* Data: near-opaque cards with soft depth. */
 html.glass-preview :is(.panel, .research-center, .sentiment-card, .sentiment-summary) {
@@ -393,7 +391,6 @@ html.glass-preview .segmented-control:not(.filter-tabs, .research-filter-tabs, .
 }
 @media (prefers-reduced-motion: reduce) {
   html.glass-preview :is(.filter-tabs, .research-filter-tabs) > button { transition: none; animation: none !important; }
-  html.glass-preview :is(.filter-tabs, .research-filter-tabs) > .pill-goo-layer > i { transition: none !important; }
   html.glass-preview .segmented-indicator { transition: none; }
   html.glass-preview .segmented-control.is-moving .segmented-indicator { transform: none; }
 }
