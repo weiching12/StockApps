@@ -196,7 +196,7 @@ html.glass-preview dialog {
   scrollbar-width: thin;
   scrollbar-color: rgb(100 116 139 / 35%) transparent;
 }
-html.glass-preview #info-dialog:has(.guide-toc) .dialog-top {
+html.glass-preview :is(#info-dialog, #guide-dialog):has(.guide-toc) .dialog-top {
   position: sticky;
   top: -25px;
   z-index: 2;
@@ -209,7 +209,7 @@ html.glass-preview #info-dialog:has(.guide-toc) .dialog-top {
   -webkit-backdrop-filter: blur(16px) saturate(160%);
   backdrop-filter: blur(16px) saturate(160%);
 }
-html.glass-preview[data-theme="dark"] #info-dialog:has(.guide-toc) .dialog-top { background: rgb(17 27 43 / 72%); }
+html.glass-preview[data-theme="dark"] :is(#info-dialog, #guide-dialog):has(.guide-toc) .dialog-top { background: rgb(17 27 43 / 72%); }
 html.glass-preview .guide-toc {
   position: relative; /* chip offsets are measured from the row */
   order: 3;
@@ -241,7 +241,7 @@ html.glass-preview .guide-toc button.active {
 }
 html.glass-preview[data-theme="dark"] .guide-toc button { background: rgb(255 255 255 / 5%); }
 @media (max-width: 520px) {
-  html.glass-preview #info-dialog:has(.guide-toc) .dialog-top {
+  html.glass-preview :is(#info-dialog, #guide-dialog):has(.guide-toc) .dialog-top {
     top: -18px;
     margin: -18px -20px 4px;
     padding: 16px 20px 10px;

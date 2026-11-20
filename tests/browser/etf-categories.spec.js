@@ -27,3 +27,23 @@ for (const width of [390, 1280]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
+
+// Choosing a category animates as the market list's sector chips do: the same buttons stay (only the choice
+// moves, so the colours fade and the press shrinks the chip), with the same animation and transition as them.
+test("ETF category chips animate like the sector chips", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.addInitScript(() => sessionStorage.setItem("stock-insight-current-page", "market"));
+  await page.goto("/?glass=1");
+  const sector = await page.locator("#sector-chips button").nth(1).evaluate((chip) => { chip.click(); const style = getComputedStyle(chip); return { animation: style.animationName, transition: style.transitionProperty }; });
+  await page.locator('[data-market-view-choice="etf"]').first().click();
+  const result = await page.locator("#etf-category-chips").evaluate(async (row) => {
+    const before = [...row.querySelectorAll("button")];
+    before[1].click();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const after = [...row.querySelectorAll("button")];
+    return { sameButtons: after.length === before.length && after.every((button, index) => button === before[index]),
+      pressed: after[1].getAttribute("aria-pressed"), motion: { animation: getComputedStyle(after[1]).animationName, transition: getComputedStyle(after[1]).transitionProperty } };
+  });
+  expect(result).toEqual({ sameButtons: true, pressed: "true", motion: sector });
+  expect(sector.transition).toContain("background-color");
+});

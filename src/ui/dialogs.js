@@ -15,7 +15,8 @@ export function createDialogController() {
       if (event.target !== event.currentTarget) return;
       const rect = dialog.getBoundingClientRect();
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)
-        dialog.close();
+        // A dialog with its own closing motion (the stock drawer) runs it; the others close at once.
+        (dialog.closeWithMotion ?? (() => dialog.close()))(event);
     }));
   };
 

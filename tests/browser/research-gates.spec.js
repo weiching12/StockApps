@@ -52,8 +52,10 @@ test("the guide's veto icons are the stock dialog's gate icons", async ({ page }
   const dialog = page.locator("#info-dialog");
   const tiles = await dialog.locator(".research-gate-tile").evaluateAll((nodes) => nodes.map((node) => [node.dataset.gate, node.querySelector("svg").innerHTML, node.querySelector("strong").textContent]));
   await dialog.locator(".research-gate-hint .research-gate-guide").click();
-  await expect(dialog.locator("#dialog-heading")).toHaveText("株研分析說明");
-  const guide = await dialog.locator(".analysis-veto").evaluateAll((nodes) => nodes.map((node) => [node.dataset.gate, node.querySelector(".analysis-veto-icon svg").innerHTML, node.querySelector(".analysis-veto-name strong").textContent]));
+  // On this wide screen the guide opens in its own panel beside the stock.
+  const panel = page.locator("#guide-dialog");
+  await expect(panel.locator("#guide-heading")).toHaveText("株研分析說明");
+  const guide = await panel.locator(".analysis-veto").evaluateAll((nodes) => nodes.map((node) => [node.dataset.gate, node.querySelector(".analysis-veto-icon svg").innerHTML, node.querySelector(".analysis-veto-name strong").textContent]));
   expect(guide).toEqual(tiles);
 });
 
@@ -108,16 +110,23 @@ test("the market list names every triggered veto as a badge, up to three", async
 test("signal analysis explains how signals are judged and lists both patterns with every condition", async ({ page }) => {
   await openStock(page, "2330");
   const section = page.locator("#info-dialog .research-signal");
-  // The judging steps open as a numbered message from the 判定方式 button and close on an outside tap.
+  // The judging steps open as a numbered message from the 判定方式 icon beside the title (same line as the
+  // title and the status chip), and close on an outside tap; the last line links to the guide.
   const how = section.locator(".research-signal-how");
-  await expect(how.locator("summary")).toHaveText("判定方式");
+  await expect(how.locator("summary")).toHaveAttribute("aria-label", "判定方式");
   await expect(how.locator("summary svg")).toBeVisible();
+  const line = await section.locator(".research-section-head").evaluate((head) => {
+    const top = (node) => Math.round(node.getBoundingClientRect().top + node.getBoundingClientRect().height / 2);
+    return [top(head.querySelector("h3")), top(head.querySelector("summary")), top(head.querySelector(".research-chip"))];
+  });
+  expect(Math.max(...line) - Math.min(...line)).toBeLessThanOrEqual(4);
   await expect(how.locator("ol")).toBeHidden();
   await how.locator("summary").click();
   await expect(how.locator("ol")).toBeVisible();
-  await expect(how.locator("li")).toHaveCount(6);
+  await expect(how.locator("li")).toHaveCount(5);
   await expect(how.locator("li").nth(1)).toContainText("形成條件");
-  await expect(how.locator("li").nth(3)).toContainText("只在訊號日當天有效");
+  await expect(how.locator("li").nth(2)).toContainText("只在訊號日當天有效");
+  await expect(how.locator(".research-signal-how-more [data-analysis=\"research\"]")).toHaveText("株研分析說明");
   await section.locator("h3").click();
   await expect(how.locator("ol")).toBeHidden();
   const setups = section.locator(".research-setup");

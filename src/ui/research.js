@@ -68,7 +68,7 @@ export function renderResearchCenter({ favorites, stocks, store, date, previousD
   return { stockCount: values.length, etfCount: etfValues.length, etfs: etfListMarkup(etfValues, esc), stats: stat("自選股票", values.length, "點選股票查看完整研究") +
       stat("明日進場候選", candidates, "訊號觸發且價格在計畫內", candidates ? "up" : "") +
       stat("今日候選失效", count((summary) => lapsedToday(summary, previousDate)), "昨日訊號已不成立"),
-    cards: entries ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col"><button type="button" class="column-guide-link" data-analysis="gate" aria-label="初步門檻：查看說明">初步門檻</button></th><th scope="col">股價</th><th scope="col">進場研究</th></tr></thead><tbody>${entries}</tbody></table>`
+    cards: entries ? `<table class="research-table research-tracking"><thead><tr><th scope="col">股票</th><th scope="col"><button type="button" class="column-guide-link" data-analysis="gate" aria-label="初步門檻：查看說明">初步門檻</button></th><th scope="col">股價</th><th scope="col"><button type="button" class="column-guide-link" data-analysis="research" aria-label="進場研究：查看說明">進場研究</button></th></tr></thead><tbody>${entries}</tbody></table>`
       : `<p class="research-muted">${values.length ? "此篩選目前沒有股票。" : etfValues.length ? "尚無自選個股；自選 ETF 列在下方。" : "尚無自選股票。"}</p>` };
 }
 

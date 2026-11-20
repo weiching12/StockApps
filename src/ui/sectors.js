@@ -85,7 +85,11 @@ export function sectorFlowMarkup(context) {
  * Choosing a chip only moves the highlight, so the row keeps where it was scrolled sideways; only a
  * different set of chips (another sector's sub-industries) redraws the row and starts it at the left.
  */
-function syncChipRow(row, markup) {
+/**
+ * Updates a row of chips: a change of choice only moves aria-pressed (so the chosen chip pops and colours
+ * fade, as on the market list), and a different set of chips fans in. Shared with the ETF categories.
+ */
+export function syncChipRow(row, markup) {
   const chips = markup.replace(/ aria-pressed="(true|false)"/g, "");
   if (row.dataset.chips === chips) {
     const pressed = [...markup.matchAll(/aria-pressed="(true|false)"/g)].map((match) => match[1]);

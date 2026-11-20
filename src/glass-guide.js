@@ -5,11 +5,11 @@
  */
 import { effectsReduced } from "./glass-mode.js";
 
-let detachSpy = null;
+const spies = new WeakMap();
 
 export function enhanceGuideDialog(dialog, content) {
-  detachSpy?.();
-  detachSpy = null;
+  spies.get(dialog)?.();
+  spies.delete(dialog);
   dialog.querySelector(".guide-toc")?.remove();
   dialog.style.removeProperty("--guide-header");
   const sections = [...content.querySelectorAll(".guide-item")];
@@ -59,6 +59,6 @@ export function enhanceGuideDialog(dialog, content) {
       toc.scrollTo({ left: chip.offsetLeft - 4 });
   };
   dialog.addEventListener("scroll", markCurrent, { passive: true });
-  detachSpy = () => dialog.removeEventListener("scroll", markCurrent);
+  spies.set(dialog, () => dialog.removeEventListener("scroll", markCurrent));
   markCurrent();
 }

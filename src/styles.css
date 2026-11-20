@@ -1966,10 +1966,15 @@ dialog h2 {
     border-radius: 5px;
   }
 }
-/* Top bar (phones and tablets, 1100px and below): the four pages beside the brand; the backtest, the guides
-   (分析說明, 指標說明, 資料說明) and settings move into one menu, so the row never wraps onto a second line. */
+/* Top bar (phones and tablets, 1100px and below): the pages beside the brand. Where the row has room
+   (701px up) the guides (分析說明, 指標說明, 關於株研) and settings sit in it as icons; narrower, they and the
+   backtest move into one menu, so the row never wraps onto a second line. */
 .nav-more { display: none; position: relative; }
-@media (max-width: 1100px) {
+@media (min-width: 701px) and (max-width: 1100px) {
+  .sidebar nav { grid-template-columns: repeat(4, minmax(44px, 1fr)) repeat(3, 44px); }
+  .sidebar nav:has([data-page="backtest"]:not([hidden])) { grid-template-columns: repeat(5, minmax(44px, 1fr)) repeat(3, 44px); }
+}
+@media (max-width: 700px) {
   .sidebar nav :is([data-dialog], [data-page="backtest"]),
   .sidebar-bottom > .nav-item[data-dialog="settings"] { display: none; }
   .nav-more { display: block; }
@@ -2694,7 +2699,6 @@ dialog.sector-dialog {
 }
 /* The name opens the stock's detail; the whole row is a tap target for it too. */
 button.sector-stock-name { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-button.sector-stock-name:hover > strong:last-child { color: var(--accent); text-decoration: underline; }
 button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 #sector-dialog tr[data-sector-stock] { cursor: pointer; }
 /* 法人轉買 (shared/institution-turn.js): a soft buy-tone pill beside a stock or on a sector card. */
@@ -2816,6 +2820,17 @@ button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outli
   .pull-refresh.is-refreshing > span { animation: pull-refresh-spin 700ms linear infinite; }
   @keyframes pull-refresh-spin { to { transform: rotate(360deg); } }
   .sector-detail-heading { gap: 10px; }
+}
+@media (max-width: 380px) {
+  /* Keep amounts such as "+148.73 億" on one line at 320px; larger values still wrap. */
+}
+/*
+ * Sector stocks as cards when their section is narrow: on phones, and beside a stock drawer on wide screens,
+ * where the sheet steps aside (src/main.js moveSectorSheet). A query on the section's own width, not the
+ * window's, so the same sheet reads as a table when it has room and as cards when it has not.
+ */
+.sector-stock-section { container: sector-stocks / inline-size; }
+@container sector-stocks (max-width: 680px) {
   .sector-stock-scroll { max-height: none; overflow: visible; scrollbar-gutter: auto; }
   .sector-stock-table,
   .sector-stock-table tbody { display: block; }
@@ -2860,9 +2875,6 @@ button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outli
   .sector-stock-net .sector-stock-bar { grid-column: 2; grid-row: 1; margin-top: 0; }
   .sector-stock-net > strong { grid-column: 3; grid-row: 1; text-align: right; white-space: nowrap; }
   .sector-stock-net > small { grid-column: 4; grid-row: 1; margin-top: 0; text-align: right; white-space: nowrap; }
-}
-@media (max-width: 380px) {
-  /* Keep amounts such as "+148.73 億" on one line at 320px; larger values still wrap. */
 }
 /* The sector detail is a bottom sheet closed by pulling down on phones and tablets alike. */
 @media (max-width: 899px) {
@@ -3532,8 +3544,16 @@ button.sector-stock-name:focus-visible { outline: 2px solid var(--accent); outli
 /* Signal analysis: how signals are judged, then both patterns with every condition. */
 /* Opens as a message like the next-day explanation, numbered so the steps read one at a time. */
 .research-signal { position: relative; }
-.research-signal-how { margin: 6px 0 0; }
-.research-signal-how > summary { display: inline-flex; align-items: center; gap: 4px; width: auto; height: 32px; margin-left: -8px; padding: 0 10px 0 8px; border-radius: 999px; font-size: var(--text-meta); }
+/* The section's title on the left, its status chip at the top right. */
+.research-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.research-section-head h3 { margin: 0; }
+.research-section-head .research-chip { flex: none; }
+.research-signal-meta { margin: 0; }
+/* An icon beside the title; its note opens under the head, across the section. */
+.research-section-title { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.research-signal-how { margin: 0; }
+.research-signal-how > ol { top: 40px; }
+.research-signal-how-more { list-style: none; margin-left: -18px; color: var(--muted); }
 .research-signal-how > ol { position: absolute; z-index: 2; left: 12px; right: 12px; margin: 6px 0 0; padding: 10px 12px 10px 30px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--ink); font-size: var(--text-secondary); line-height: 1.65; box-shadow: 0 8px 24px rgba(15, 23, 42, .12); }
 .research-signal-how li + li { margin-top: 4px; }
 .research-setups { display: grid; gap: 8px; margin-top: 10px; }
@@ -3974,6 +3994,8 @@ html[data-effects="reduced"] #research-kind.is-floating:not([hidden]) { animatio
 .analysis-veto dd p { margin: 0; }
 .analysis-veto .analysis-why { margin-top: 2px; color: var(--muted); font-size: var(--text-secondary); }
 #info-dialog .guide-item h4 { margin: 8px 0 6px; font-size: var(--text-body); }
+/* Numbered conditions of an entry signal; 形成 / 觸發 lead each line. */
+.analysis-steps { display: grid; gap: 4px; margin: 6px 0 8px; padding-left: 20px; font-size: var(--text-secondary); line-height: 1.6; }
 /* Wider (non-phone) windows still use the pull-down sheet for a sector, but it fills the height: no strip of page above it. */
 @media (min-width: 701px) and (max-width: 899px) {
   dialog.sector-dialog { height: 100dvh; max-height: 100dvh; border-top: 0; border-radius: 0; }
@@ -4007,8 +4029,8 @@ html[data-effects="reduced"] #research-kind.is-floating:not([hidden]) { animatio
 
 .topbar.is-redundant { display: none; }
 
-/* Phone sector sheet: the opened stock's card is one rounded block, its content kept off the edges. */
-@media (max-width: 700px) {
+/* Sector stocks as cards: the opened stock's card is one rounded block, its content kept off the edges. */
+@container sector-stocks (max-width: 680px) {
   .sector-stock-table tbody tr[data-sector-target] { padding-inline: 10px; border-radius: 12px; border-bottom-color: transparent; box-shadow: inset 0 0 0 1px var(--border); }
 }
 
@@ -4037,3 +4059,33 @@ html[data-effects="reduced"] #research-kind.is-floating:not([hidden]) { animatio
 .etf-category-nav[hidden] { display: none; }
 .etf-category-nav { margin-top: 10px; }
 .etf-category-nav button small { margin-left: 6px; font-size: var(--text-meta); font-variant-numeric: tabular-nums; opacity: .75; }
+
+/* 株研分析說明 beside the stock drawer (wide screens): a non-modal panel on the left, so the guide and the stock
+   read side by side. The drawer is min(500px, 100vw − 420px) wide on the right; the panel takes the room left. */
+dialog.guide-panel {
+  position: fixed;
+  inset: 16px auto 16px 16px;
+  z-index: 100;
+  width: min(560px, calc(100vw - min(500px, 100vw - 420px) - 48px));
+  max-width: none;
+  height: auto;
+  max-height: none;
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: 0 18px 50px -18px rgb(15 23 42 / 35%);
+  animation: guide-panel-in 220ms ease-out;
+}
+/* The header stays at the top while the guide scrolls (the glass style adds its chapter row and frosted fill). */
+dialog.guide-panel .dialog-top { position: sticky; top: -25px; z-index: 2; margin: -25px -30px 4px; padding: 22px 30px 12px; background: inherit; }
+dialog.guide-panel .guide-item h4 { margin: 8px 0 6px; font-size: var(--text-body); }
+@keyframes guide-panel-in { from { transform: translateX(-24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { dialog.guide-panel { animation: none; } }
+html[data-effects="reduced"] dialog.guide-panel { animation: none; }
+
+/* A stock opened from a sector's sheet (wide screens): the drawer on the right, without dimming the sheet,
+   which steps aside to the left and narrows to the room the drawer leaves (src/main.js moveSectorSheet). */
+@media (min-width: 900px) {
+  #info-dialog[data-over-sheet="true"]::backdrop { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  dialog.sector-dialog.is-beside-stock { inset: 0 auto 0 16px; margin: auto 0; width: min(900px, calc(100vw - min(500px, 100vw - 420px) - 48px)); }
+}

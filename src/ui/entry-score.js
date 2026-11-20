@@ -291,5 +291,5 @@ export function entryScoreDialogMarkup(stock, esc, number, percent, favorite = f
     ? `${sections.basic}${sections.gates}${sections.signal}${sections.readiness}${sections.plan}`
     : `${sections.basic}${sections.gates}${sections.notice}`;
   return `<div class="entry-dialog has-research">${header}${sections.card}${chart}${body}
-    <p class="helper-text entry-disclaimer">進場研究依固定規則計算，明日進場候選不代表保證可以買進；分數不代表上漲機率、預期報酬率或買賣指令，參數為暫定、尚未經歷史回測驗證。<br>模型版本：${esc(research.modelVersion)}</p></div>`;
+    <p class="helper-text entry-disclaimer">進場研究依固定規則計算，明日進場候選不代表保證可以買進，也不是上漲機率、預期報酬率或買賣指令；參數為暫定，以每日研究樣本與後續行情持續檢驗。<br>模型版本：${esc(research.modelVersion)}</p></div>`;
 }

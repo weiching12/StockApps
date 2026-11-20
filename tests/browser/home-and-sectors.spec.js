@@ -185,14 +185,23 @@ test.describe("backtest needs an account", () => {
     expect(fit).toEqual({ pageOverflow: false, inside: true });
   });
 
-  for (const width of [560, 967, 1100]) test(`on a ${width}px top bar the backtest sits in the menu and the bar keeps one row`, async ({ page }) => {
+  // Phones put the backtest in the menu; from 701px the bar has room for it and the guide icons as they are.
+  for (const width of [560, 701, 967, 1100]) test(`on a ${width}px top bar the backtest shows and the bar keeps one row`, async ({ page }) => {
     await account(page, signedIn);
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/");
-    await expect(page.locator('.sidebar nav [data-page="backtest"]')).toBeHidden();
-    await page.getByRole("button", { name: "更多選單" }).click();
-    await expect(page.getByRole("menuitem", { name: "策略回測" })).toBeVisible();
-    await page.keyboard.press("Escape");
+    if (width <= 700) {
+      await expect(page.locator('.sidebar nav [data-page="backtest"]')).toBeHidden();
+      await page.getByRole("button", { name: "更多選單" }).click();
+      await expect(page.getByRole("menuitem", { name: "策略回測" })).toBeVisible();
+      await page.keyboard.press("Escape");
+    } else {
+      await expect(page.locator('.sidebar nav [data-page="backtest"]')).toBeVisible();
+      await expect(page.getByRole("button", { name: "更多選單" })).toBeHidden();
+      // No page name is cut short.
+      expect(await page.locator(".sidebar nav [data-page] .nav-label, .sidebar nav [data-page] .nav-label-mobile").evaluateAll((labels) =>
+        labels.filter((label) => label.getClientRects().length).every((label) => label.scrollWidth <= label.clientWidth + 1))).toBe(true);
+    }
     const rows = await page.locator(".sidebar nav").evaluate((nav) => new Set([...nav.children]
       .filter((item) => item.getClientRects().length).map((item) => Math.round(item.getBoundingClientRect().top))).size);
     expect(rows).toBe(1);

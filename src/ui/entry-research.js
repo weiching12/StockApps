@@ -218,11 +218,15 @@ export function researchDialogSections(result, stock, { esc, number, percent }) 
     ["整理區間", `${signal.evidence.rangeStart} ～ ${signal.evidence.rangeEnd}`], ["區間上緣", price(signal.evidence.rangeHigh, number)],
     ["區間下緣", price(signal.evidence.rangeLow, number)], ["突破幅度", percent(signal.evidence.breakoutPercent)],
   ] : [];
-  const signalSection = `<section class="research-signal" aria-labelledby="research-signal-title"><h3 id="research-signal-title">進場訊號分析</h3>${signal
-    ? `<p><span class="research-chip ${STATUS_TONE[signal.status]}">${esc(ENTRY_RESEARCH_STATUS_LABELS[signal.status])}</span> ${esc(signal.setupLabel)} · ${esc(signal.date)}${signal.invalidatedOn ? ` · ${esc(signal.invalidatedOn)} 收盤跌破失效價` : ""}</p><dl class="research-signal-facts">${[["觸發價格", price(signal.triggerPrice, number)], ...evidence,
+  // The status sits at the section's top right, beside its title; the signal's pattern and date lead the facts.
+  const statusChip = signal
+    ? `<span class="research-chip ${STATUS_TONE[signal.status]}">${esc(ENTRY_RESEARCH_STATUS_LABELS[signal.status])}</span>`
+    : `<span class="research-chip ${STATUS_TONE[research.status] ?? "muted"}">${esc(research.label ?? "—")}</span>`;
+  const signalSection = `<section class="research-signal" aria-labelledby="research-signal-title"><div class="research-section-head"><div class="research-section-title"><h3 id="research-signal-title">進場訊號分析</h3>${signalHow(signal)}</div>${statusChip}</div>${signal
+    ? `<p class="research-signal-meta">${esc(signal.setupLabel)} · ${esc(signal.date)}${signal.invalidatedOn ? ` · ${esc(signal.invalidatedOn)} 收盤跌破失效價` : ""}</p><dl class="research-signal-facts">${[["觸發價格", price(signal.triggerPrice, number)], ...evidence,
       ["KD 確認", signal.kdConfirmed ? "已確認" : "未完全確認"], ["量能確認", signal.volumeConfirmed === null ? "資料不足" : signal.volumeConfirmed ? `已確認（${price(signal.rvol20, number)} 倍）` : `未達標準（${price(signal.rvol20, number)} 倍）`],
       ["有效期間", validityText(signal.validSessions)]].map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>`
-    : `<p><span class="research-chip ${STATUS_TONE[research.status] ?? "muted"}">${esc(research.label ?? "—")}</span></p>`}${signalRules(research, signal, esc)}</section>`;
+    : ""}${signalRules(research, signal, esc)}</section>`;
 
   const planSection = riskSection(plan, signal, { esc, number });
 
@@ -301,12 +305,23 @@ const validityText = (sessions) => sessions === 1 ? "僅訊號日當天" : `觸�
  * How the system judges a signal, then both patterns with every condition and today's result.
  * The pattern behind an existing signal is shown as judged on its signal day.
  */
-function signalRules(research, signal, esc) {
+/**
+ * How signals are judged, in four short steps, behind an icon beside the section's title. The full
+ * conditions and numbers are in 株研分析說明 (02 進場研究), which the last line opens.
+ */
+function signalHow(signal) {
   const validity = signal?.validSessions ?? ENTRY_RESEARCH_MODEL.signal.validSessions;
-  const steps = ["系統每個交易日收盤後，檢查下列兩種型態。", "「形成條件」全部成立，代表型態已出現。", "之後「觸發條件」也全部成立的那一天就是訊號日（進場訊號已觸發）。", ...(validity === 1
-    ? ["訊號只在訊號日當天有效：當晚依收盤產生明日進場候選。", "下一個交易日起為「訊號已過期」，需等待新的訊號。", "之後收盤跌破策略失效價，標示為「訊號失效」。"]
-    : [`訊號自訊號日起 ${validity} 個交易日內有效，超過為「訊號已過期」。`, "有效期間內收盤跌破策略失效價，標示為「訊號失效」。"])];
-  const how = `<details class="research-plan-help research-signal-how"><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>判定方式</summary><ol role="note">${steps.map((step) => `<li>${step}</li>`).join("")}</ol></details>`;
+  const steps = [
+    "每個交易日收盤後，檢查「順勢回踩恢復」與「整理區間向上突破」兩種型態。",
+    "形成條件全部成立，代表型態出現；觸發條件也全部成立的那一天，就是訊號日。",
+    validity === 1 ? "訊號只在訊號日當天有效，當晚依收盤評估明日能否進場；隔天起為「訊號已過期」。"
+      : `訊號自訊號日起 ${validity} 個交易日內有效，超過為「訊號已過期」。`,
+    "之後收盤跌破失效價為「訊號失效」，代表原本的進場理由不成立。",
+  ];
+  return `<details class="research-plan-help research-signal-how"><summary aria-label="判定方式" title="判定方式"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg></summary><ol role="note">${steps.map((step) => `<li>${step}</li>`).join("")}<li class="research-signal-how-more">完整條件與數值見<button type="button" class="research-gate-guide" data-analysis="research">株研分析說明</button></li></ol></details>`;
+}
+
+function signalRules(research, signal, esc) {
   const setups = (research.setups ?? []).map((today) => {
     const fromSignal = signal?.setupType === today.setupType;
     const checks = fromSignal ? signal.checks : today.checks;
@@ -322,7 +337,7 @@ function signalRules(research, signal, esc) {
       : `<p class="research-setup-basis">依 ${esc(shortDate(basis))} 收盤判定</p><h4>形成條件</h4><ul class="research-checks">${list("setup")}</ul><h4>觸發條件</h4><ul class="research-checks">${list("trigger")}</ul>`;
     return `<details class="research-setup"><summary><strong>${esc(SETUP_LABELS[today.setupType])}</strong><span class="research-setup-state ${tone}">${state}</span></summary>${body}</details>`;
   }).join("");
-  return `${how}${setups ? `<div class="research-setups">${setups}</div>` : ""}`;
+  return setups ? `<div class="research-setups">${setups}</div>` : "";
 }
 
 const shortDate = (date) => String(date).slice(5).replace("-", "/");

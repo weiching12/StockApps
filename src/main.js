@@ -739,16 +739,19 @@ function openDialog(type, focusClose = true) {
     content.innerHTML = `<h2 id="dialog-heading">讀懂價格背後的訊號</h2><p class="dialog-intro">指標提供觀察角度。搭配價量與籌碼，建立更完整的判斷。</p><article class="guide-item" id="guide-ma60"><span>01</span><div><h3>季線 MA60</h3><p>最近 60 個交易日收盤價的簡單移動平均，包含選定資料日。股價高於季線時，位置顯示為正值。</p><code>乖離率 = (收盤價 ÷ MA60 − 1) × 100%</code></div></article><article class="guide-item" id="guide-kd"><span>02</span><div><h3>KD 隨機指標</h3><p>預設以 9 日最高、最低與當日收盤價計算 RSV，再以平滑係數 3 遞推 K、D。K、D 初始值為 50；不足 9 日不顯示。最高與最低相同時 RSV 採 50。</p><code>RSV = (收盤 − 最低) ÷ (最高 − 最低) × 100<br>K = 前日 K × 2/3 + RSV × 1/3<br>D = 前日 D × 2/3 + 當日 K × 1/3</code><div class="kd-zone-bar" role="img" aria-label="K 值 0 到 100：20 以下為低檔區，80 以上為高檔區"><span class="kd-zone low">低檔區</span><span class="kd-zone mid">中間區</span><span class="kd-zone high">高檔區</span><span class="kd-zone-tick" style="--at: 0%">0</span><span class="kd-zone-tick" style="--at: 20%">20</span><span class="kd-zone-tick" style="--at: 80%">80</span><span class="kd-zone-tick" style="--at: 100%">100</span></div><p>K &gt; 80 為高檔區，K &lt; 20 為低檔區，不能單獨視為買賣訊號。你可以在指標設定調整參數。</p></div></article><article class="guide-item" id="guide-institutional"><span>03</span><div><h3>三大法人買賣超</h3><dl class="signal-rules"><div><dt>定義</dt><dd>外資、投信及自營商的買進股數減去賣出股數。正值為買超，負值為賣超。</dd></div><div><dt>單位</dt><dd>1 張 = 1,000 股；法人買賣量與全市場成交量的統計範圍不同。</dd></div><div><dt>近 5／20 日累計</dt><dd>包含資料日，依實際交易日加總後換算為張；資料不足不補零。</dd></div><div><dt>連買／連賣</dt><dd>外資、投信的連買／連賣日數從資料日回溯，遇反向、持平或缺漏即中止；若回溯到資料起點或缺漏，顯示「至少」。</dd></div></dl></div></article><article class="guide-item" id="guide-session"><span>04</span><div><h3>前一交易日</h3><p>目前預設資料日為 ${dataset.info.asOf}。日期選單可回看最近 30 個${isDemo ? "模擬" : "實際"}交易日，所有指標僅使用選定日及之前的資料。</p></div></article><article class="guide-item" id="guide-signal"><span>05</span><div><h3>KD 技術建議</h3>${technicalSignalGuide()}</div></article><article class="guide-item" id="guide-price-volume"><span>06</span><div><h3>今日量價</h3><p>比較選定交易日的成交量與此前 20 個市場交易日的平均成交量；平均量不包含當日。成交量均以股計算，畫面顯示倍數至小數點後兩位。</p><code>RVOL20 = 當日成交量 ÷ 前 20 個交易日平均成交量</code><p>RVOL20 ≥ 1.20 為量增；0.80 ≤ RVOL20 &lt; 1.20 為量平；RVOL20 &lt; 0.80 為量縮。收盤價相對前一有效交易日上漲超過 0.50% 為價漲、下跌超過 0.50% 為價跌，介於 ±0.50%（含邊界）為價格變動有限。依價格與量能的組合顯示量價術語；量增且價格變動有限為「量增價滯」，量平為「量價持平」，量縮為「量縮盤整」。即使 RVOL20 ≥ 2.00，只要價格變動有限仍為「量增價滯」。</p><p>當日或前 20 個市場交易日任一天缺少成交量、歷史不足、前 20 日平均量為 0，或漲跌無法計算時，顯示「資料不足」；不會以更早日期補足缺漏。切換歷史日期時只使用該日及以前的資料。量價狀態僅供觀察，不代表買賣訊號。</p></div></article>`;
   }
   const dialog = document.querySelector("#info-dialog");
-  // The side drawer is a non-modal dialog, so it would open under a modal already showing (a sector's sheet in
-  // 法人買株): over another modal the stock opens as a modal too, which stacks it on top.
+  // A stock opens in the side drawer on wide screens. Over a sector's sheet (法人買株, a modal) it is still the
+  // drawer, but opened as a modal so it stacks above the sheet, and the sheet moves aside to its left.
   const overModal = [...document.querySelectorAll("dialog")].some((other) => other !== dialog && other.matches(":modal"));
-  const entryDrawer = type.startsWith("entry:") && matchMedia("(min-width: 900px)").matches && !overModal;
-  if (dialog.open && dialog.dataset.entryDrawer !== String(entryDrawer)) dialog.close();
+  const entryDrawer = type.startsWith("entry:") && matchMedia("(min-width: 900px)").matches;
+  const overSheet = entryDrawer && overModal && document.querySelector("#sector-dialog")?.open;
+  if (dialog.open && (dialog.dataset.entryDrawer !== String(entryDrawer) || (dialog.dataset.overSheet === "true") !== Boolean(overSheet))) dialog.close();
   dialog.dataset.entryDrawer = String(entryDrawer);
+  dialog.dataset.overSheet = String(Boolean(overSheet));
   if (!dialog.open) {
-    if (entryDrawer) dialog.show();
+    if (entryDrawer && !overModal) dialog.show();
     else dialog.showModal();
   }
+  if (overSheet) moveSectorSheet(true);
   dialog.scrollTop = 0;
   content.scrollTop = 0;
   enhanceGuideDialog(dialog, content);
@@ -759,6 +762,21 @@ function openDialog(type, focusClose = true) {
   else if (dialog.contains(document.activeElement)) document.activeElement.blur();
 }
 
+/**
+ * 株研分析說明 in its own non-modal panel on the left, while the stock drawer stays open on the right.
+ * Closed by its button or Escape; the stock is not affected.
+ */
+function openGuidePanel(section) {
+  const panel = document.querySelector("#guide-dialog"), content = document.querySelector("#guide-content");
+  content.innerHTML = analysisGuideMarkup(esc, null, "guide-heading");
+  if (!panel.open) panel.show();
+  enhanceGuideDialog(panel, content);
+  const target = document.getElementById(ANALYSIS_SECTIONS[section]);
+  // Below the pinned chapter row (glass), as a chapter chip would scroll.
+  const header = panel.querySelector(".dialog-top").getBoundingClientRect().bottom - panel.getBoundingClientRect().top;
+  panel.scrollTop = target ? target.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop - header + 4 : 0;
+}
+
 /** Shows a backtest sample's saved explanation once its request resolves. */
 function openBacktestSample(pending) {
   const dialog = document.querySelector("#info-dialog");
@@ -766,6 +784,35 @@ function openBacktestSample(pending) {
   const request = dialog.dataset.request;
   pending.then((markup) => markup, (error) => `<h2 id="dialog-heading">研究樣本說明</h2><p role="alert">${esc(error.message || "樣本說明載入失敗")}</p>`)
     .then((markup) => { if (dialog.open && dialog.dataset.request === request) document.querySelector("#dialog-content").innerHTML = markup; });
+}
+
+/**
+ * The sector sheet steps aside to the left while a stock from it is open in the drawer on the right, so both
+ * show side by side; it returns to the centre when the stock closes. The move is animated from where it was.
+ */
+function moveSectorSheet(aside) {
+  const sheet = document.querySelector("#sector-dialog");
+  if (!sheet?.open || sheet.classList.contains("is-beside-stock") === aside) return;
+  const first = sheet.getBoundingClientRect();
+  sheet.classList.toggle("is-beside-stock", aside);
+  if (!motionAllowed()) return;
+  // Only the position animates; the width takes its new value at once, so the stock list switches between
+  // table and cards a single time rather than on every frame its width crosses the cards' breakpoint.
+  const last = sheet.getBoundingClientRect();
+  sheet.animate([{ transform: `translateX(${(first.left + first.width / 2) - (last.left + last.width / 2)}px)` }, { transform: "none" }],
+    { duration: 320, easing: "cubic-bezier(.22, 1, .36, 1)" });
+}
+const motionAllowed = () => !effectsReduced() && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * Closes the stock dialog at once. When it was opened from a sector's sheet, the sheet starts gliding back to
+ * the centre in the same moment, rather than after the dialog's close event.
+ */
+function closeStockDialog() {
+  const dialog = document.querySelector("#info-dialog");
+  if (!dialog.open) return;
+  if (dialog.dataset.overSheet === "true") { dialog.dataset.overSheet = "false"; moveSectorSheet(false); }
+  dialog.close();
 }
 
 function closeEntryDrawer() {
@@ -1157,7 +1204,10 @@ function bindEvents() {
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && document.querySelector('#info-dialog[data-entry-drawer="true"]')?.open) {
-      document.querySelector("#info-dialog").close();
+      // One Escape closes the stock alone: without preventDefault the browser would then also close the sector
+      // sheet it was opened from, as the topmost modal left.
+      event.preventDefault();
+      closeStockDialog();
       return;
     }
     const row = event.target.closest("#stock-rows tr[data-symbol]");
@@ -1261,8 +1311,10 @@ function bindEvents() {
     }
       if (button.dataset.dialog) openDialog(button.dataset.dialog, !touchInteraction);
     if (button.dataset.analysis) {
-      // From inside a stock's detail, the guide offers a way back to that stock.
       const info = document.querySelector("#info-dialog");
+      // Beside the stock drawer (wide screens) the guide opens on the left, so both can be read at once.
+      if (info.open && info.contains(button) && info.dataset.entryDrawer === "true" && info.dataset.overSheet !== "true") { openGuidePanel(button.dataset.analysis); return; }
+      // Elsewhere it takes the dialog; from inside a stock's detail it offers a way back to that stock.
       analysisFrom = info.open && info.contains(button) ? info.dataset.entrySymbol || null : null;
       openDialog("analysis", !touchInteraction);
       analysisFrom = null;
@@ -1335,8 +1387,7 @@ function bindEvents() {
     }
     if (button.id === "close-sector-dialog")
       document.querySelector("#sector-dialog").close();
-    if (button.id === "close-dialog")
-      document.querySelector("#info-dialog").close();
+    if (button.id === "close-dialog") closeStockDialog();
     if (button.dataset.favorite) {
       const symbol = button.dataset.favorite;
       const wasFavorite = state.favorites.includes(symbol);
@@ -1474,8 +1525,49 @@ function bindEvents() {
   });
   dialogs.bindBackdropDismiss();
   dialogs.bindMobileDismiss(document.querySelector("#info-dialog"), ".info-dialog-handle");
+  const guidePanel = document.querySelector("#guide-dialog");
+  guidePanel.addEventListener("click", (event) => { if (event.target.closest("[data-close-guide]")) guidePanel.close(); });
+  // Escape closes the guide alone: the stock drawer beside it stays (the page's own Escape would close that).
+  guidePanel.addEventListener("keydown", (event) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); guidePanel.close(); } });
   const sectorDialog = document.querySelector("#sector-dialog");
   dialogs.bindMobileDismiss(sectorDialog, ".sector-dialog-handle", { sheetQuery: SECTOR_SHEET });
+  // A click outside the stock lands on its transparent backdrop. Over a sector's sheet it acts on what lies under
+  // it: the sheet's close button closes the sheet and the stock, another stock in the sheet opens instead, and
+  // anywhere else closes the stock and brings the sheet back.
+  document.querySelector("#info-dialog").closeWithMotion = (event) => {
+    const info = document.querySelector("#info-dialog"), sheet = document.querySelector("#sector-dialog");
+    // The backdrop hides the sheet from hit testing, so the click is matched to the sheet by position.
+    const at = (element) => { const box = element?.getBoundingClientRect();
+      return Boolean(box) && event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom; };
+    const onSheet = event && info.dataset.overSheet === "true" && at(sheet);
+    if (onSheet && at(sheet.querySelector("#close-sector-dialog"))) {
+      info.dataset.overSheet = "false";
+      info.close();
+      sheet.classList.remove("is-beside-stock");
+      sheet.close();
+      return;
+    }
+    const row = onSheet ? [...sheet.querySelectorAll("tr[data-sector-stock]")].find(at) : null;
+    if (row && row.dataset.sectorStock !== info.dataset.entrySymbol) { void openEntryScoreDialog(row.dataset.sectorStock, !touchInteraction); return; }
+    closeStockDialog();
+  };
+  // The sheet stays scrollable under the stock: a wheel over the transparent backdrop scrolls what lies beneath.
+  document.querySelector("#info-dialog").addEventListener("wheel", (event) => {
+    const info = event.currentTarget;
+    if (event.target !== info || info.dataset.overSheet !== "true") return;
+    const box = info.getBoundingClientRect();
+    if (event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom) return;
+    const sheet = document.querySelector("#sector-dialog");
+    const scroller = [sheet, ...sheet.querySelectorAll("*")].find((element) => element.scrollHeight > element.clientHeight + 1 &&
+      /(auto|scroll)/.test(getComputedStyle(element).overflowY));
+    scroller?.scrollBy({ top: event.deltaY, left: event.deltaX });
+  }, { passive: true });
+  // Closing a stock opened from the sheet brings the sheet back to the centre.
+  document.querySelector("#info-dialog").addEventListener("close", (event) => {
+    if (event.currentTarget.dataset.overSheet !== "true") return;
+    event.currentTarget.dataset.overSheet = "false";
+    moveSectorSheet(false);
+  });
   sectorDialog.addEventListener("close", () => {
     const name = state.sectorName;
     state.sectorName = null;

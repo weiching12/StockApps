@@ -123,13 +123,18 @@ test("on wider screens the search page hides the top bar, whose search would onl
   await expect(page.locator(".topbar")).toBeVisible();
 });
 
-test("the top bar's menu opens above the page's search and status bar", async ({ page }) => {
-  await page.setViewportSize({ width: 857, height: 860 });
-  await page.goto("/");
-  await page.getByRole("button", { name: "更多選單" }).click();
-  const item = page.getByRole("menuitem", { name: "分析說明" });
-  await expect(item).toBeVisible();
-  const onTop = await item.evaluate((node) => { const box = node.getBoundingClientRect();
-    return node.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)); });
-  expect(onTop).toBe(true);
+test("from 701px the guides and settings sit in the bar as icons; phones keep them in the menu", async ({ page }) => {
+  for (const width of [857, 701]) {
+    await page.setViewportSize({ width, height: 860 });
+    await page.goto("/");
+    for (const name of ["株研分析說明", "指標小百科", "關於株研"]) await expect(page.locator(`.sidebar nav [aria-label="${name}"]`), `${width}px ${name}`).toBeVisible();
+    await expect(page.locator('.sidebar-bottom > [data-dialog="settings"]')).toBeVisible();
+    await expect(page.getByRole("button", { name: "更多選單" })).toBeHidden();
+    await page.locator('.sidebar nav [aria-label="關於株研"]').click();
+    await expect(page.locator("#dialog-heading")).toHaveText("關於株研");
+    await page.keyboard.press("Escape");
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("button", { name: "更多選單" })).toBeVisible();
+  await expect(page.locator('.sidebar nav [aria-label="關於株研"]')).toBeHidden();
 });

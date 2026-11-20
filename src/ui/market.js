@@ -2,6 +2,7 @@ import { ETF_CATEGORIES } from "../../shared/etf-info.js";
 import { filterStocks, getDominantInstitution } from "../../shared/indicators.js";
 import { isEtf } from "../../shared/market-codec.js";
 import { compareResearchStocks, matchesResearchFilter, researchListCells } from "./entry-research.js";
+import { syncChipRow } from "./sectors.js";
 
 export function renderMarketView(context) {
   const { state, snapshots, pendingSymbols, stockMoney, tableState, TABLE_BATCH_SIZE, tableRowCache, loading, loadFailed, dataset, isDemo, esc, icon, number, percent, direction, institutionalMoney, institutionalAmount, loadingIcon, pendingField, updateSegmentedControl } = context;
@@ -236,5 +237,6 @@ export function renderEtfCategoryChips({ state, snapshots, esc }) {
   const chip = (key, label, count) => `<button type="button" data-etf-category="${esc(key)}" aria-pressed="${key === chosen}">${esc(label)}<small>${count}</small></button>`;
   const markup = chip("all", "全部", etfs.length) + ETF_CATEGORIES.filter(({ key }) => counts.get(key))
     .map(({ key, label }) => chip(key, label, counts.get(key))).join("");
-  if (row.innerHTML !== markup) row.innerHTML = markup;
+  // The same update as the sector chips: a new choice pops, a new day's set of chips fans in.
+  syncChipRow(row, markup);
 }
